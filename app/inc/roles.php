@@ -85,7 +85,7 @@ function route_staff_login(string $method): never
         $b = (int)($_GET['b'] ?? 0);
         page(t('Staff-Login'), '
         <div class="auth-box">
-          <h1>' . t('Staff-Portal') . '</h1>
+          <h1>' . t('Staff-Portal') . '</h1>' . demo_login_hint() . '
           <p class="muted">' . t('Theken-Zugang: Kunden finden, Stempel und Punkte vergeben, einlösen.') . '</p>
           <form method="post" action="/staff/login" class="form">' . csrf_field() . '
             <label>' . t('Business-Nr.') . ' <input name="business_id" required inputmode="numeric" value="' . ($b ?: '') . '"></label>
@@ -208,7 +208,7 @@ function route_member_login(string $method): never
     if ($method === 'GET') {
         page(t('Kunden-Login'), '
         <div class="auth-box">
-          <h1>' . t('Meine Karten') . '</h1>
+          <h1>' . t('Meine Karten') . '</h1>' . demo_login_hint() . '
           <p class="muted">' . t('Dein Wallet: alle Treuekarten, Punkte und Belohnungen auf einen Blick.') . '</p>
           <form method="post" action="/member/login" class="form">' . csrf_field() . '
             <label>' . t('E-Mail') . ' <input type="email" name="email" required></label>

@@ -66,3 +66,23 @@ Business-Seite → Integrationen → Webhook anlegen. Events: Mitglied erstellt,
 ## Shopify (spezieller Endpunkt)
 
 `POST /integrations/shopify/webhook/{businessId}` — HMAC-geprüft (`X-Shopify-Hmac-Sha256` gegen das in der App hinterlegte Secret), verarbeitet `orders/paid` und `orders/create`. Setup: `integrations/shopify/README.md`.
+
+
+## Merchant-API für WordPress (v1)
+
+Authentifizierung wie oben über unternehmensgebundenen Bearer-Schlüssel. Dieser Schlüssel ist kein eingeschränktes WordPress-Benutzertoken. Keine `business_id` aus dem Request wird verwendet. HTTPS und serverseitige Schlüsselhaltung sind erforderlich. GET bleibt bei ausgelaufenem Plan für bestehende Daten verfügbar; POST unterliegt den API-/Programm-/Mitgliederrechten und Mengenlimits.
+
+| Methode | Pfad nach `/api/v1` | Zweck |
+| --- | --- | --- |
+| GET | `/merchant/summary` | Unternehmensname, Mitglieder, Karten, Punktesalden, aktuelle Stempel und offene Stempelbelohnungen, `as_of` in UTC |
+| GET | `/merchant/members?q=...&after=0` | Suche in Name/E-Mail/Code, max. 50; `next_after` als nächsten Cursor verwenden, `null` bedeutet Ende |
+| GET | `/merchant/members/{code}` | Mitglied, Karten einschließlich `program_id`/`active`, verfügbare Prämien des Unternehmens |
+| POST | `/merchant/members` | Neues Mitglied: `operation`, `name`, `email`; gleiche E-Mail wird nicht automatisch übernommen |
+| POST | `/merchant/members/{id}/edit` | `operation`, neuer `name`, unveränderte `email`; Identitätsänderung gesperrt |
+| POST | `/merchant/cards/{id}/action` | `operation`, `action`, ggf. `amount` oder `reward_id` |
+
+`operation` ist eine neue zufällige 32-stellige kleine Hex-Zeichenfolge pro beabsichtigter Änderung. Bei Timeout dieselbe Kennung und unveränderte Eingaben verwenden. Wiederholung liefert das gespeicherte Ergebnis, abweichende Eingabe mit derselben Kennung ergibt 422. Schreibtransaktion umfasst Kontostand, Journal und Ergebnisbeleg. Neue Kennung bedeutet neue Buchung. Kein automatischer Ablauf; nach Kundenlöschung werden alte Belege anonym gesperrt.
+
+Aktionen: `points_add` mit ganzzahligem `amount` 1–10000 (Bonuszeiten gelten), `stamp`, `redeem_reward` mit `reward_id`, `redeem_stamp_reward`. Nur aktive Karten im eigenen Unternehmen. Einlösung verlangt ausreichendes Guthaben beziehungsweise offene Belohnung. Der externe Client muss richtige Person und Einlösung ausdrücklich bestätigen lassen. Das WordPress-Plugin prüft diese Bestätigung serverseitig zusätzlich zum Nonce.
+
+Der neue Merchant-Pfad bucht Salden und Journal, aber noch keine Achievement-Auswertung, ausgehenden Webhooks, E-Mail-Automation oder Wallet-Pushes. E-Mail, Passwörter und Marketingeinwilligung bleiben unverändert. Keine Gutscheincode- oder bezahlten Passaktionen. Details und Fehler-/Retry-Bedienung: [WordPress-README](../integrations/woocommerce/README.md).

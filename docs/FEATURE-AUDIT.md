@@ -110,3 +110,8 @@ Netzwerk-Gruppierung eigener Unternehmen, Standorte mit Staff-Buchungszuordnung,
 ## Nachtrag: PayPal-SaaS-Abrechnung
 
 SDK-v6-Subscribe-Session, serverseitige Anlage und verbindlicher Statusabgleich, originaldatengetreue Webhook-Postback-Verifikation, Event-/Create-Deduplizierung, mandantengebundene Planwahl, explizite Kündigung und konservative Refund-/Reversal-Sperre sind ergänzt. Siehe [PAYPAL.md](PAYPAL.md). Keine echte Sandbox-/Live-Abnahme, kein automatischer Planwechsel/Proration, jährlicher Intervallwähler oder grafischer Reconciliation-Workflow. Fehlende Verkaufsereignisse verlangen Betreiberabgleich. Vollständige Parität bleibt offen.
+
+
+## Nachtrag: WordPress-Händlerdashboard
+
+Eigenständiges WordPress-Adminmenü ohne WooCommerce-Abhängigkeit, Live-Kundenliste/Suche/Cursor, Salden, Anlegen und Namensänderung sowie Punkte-/Stempelbuchungen und bestätigte Prämieneinlösung ergänzt. Geschäftsbindung erfolgt über einen serverseitigen API-Schlüssel, Verbindungsverwaltung nur für Administratoren, Bedienung auch mit `manage_woocommerce`. Atomare Wiederholungsbelege einschließlich echter Parallel- und Antwortverlusttests. Lokal echte WordPress-Installation und responsive Formulare geprüft. Kein Multi-Vendor-/Pro-Verkäufer-Routing, kein E-Mail-Wechsel, keine Passverkäufe oder automatische Folge-Workflows über diesen neuen API-Pfad. Keine echte WooCommerce-/HTTPS-Produktionsabnahme. [Einrichtung, Datenhaltung, Tests und Grenzen](../integrations/woocommerce/README.md).

@@ -14,6 +14,8 @@ return [
     // Standardsprache der Oberfläche: 'de' oder 'en'.
     // Besucher können per ?lang= umschalten (wird in der Session gemerkt).
     'default_lang' => 'de',
+    // Nur für eine getrennte öffentliche Demo mit Seed-Daten. Kein Sicherheitsmodus.
+    'demo_banner' => false,
     'session_idle_seconds' => 7200,
 
     // Pfad zur SQLite-Datei. Standard: data/app.sqlite (AUSSERHALB von public/).

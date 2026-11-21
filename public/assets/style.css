@@ -424,3 +424,6 @@ svg rect:hover { opacity: 0.8; }
 
 /* Keep long consent/cancellation labels from shrinking the actual checkbox. */
 label.check input[type="checkbox"] { flex: 0 0 16px; width: 16px; height: 16px; min-width: 16px; }
+
+/* Seeded public demo only, rendered when DEMO_MODE=1. */
+.demo-hint{border:1px solid #dca54c;border-radius:12px;background:#fff8eb;color:#342608;padding:16px;margin:20px 0;text-align:left;overflow-wrap:anywhere}.demo-hint h2{font-size:1.1rem;margin:0 0 8px}.demo-hint p{font-size:.9rem}.demo-hint dt{font-weight:700;margin-top:10px}.demo-hint dd{margin:4px 0 12px}.demo-hint code{color:inherit;font-size:.9rem}.demo-hint a{color:#704511}

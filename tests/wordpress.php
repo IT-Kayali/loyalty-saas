@@ -1,0 +1,24 @@
+<?php
+// Run against a disposable actual WordPress installation, never production.
+require getenv('WORDPRESS_TEST_ROOT').'/wp-load.php';require_once ABSPATH.'wp-admin/includes/template.php';$n=0;function yes($v,$s){if(!$v)throw new RuntimeException($s);echo 'PASS '.$s.PHP_EOL;$GLOBALS['n']++;}
+wp_set_current_user(username_exists('testadmin'));$s=LoyaltySaaSWooCommerce::settings();ob_start();LoyaltySaaSWooCommerce::fieldApiKey();$html=ob_get_clean();yes(!str_contains($html,$s['api_key']) && str_contains($html,'type="password"'),'key not disclosed in settings HTML');
+yes(LoyaltySaaSWooCommerce::sanitizeSettings(['api_url'=>$s['api_url'],'api_key'=>''])['api_key']===$s['api_key'],'blank key preserves secret');
+foreach(['http://example.com','https://127.0.0.1','https://localhost','https://example.com/?x=1','https://user:pw@example.com','https://example.com:8443'] as $url)yes(LoyaltySaaSWooCommerce::sanitizeSettings(['api_url'=>$url,'api_key'=>str_repeat('a',48)])===$s,'unsafe endpoint rejected '.$url);
+yes(LoyaltySaaSWooCommerce::apiRequest('GET','/other')['status']===0,'endpoint allowlist');yes(LoyaltySaaSMerchantDashboard::canManage(),'admin operates standalone dashboard');
+wp_set_current_user(username_exists('manager'));yes(LoyaltySaaSMerchantDashboard::canManage(),'shop manager can operate');yes(LoyaltySaaSWooCommerce::sanitizeSettings(['api_url'=>'https://example.com','api_key'=>str_repeat('b',48)])===$s,'shop manager cannot replace connection');
+add_filter('wp_die_handler',fn()=>function($message){throw new RuntimeException((string)$message);});
+$denied=false;try{LoyaltySaaSWooCommerce::renderSettingsPage();}catch(RuntimeException){$denied=true;}yes($denied,'shop manager settings denied');
+wp_set_current_user(username_exists('viewer'));yes(!LoyaltySaaSMerchantDashboard::canManage(),'subscriber denied dashboard');$denied=false;try{LoyaltySaaSMerchantDashboard::render();}catch(RuntimeException){$denied=true;}yes($denied,'subscriber direct render denied');
+wp_set_current_user(username_exists('testadmin'));$_POST=['target'=>'card','operation'=>str_repeat('f',32)];$_REQUEST=[];$denied=false;try{LoyaltySaaSMerchantDashboard::handle();}catch(RuntimeException){$denied=true;}yes($denied,'missing nonce denies mutation');
+$_REQUEST=['_wpnonce'=>wp_create_nonce('loyalty_merchant_write')];$_POST['card_action']='redeem_reward';$denied=false;try{LoyaltySaaSMerchantDashboard::handle();}catch(RuntimeException){$denied=true;}yes($denied,'redemption requires server-side confirmation');
+echo $n.' actual WordPress assertions passed'.PHP_EOL;
+// Use the real WP HTTP entry point but stub only the remote response for edge cases.
+$probe=[];$reply=['headers'=>[],'body'=>'<html>not JSON</html>','response'=>['code'=>200,'message'=>'OK'],'cookies'=>[],'filename'=>null];
+$filter=function($pre,$args,$url)use(&$probe,&$reply){$probe=$args;return $reply;};add_filter('pre_http_request',$filter,1,3);
+$r=LoyaltySaaSWooCommerce::apiRequest('POST','/api/v1/merchant/cards/1/action',['operation'=>str_repeat('a',32),'action'=>'stamp']);yes(!$r['ok'] && $r['status']===0,'HTML success remains uncertain');yes($probe['redirection']===0 && $probe['reject_unsafe_urls']===true && $probe['sslverify']===true,'safe HTTPS transport and no redirects');
+$reply['body']=json_encode(['ok'=>true]);yes(!LoyaltySaaSWooCommerce::apiRequest('POST','/api/v1/merchant/members',['operation'=>str_repeat('a',32)])['ok'],'incomplete write result remains uncertain');
+$reply['response']['code']=302;$reply['body']='';yes(!LoyaltySaaSWooCommerce::apiRequest('GET','/api/v1/business')['ok'],'redirect not accepted as confirmation');
+$reply['response']['code']=200;$reply['body']=json_encode(['member'=>['id'=>1],'points_credited'=>20]);yes(LoyaltySaaSWooCommerce::apiRequest('POST','/api/v1/integrations/order',['reference'=>'wp-test'])['ok'],'legacy order response remains compatible');
+class LocalTestOrder {public $credited=false;public $notes=[];public function get_meta($k){return $this->credited;}public function get_billing_email(){return 'test@example.test';}public function get_billing_first_name(){return 'Local';}public function get_billing_last_name(){return 'Test';}public function get_total(){return 10;}public function get_currency(){return 'EUR';}public function update_meta_data($k,$v){$this->credited=$v;}public function add_order_note($s){$this->notes[]=$s;}public function save(){}}
+function wc_get_order($id){return $GLOBALS['local_order'];}$GLOBALS['local_order']=new LocalTestOrder;LoyaltySaaSWooCommerce::creditOrder(12);LoyaltySaaSWooCommerce::creditOrder(12);yes(count($GLOBALS['local_order']->notes)===1 && $GLOBALS['local_order']->credited,'mock Woo hook credits once and marks order');remove_filter('pre_http_request',$filter,1);
+echo 'Total '.$n.' actual WordPress assertions (Woo object mocked)'.PHP_EOL;

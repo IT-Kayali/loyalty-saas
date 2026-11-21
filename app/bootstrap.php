@@ -460,6 +460,8 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'members', 'birthday', 'TEXT');
     ensure_column($pdo, 'members', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+    $pdo->exec("CREATE TABLE IF NOT EXISTS merchant_operations(business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,member_id INTEGER REFERENCES members(id) ON DELETE SET NULL,operation TEXT NOT NULL,request_hash TEXT NOT NULL,response TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')),PRIMARY KEY(business_id,operation))");
+    $pdo->exec("CREATE TRIGGER IF NOT EXISTS merchant_erase BEFORE DELETE ON members BEGIN UPDATE merchant_operations SET request_hash='erased',response='{\"ok\":true,\"deleted\":true}',member_id=NULL WHERE member_id=OLD.id; END");
     $pdo->exec("CREATE TABLE IF NOT EXISTS paypal_attempts(request_id TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,plan_key TEXT NOT NULL,plan_id TEXT NOT NULL,custom_id TEXT NOT NULL UNIQUE,subscription_id TEXT UNIQUE,finished INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (datetime('now')))");
     $pdo->exec("CREATE TABLE IF NOT EXISTS paypal_sales(sale_id TEXT PRIMARY KEY,subscription_id TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))");
     $pdo->exec("CREATE TABLE IF NOT EXISTS paypal_events(id TEXT PRIMARY KEY,event_type TEXT NOT NULL,processed_at TEXT NOT NULL DEFAULT (datetime('now')))");
@@ -773,4 +775,11 @@ function page(string $title, string $body, ?array $user = null, string $brand = 
 <style>:root{--brand:' . h($brand) . '}</style>
 </head><body>' . $nav . '<main class="wrap">' . $flashes . $body . '</main>
 </body></html>';
+}
+
+/** Public seeded credentials, shown only on an explicitly disposable demo. */
+function demo_login_hint(): string
+{
+    if(getenv('DEMO_MODE')!=='1' && config('demo_banner',false)!==true)return '';
+    return '<aside class="demo-hint"><h2>Demo-Zugänge</h2><p>Nur Testdaten eingeben. Keine echten Kundendaten oder Zahlungen. Änderungen können von anderen Besuchern gesehen und zurückgesetzt werden.</p><dl><dt><a href="/login">Betreiber</a></dt><dd><code>demo@loyalty.local</code><br>Passwort: <code>demo1234</code></dd><dt><a href="/staff/login?b=1">Theke / Staff</a></dt><dd>Business-Nr. <code>1</code>, Name <code>Lena</code><br>PIN: <code>4321</code></dd><dt><a href="/member/login">Mitglied</a></dt><dd><code>aylin@example.com</code><br>Passwort: <code>kunde1234</code></dd></dl></aside>';
 }

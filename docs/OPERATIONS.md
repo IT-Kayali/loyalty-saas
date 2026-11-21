@@ -69,3 +69,10 @@ python3 tests/run-backup.py
 ```
 
 `run-policy.py` führt 19 DB-/Policytests, 8 Punkte-/Undo-/Bestelltests, 38 HTTP-Tests und einen echten Vier-Prozess-Test um den letzten freien Unternehmensplatz aus. `run-backup.py` prüft Backup/Restore, private Dateirechte und Ablehnung eines Path-Traversal-Archivs. Es werden ausschließlich temporäre Testinstallationen verwendet.
+
+
+## Merchant-Wiederholungsbelege und Demo-Modus
+
+Der neue `/api/v1/merchant/`-Schreibpfad führt Saldo, Transaktionsjournal und Ergebnisbeleg unter `BEGIN IMMEDIATE` zusammen. Gleiche Vorgangskennung plus gleiche Eingabe gibt das gespeicherte Ergebnis zurück, Konflikte werden abgelehnt. Kundenlöschung anonymisiert die betreffenden Ergebnisbelege und sperrt alte Create-Retries. Dieser Nachweis gilt nicht pauschal für alle älteren direkten API-Pfade. WordPress-Rollen, offene Vorgangsdaten und Folgen einer Schlüsselrotation: [Plugin-README](../integrations/woocommerce/README.md).
+
+`demo_banner=true` in `config.php` oder `DEMO_MODE=1` zeigt nur die öffentlichen Seed-Zugänge auf Loginseiten, es ist keine Sicherheitsisolation und deaktiviert keine Anbieter. Nur bei einer getrennten Demo setzen. Default ist aus. Ohne aktivierten Schalter keine Anzeige. [Entwicklungs-/Demo-Anleitung](DEVELOPMENT.md).

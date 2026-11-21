@@ -4,6 +4,10 @@ Digitale Stempelkarten, Punkte, Gutscheine und Mehrfachkarten für lokale Gesch�
 
 Reines PHP + SQLite, keine Composer-Abhängigkeiten, keine Build-Tools. Ein Binary reicht.
 
+## WordPress-Händlerdashboard
+
+Eigener WordPress-Adminbereich für Mitglieder, aktuelle Salden, Punkte/Stempel und bestätigte Prämieneinlösung, auch ohne WooCommerce. Admin-only-Verbindung, geschützter API-Schlüssel und transaktionaler Wiederholschutz. Eine Site verbindet genau ein Unternehmen. Einrichtung, echte lokale WordPress-Tests und Grenzen: [Plugin-README](integrations/woocommerce/README.md).
+
 ## E-Mail & Automationen
 
 TLS-SMTP, geprüfte Outbox-/Workerzustände, Einwilligung und Abmeldelinks, Welcome/Birthday/Winback-Textregeln und Einmal-Passwortreset mit Sessionwiderruf ergänzt. Ohne aktivierte SMTP-Konfiguration kein E-Mail-Versand. Echte Providerzustellung ist noch nicht abgenommen. Setup und Grenzen: [docs/MAIL.md](docs/MAIL.md).
@@ -41,6 +45,8 @@ Neu in dieser Ausbaustufe:
 - **Organisation**: Netzwerke eigener Unternehmen, Standorte und Zuordnung neuer Teamaktionen. Keine unternehmensübergreifenden Salden und keine isolierte Standort-Datensicht.
 - **Marketing**: Segmente, Kampagnen (Inbox der Mitglieder, optional SMTP), Bonus-Zeitfenster (Happy Hour), Stufen/Tiers, Achievements
 - **Analytics**: Mitgliederwachstum, Buchungen, Tageszeiten-Heatmap
+
+Entwickler-Einstieg, Architekturkarte, alle Testbefehle und veröffentlichte Demo-Zugänge: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Ein sichtbarer Hinweis mit Test-Zugängen auf Start-/Login-Seiten ist nur mit `'demo_banner' => true` in `config.php` oder `DEMO_MODE=1` aktiv, nie standardmäßig.
 
 ## Schnellstart
 

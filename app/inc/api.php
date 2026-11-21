@@ -290,8 +290,8 @@ function api_json(array $data, int $code = 200): never
 
 function member_api_payload(array $m): array
 {
-    $cards = db()->prepare('SELECT c.id, c.stamps, c.points, c.points_lifetime, c.pending_rewards,
-        c.uses_left, c.visits_left, p.name AS program, p.type
+    $cards = db()->prepare('SELECT c.id, c.program_id, c.stamps, c.points, c.points_lifetime, c.pending_rewards,
+        c.uses_left, c.visits_left, p.name AS program, p.type, p.active
         FROM cards c JOIN programs p ON p.id = c.program_id WHERE c.member_id = ?');
     $cards->execute([$m['id']]);
     return [
@@ -373,6 +373,8 @@ function route_api(string $path, string $method): never
     if(!rate_limit_take('api', (string)$b['api_key'], 120, 60)) rate_limit_stop();
     if(!in_array($method,['GET','HEAD','OPTIONS'],true)) require_plan_write((int)$b['user_id'],'api');
     $input = json_decode((string)file_get_contents('php://input'), true) ?: [];
+
+    if(str_starts_with($path,'/api/v1/merchant/'))route_merchant_api($b,$path,$method,$input);
 
     /* GET /api/v1/business */
     if ($path === '/api/v1/business' && $method === 'GET') {
@@ -589,6 +591,10 @@ function route_shopify_webhook(int $businessId): never
 
 function openapi_spec(): array
 {
+    $operation=['type'=>'string','pattern'=>'^[a-f0-9]{32}$','description'=>'Neue Kennung pro beabsichtigter Änderung; bei unklarer Antwort unverändert erneut senden.'];
+    $body=static fn(array $properties,array $required)=>['required'=>true,'content'=>['application/json'=>['schema'=>['type'=>'object','properties'=>$properties,'required'=>$required]]]];
+    $post=static fn(string $summary,array $properties,array $required)=>['summary'=>$summary,'requestBody'=>$body(['operation'=>$operation]+$properties,array_merge(['operation'],$required)),'responses'=>['200'=>['description'=>'Atomar gebucht oder gespeichertes Replay-Ergebnis'],'401'=>['description'=>'Schlüssel ungültig'],'402'=>['description'=>'Planrecht fehlt'],'422'=>['description'=>'Validierung, Guthaben oder Vorgangskonflikt']]];
+    $id=['name'=>'id','in'=>'path','required'=>true,'schema'=>['type'=>'integer','minimum'=>1]];
     return [
         'openapi' => '3.0.0',
         'info' => ['title' => 'Loyalty SaaS REST API', 'version' => '1.0'],
@@ -596,6 +602,14 @@ function openapi_spec(): array
         'security' => [['bearerAuth' => []]],
         'components' => ['securitySchemes' => ['bearerAuth' => ['type' => 'http', 'scheme' => 'bearer']]],
         'paths' => [
+            '/merchant/summary'=>['get'=>['summary'=>'Aktuelle Unternehmenssalden, keine Umsatzstatistik','responses'=>['200'=>['description'=>'business, members, balances, as_of']]]],
+            '/merchant/members'=>[
+                'get'=>['summary'=>'Mitglieder suchen, Cursor-Paginierung mit 50 Ergebnissen','parameters'=>[['name'=>'q','in'=>'query','schema'=>['type'=>'string','maxLength'=>100]],['name'=>'after','in'=>'query','schema'=>['type'=>'integer','minimum'=>0]]],'responses'=>['200'=>['description'=>'members und next_after (null am Ende)']]],
+                'post'=>$post('Mitglied ohne Marketingeinwilligung oder E-Mail-Versand anlegen',['name'=>['type'=>'string','minLength'=>1,'maxLength'=>120],'email'=>['type'=>'string','format'=>'email','maxLength'=>254]],['name','email'])],
+            '/merchant/members/{code}'=>['parameters'=>[['name'=>'code','in'=>'path','required'=>true,'schema'=>['type'=>'string','pattern'=>'^[A-Fa-f0-9]{10}$']]],'get'=>['summary'=>'Mitglied mit Karten und Unternehmensprämien','responses'=>['200'=>['description'=>'Mitglied mit cards und rewards'],'404'=>['description'=>'Nicht im eigenen Unternehmen gefunden']]]],
+            '/merchant/members/{id}/edit'=>['parameters'=>[$id],'post'=>$post('Nur Namen ändern, E-Mail muss unverändert bleiben',['name'=>['type'=>'string','maxLength'=>120],'email'=>['type'=>'string','format'=>'email']],['name','email'])],
+            '/merchant/cards/{id}/action'=>['parameters'=>[$id],'post'=>$post('Konkrete aktive Karte atomar buchen. Keine externen Folge-Workflows.',['action'=>['type'=>'string','enum'=>['points_add','stamp','redeem_reward','redeem_stamp_reward']],'amount'=>['type'=>'integer','minimum'=>1,'maximum'=>10000],'reward_id'=>['type'=>'integer','minimum'=>1]],['action'])],
+
             '/business' => ['get' => ['summary' => 'Stammdaten des Business']],
             '/programs' => ['get' => ['summary' => 'Alle Programme']],
             '/members' => [
@@ -616,6 +630,12 @@ function route_api_docs(): never
 {
     $base = base_url() . '/api/v1';
     $rows = [
+        ['GET','/merchant/summary',t('Aktuelle Salden des Unternehmens'),'—'],
+        ['GET','/merchant/members?q=&after=0',t('Mitglieder suchen, 50 pro Cursor-Seite'),'—'],
+        ['GET','/merchant/members/{code}',t('Mitglied, aktive/inaktive Karten und Prämien'),'—'],
+        ['POST','/merchant/members',t('Neu anlegen, kein Upsert, atomarer Wiederholschutz'),'{ "operation": "32 kleine Hexzeichen", "name": "Aylin", "email": "a@b.c" }'],
+        ['POST','/merchant/members/{id}/edit',t('Namen ändern, unveränderte E-Mail erforderlich'),'{ "operation": "32 kleine Hexzeichen", "name": "Aylin", "email": "a@b.c" }'],
+        ['POST','/merchant/cards/{id}/action',t('Punkte/Stempel oder bestätigte Prämieneinlösung, Details in docs/API.md'),'{ "operation": "32 kleine Hexzeichen", "action": "points_add", "amount": 5 }'],
         ['GET', '/business', t('Stammdaten des Business'), '—'],
         ['GET', '/programs', t('Alle Programme mit Typ und Konfiguration'), '—'],
         ['GET', '/members', t('Mitgliederliste mit Kartenständen'), '—'],

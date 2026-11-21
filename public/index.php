@@ -15,6 +15,7 @@ require_once ROOT_DIR . '/app/inc/tiers.php';
 require_once ROOT_DIR . '/app/inc/engage.php';
 require_once ROOT_DIR . '/app/inc/segments.php';
 require_once ROOT_DIR . '/app/inc/api.php';
+require_once ROOT_DIR . '/app/inc/merchant.php';
 require_once ROOT_DIR . '/app/inc/analytics.php';
 require_once ROOT_DIR . '/app/inc/wallet.php';
 require_once ROOT_DIR . '/app/inc/images.php';
@@ -178,6 +179,7 @@ function route_upload(string $file): never
 
 function route_home(): never
 {
+    if(($hint=demo_login_hint())!==''){page('Loyalty Demo','<div class="auth-box"><h1>Loyalty Demo</h1>'.$hint.'<p><a class="btn" href="/login">Zum Betreiber-Login</a></p><p><a href="/dashboard">Zum Dashboard, wenn bereits angemeldet</a></p></div>');exit;}
     redirect(current_user() ? '/dashboard' : '/login');
 }
 
@@ -225,7 +227,7 @@ function route_login(string $method): never
     if ($method === 'GET') {
         page(t('Anmelden'), '
         <div class="auth-box">
-          <h1><span class="logo-mark"></span> Loyalty</h1>
+          <h1><span class="logo-mark"></span> Loyalty</h1>' . demo_login_hint() . '
           <p class="muted">' . t('Digitale Stempelkarten, Punkte, Gutscheine und Mehrfachkarten für deine Kunden.') . '</p>
           <form method="post" action="/login" class="form">' . csrf_field() . '
             <label>' . t('E-Mail') . ' <input type="email" name="email" required></label>
