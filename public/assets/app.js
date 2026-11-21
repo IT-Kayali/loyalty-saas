@@ -131,10 +131,44 @@
     var logo = prev.querySelector(".cp-logo");
     if (d.logo) { logo.src = d.logo; logo.style.display = "block"; }
     var stamps = prev.querySelector(".cp-stamps");
-    for (var i = 0; i < 6; i++) {
-      var dot = document.createElement("span");
-      dot.className = "cp-dot" + (i < 4 ? " filled" : "");
-      stamps.appendChild(dot);
+    function drawStamps(url) {
+      stamps.textContent = "";
+      for (var i = 0; i < 6; i++) {
+        var dot = document.createElement("span");
+        dot.className = "cp-dot" + (i < 4 ? " filled" : "");
+        if (url) {
+          dot.classList.add("custom-stamp");
+          var img = document.createElement("img"); img.src = url; img.alt = "Stempel";
+          dot.appendChild(img);
+        }
+        stamps.appendChild(dot);
+      }
+    }
+    drawStamps(d.stamp);
+    var form = document.querySelector(".designer-grid form");
+    if (form) {
+      ["bg_color", "text_color", "accent_color"].forEach(function (name, i) {
+        form.elements[name].addEventListener("input", function () {
+          prev.style.setProperty(["--cp-bg", "--cp-text", "--cp-accent"][i], this.value);
+        });
+      });
+      ["header", "footer"].forEach(function(name) {
+        form.elements[name].addEventListener("input", function() {
+          prev.querySelector(".cp-" + name).textContent = this.value;
+        });
+      });
+      ["logo", "stamp_image"].forEach(function(name) {
+        form.elements[name].addEventListener("change", function() {
+          var file = this.files[0];
+          if (!file || file.size > 2097152 || !/^image\/(png|jpeg|webp)$/.test(file.type)) return;
+          var reader = new FileReader();
+          reader.onload = function() {
+            if (name === "stamp_image") drawStamps(reader.result);
+            else { logo.src = reader.result; logo.style.display = "block"; }
+          };
+          reader.readAsDataURL(file);
+        });
+      });
     }
     var qr = prev.querySelector(".cp-qr");
     qr.setAttribute("data-qr", "https://example.com/c/DEMO1234AB");

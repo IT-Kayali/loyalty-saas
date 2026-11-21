@@ -118,6 +118,7 @@ function db(): PDO
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
         $pdo->exec('PRAGMA foreign_keys = ON');
+        $pdo->exec('PRAGMA busy_timeout = 5000');
         init_schema($pdo);
     }
     return $pdo;
@@ -287,6 +288,34 @@ function init_schema(PDO $pdo): void
         push_token TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (device_library_id, pass_type_id, serial)
+    );
+    SQL);
+
+    $pdo->exec(<<<'SQL'
+    CREATE TABLE IF NOT EXISTS platform_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        action TEXT NOT NULL,
+        details TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS subscriptions (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        stripe_customer_id TEXT UNIQUE,
+        stripe_subscription_id TEXT UNIQUE,
+        checkout_session_id TEXT,
+        checkout_generation INTEGER NOT NULL DEFAULT 0,
+        plan_key TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'none',
+        cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+        current_period_end INTEGER,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS stripe_events (
+        id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        processed_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     SQL);
 
@@ -475,6 +504,7 @@ function design_defaults(): array
         'bg_color'     => '#1C1A17',   // Karten-Hintergrund
         'text_color'   => '#FAF7F2',   // Haupttext auf der Karte
         'accent_color' => '',          // leer = Markenfarbe
+        'stamp_image'  => '',
         'logo'         => '',          // /uploads/... (PNG/JPEG/WebP)
         'header'       => '',          // Zeile über dem Namen (leer = Business-Name)
         'footer'       => '',          // kleine Zeile unten (z.B. Adresse/Webseite)
@@ -524,8 +554,10 @@ function page(string $title, string $body, ?array $user = null, string $brand = 
     $nav = '';
     if ($user) {
         $nav = '<nav class="topnav">
-            <a class="logo" href="/dashboard"><span class="logo-mark"></span>Loyalty</a>
+            <a class="logo" href="/dashboard"><span class="logo-mark"></span>' . h(platform_setting('platform_name', 'Loyalty')) . '</a>
             <span class="nav-right">' . lang_switcher()
+                . '<a class="nav-link" href="/billing">' . t('Abrechnung') . '</a>'
+                . (is_platform_admin($user) ? '<a class="nav-link" href="/admin">Admin</a>' : '')
                 . '<span class="nav-user">' . h($user['name']) . '</span>
                 <a class="nav-link" href="/logout">' . t('Abmelden') . '</a></span>
         </nav>';

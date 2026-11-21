@@ -28,35 +28,16 @@ function route_design(int $id, string $method): never
         $d['show_tier'] = isset($_POST['show_tier']) ? 1 : 0;
         $d['qr_logo'] = isset($_POST['qr_logo']) ? 1 : 0;
 
-        /* Logo-Upload (PNG/JPEG/WebP, max 2 MB, Bild wird verifiziert) */
-        if (!empty($_FILES['logo']['tmp_name']) && is_uploaded_file($_FILES['logo']['tmp_name'])) {
-            $info = @getimagesize($_FILES['logo']['tmp_name']);
-            $allowed = [IMAGETYPE_PNG => 'png', IMAGETYPE_JPEG => 'jpg', IMAGETYPE_WEBP => 'webp'];
-            if (!$info || !isset($allowed[$info[2]])) {
-                flash(t('Logo abgelehnt: nur PNG, JPEG oder WebP.'), 'err');
-                redirect('/business/' . $id . '/design');
+        foreach (['logo', 'stamp_image'] as $kind) {
+            if (isset($_POST[$kind . '_remove'])) $d[$kind] = '';
+            if (isset($_FILES[$kind]) && ($_FILES[$kind]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                try {
+                    $d[$kind] = store_design_image($_FILES[$kind], $id, $kind);
+                } catch (InvalidArgumentException $e) {
+                    flash(t($e->getMessage()), 'err');
+                    redirect('/business/' . $id . '/design');
+                }
             }
-            if ((int)$_FILES['logo']['size'] > 2 * 1024 * 1024) {
-                flash(t('Logo abgelehnt: maximal 2 MB.'), 'err');
-                redirect('/business/' . $id . '/design');
-            }
-            $dir = (string)config('upload_dir', ROOT_DIR . '/data/uploads');
-            if (!is_dir($dir)) {
-                mkdir($dir, 0775, true);
-            }
-            if ($d['logo'] !== '' && is_file($dir . '/' . basename($d['logo']))) {
-                @unlink($dir . '/' . basename($d['logo']));
-            }
-            $fname = 'logo_b' . $id . '_' . bin2hex(random_bytes(6)) . '.' . $allowed[$info[2]];
-            move_uploaded_file($_FILES['logo']['tmp_name'], $dir . '/' . $fname);
-            $d['logo'] = $fname;
-        }
-        if (isset($_POST['logo_remove'])) {
-            $dir = (string)config('upload_dir', ROOT_DIR . '/data/uploads');
-            if ($d['logo'] !== '' && is_file($dir . '/' . basename($d['logo']))) {
-                @unlink($dir . '/' . basename($d['logo']));
-            }
-            $d['logo'] = '';
         }
 
         db()->prepare('UPDATE businesses SET card_design = ? WHERE id = ?')
@@ -87,6 +68,11 @@ function route_design(int $id, string $method): never
             : '<p class="muted">' . t('Noch kein Logo.') . '</p>') . '
         <label>' . t('Neues Logo (PNG, JPEG, WebP, max 2 MB)') . ' <input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
 
+        <h2>' . t('Eigenes Stempel-Bild') . '</h2>
+        <p class="muted">' . t('PNG, JPEG oder WebP bis 2 MB. Transparente PNGs eignen sich besonders gut. Bilder werden sicher neu als PNG gespeichert.') . '</p>
+        ' . ($d['stamp_image'] !== '' ? '<img class="stamp-upload-preview" src="' . h(upload_url($d['stamp_image'])) . '" alt="Stempel"><label class="check"><input type="checkbox" name="stamp_image_remove" value="1"> ' . t('Stempel-Bild entfernen') . '</label>' : '') . '
+        <label>' . t('Stempel-Bild hochladen') . '<input type="file" name="stamp_image" accept="image/png,image/jpeg,image/webp"></label>
+
         <h2>' . t('Texte & Felder') . '</h2>
         <label>' . t('Kopfzeile (leer = Firmenname)') . ' <input name="header" maxlength="60" value="' . h($d['header']) . '"></label>
         <label>' . t('Fußzeile (z.B. Adresse oder Webseite)') . ' <input name="footer" maxlength="120" value="' . h($d['footer']) . '"></label>
@@ -101,7 +87,7 @@ function route_design(int $id, string $method): never
         <h2>' . t('Vorschau') . '</h2>
         <div class="card-preview" id="cardPreview"
              data-bg="' . h($d['bg_color']) . '" data-text="' . h($d['text_color']) . '" data-accent="' . h($d['accent_color']) . '"
-             data-logo="' . h($logoUrl) . '" data-header="' . h($d['header'] !== '' ? $d['header'] : $b['name']) . '"
+             data-stamp="' . h(upload_url($d['stamp_image'])) . '" data-logo="' . h($logoUrl) . '" data-header="' . h($d['header'] !== '' ? $d['header'] : $b['name']) . '"
              data-footer="' . h($d['footer']) . '">
           <div class="cp-inner">
             <img class="cp-logo" alt="">
@@ -112,7 +98,7 @@ function route_design(int $id, string $method): never
             <div class="cp-footer"></div>
           </div>
         </div>
-        <p class="muted">' . t('Die Vorschau aktualisiert sich beim Speichern. So sieht die Kundenkarte (/c/CODE) aus.') . '</p>
+        <p class="muted">' . t('Die Vorschau aktualisiert sich direkt. Speichern übernimmt das Design für alle Karten.') . '</p>
       </div>
       </div>', $u, $b['brand_color']);
     exit;

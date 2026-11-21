@@ -5,3 +5,7 @@ data/apple/
 data/google/
 bin/
 node_modules/
+
+package-lock.json
+package.json
+test-results/

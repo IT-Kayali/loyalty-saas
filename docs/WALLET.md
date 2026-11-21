@@ -130,3 +130,14 @@ Hinweis: Für produktive Pässe verlangt Google teilweise eine Freigabe der Klas
 - **Design**: Farben, Logo und Texte der Pässe kommen aus dem **Karten-Design** des Business (Admin → Karten-Design). Änderungen wirken ab dem nächsten Update-Push.
 - **Sprache**: Pass-Texte folgen der Sprache der Installation (`default_lang`).
 - **Ohne Zugangsdaten**: Wallet-Buttons bleiben sichtbar, der Endpunkt erklärt dem Besucher freundlich (501), dass Wallet noch nicht eingerichtet ist. Alternativ Buttons in `app/inc/wallet.php` (`wallet_buttons()`) ausblenden.
+
+
+## Eigene Stempelbilder
+
+Im Karten-Designer pro Unternehmen kann jetzt ein eigenes Stempel-Bild hochgeladen werden (PNG/JPEG/WebP, maximal 2 MB, 16–4096 px pro Seite und maximal 8 Megapixel). Der Server dekodiert es und speichert eine neue PNG außerhalb von `public/`. SVG, GIF, PHP und beschädigte Bilder werden abgewiesen. Transparente quadratische PNGs sind für kleine Stempel am besten geeignet.
+
+Webkarte und Vorschau zeigen volle bzw. ausgegraute Stempel. Für Wallets erzeugt der Server aus dem aktuellen Stand eine Rastergrafik: Apple `strip.png`/`strip@2x.png`, Google GenericObject `heroImage` über eine tokenisierte PNG-Adresse. Die Grafik zeigt das erste aktive Stempelprogramm; andere Programme bleiben als Textfelder sichtbar. Die native Wallet-App bestimmt Platzierung und Darstellung. Ohne Zertifikate/Issuer ist nur die lokale Grafik-/Payloadprüfung möglich, kein Nachweis auf echten Geräten.
+
+Designänderungen wirken beim nächsten Öffnen/Neuladen der Webkarte und beim nächsten Passabruf. Ein automatischer Push an bereits installierte Pässe allein durch Speichern im Designer ist noch nicht implementiert. Statusänderungen verwenden den bestehenden Wallet-Updatepfad.
+
+Technische Google-Referenz: https://developers.google.com/wallet/reference/rest/v1/genericobject

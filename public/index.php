@@ -17,6 +17,9 @@ require_once ROOT_DIR . '/app/inc/segments.php';
 require_once ROOT_DIR . '/app/inc/api.php';
 require_once ROOT_DIR . '/app/inc/analytics.php';
 require_once ROOT_DIR . '/app/inc/wallet.php';
+require_once ROOT_DIR . '/app/inc/images.php';
+require_once ROOT_DIR . '/app/inc/billing.php';
+require_once ROOT_DIR . '/app/inc/admin.php';
 require_once ROOT_DIR . '/app/inc/designer.php';
 require_once ROOT_DIR . '/app/inc/qr.php';
 
@@ -43,6 +46,8 @@ if (preg_match('#^/integrations/shopify/webhook/(\d+)$#', $path, $m) === 1) {
     route_shopify_webhook((int)$m[1]);
 }
 
+if ($path === '/stripe/webhook') route_stripe_webhook($method);
+
 /* Alle übrigen POST-Requests: CSRF-Token Pflicht */
 csrf_check();
 
@@ -53,6 +58,9 @@ try {
         $path === '/login' => route_login($method),
         $path === '/logout' => route_logout(),
         $path === '/dashboard' => route_dashboard(),
+        $path === '/billing' => route_billing($method),
+        $path === '/admin' => route_admin($method),
+        $path === '/admin/export' => route_admin_export(),
         $path === '/business/create' && $method === 'POST' => route_business_create(),
         preg_match('#^/business/(\d+)$#', $path, $m) === 1 => route_business((int)$m[1]),
         $path === '/program/create' && $method === 'POST' => route_program_create(),
@@ -80,6 +88,7 @@ try {
         preg_match('#^/uploads/([A-Za-z0-9._-]+)$#', $path, $m) === 1 => route_upload($m[1]),
         preg_match('#^/pass/apple/([A-F0-9]{10})\.pkpass$#', $path, $m) === 1 => route_pass_apple($m[1]),
         preg_match('#^/pass/google/([A-F0-9]{10})$#', $path, $m) === 1 => route_pass_google($m[1]),
+        preg_match('#^/pass/stamps/([A-F0-9]{10})/([a-f0-9]{64})\.png$#', $path, $m) === 1 => route_stamp_strip($m[1], $m[2]),
         $path === '/api/docs' => route_api_docs(),
         $path === '/member/create' && $method === 'POST' => route_member_create(),
         preg_match('#^/member/(\d+)$#', $path, $m) === 1 => route_member((int)$m[1]),
@@ -150,6 +159,7 @@ function route_home(): never
 
 function route_register(string $method): never
 {
+    if (platform_setting('registration_open','1')!=='1') { http_response_code(403);page('Registrierung geschlossen','<h1>Registrierung derzeit geschlossen</h1>');exit; }
     if ($method === 'GET') {
         page(t('Registrieren'), '
         <div class="auth-box">
@@ -211,7 +221,9 @@ function route_login(string $method): never
         flash(t('E-Mail oder Passwort falsch.'), 'err');
         redirect('/login');
     }
+    session_regenerate_id(true);
     $_SESSION['user_id'] = (int)$u['id'];
+    audit_log((int)$u['id'], 'auth.login');
     redirect('/dashboard');
 }
 
@@ -272,6 +284,7 @@ function route_dashboard(): never
 function route_business_create(): never
 {
     $u = require_login();
+    billing_require_capacity((int)$u['id'], 'businesses');
     $name = trim($_POST['name'] ?? '');
     $color = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['brand_color'] ?? '') ? $_POST['brand_color'] : '#E4572E';
     if ($name === '') {

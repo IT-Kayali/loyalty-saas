@@ -237,6 +237,10 @@ function apple_pkpass(array $m): string
         'logo.png'     => pass_png('logo', $m['design'], $letter, (string)$m['design']['logo']),
         'logo@2x.png'  => pass_png('logo2x', $m['design'], $letter, (string)$m['design']['logo']),
     ];
+    if ($m['design']['stamp_image'] !== '') {
+        $files['strip.png'] = stamp_strip_png($m);
+        $files['strip@2x.png'] = stamp_strip_png($m, 2);
+    }
     $manifest = [];
     foreach ($files as $name => $data) {
         $manifest[$name] = sha1($data);
@@ -524,6 +528,10 @@ function google_pass_payload(array $m): array
     if ($logoUri) {
         $class['logo'] = ['sourceUri' => ['uri' => $logoUri]];
         $object['logo'] = ['sourceUri' => ['uri' => $logoUri]];
+    }
+    if ($d['stamp_image'] !== '') {
+        $token = hash_hmac('sha256', 'stamp-image:' . $m['code'], (string)$m['api_key']);
+        $object['heroImage'] = ['sourceUri' => ['uri' => base_url() . '/pass/stamps/' . $m['code'] . '/' . $token . '.png']];
     }
     return ['class' => $class, 'object' => $object];
 }

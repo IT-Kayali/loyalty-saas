@@ -241,6 +241,9 @@ function wallet_cards_html(int $memberId): string
         FROM cards c JOIN programs p ON p.id = c.program_id
         WHERE c.member_id = ? AND p.active = 1 ORDER BY c.created_at');
     $stmt->execute([$memberId]);
+    $designQ = db()->prepare('SELECT b.* FROM businesses b JOIN members m ON m.business_id=b.id WHERE m.id=?');
+    $designQ->execute([$memberId]);
+    $design = business_design($designQ->fetch() ?: []);
     $body = '';
     foreach ($stmt->fetchAll() as $c) {
         $body .= '<section class="loyal-card">';
@@ -248,7 +251,7 @@ function wallet_cards_html(int $memberId): string
             $req = (int)$c['stamps_required'];
             $dots = '';
             for ($i = 1; $i <= $req; $i++) {
-                $dots .= '<span class="dot ' . ($i <= $c['stamps'] ? 'filled' : '') . '"></span>';
+                $dots .= stamp_html($design, $i <= $c['stamps']);
             }
             $body .= '<h2>' . h($c['program_name']) . '</h2>
               <div class="stamp-row">' . $dots . '</div>

@@ -25,6 +25,23 @@ return [
     // Webhooks per http:// zulassen? Nur für lokale Entwicklung true setzen.
     'webhook_allow_http' => false,
 
+    // Explicit allowlist. Never grant admin privileges just because an account registered first.
+    'platform_admin_emails' => [],
+
+    /* ---- Stripe: SaaS subscriptions (docs/STRIPE.md) ---- */
+    'stripe' => [
+        'secret_key' => getenv('STRIPE_SECRET_KEY') ?: '',
+        'webhook_secret' => getenv('STRIPE_WEBHOOK_SECRET') ?: '',
+        // Off by default: enabling affects creation of new businesses. Existing cards stay accessible.
+        'enforce_limits' => false,
+        'plans' => [
+            'starter' => ['name' => 'Starter', 'price_id' => getenv('STRIPE_PRICE_STARTER') ?: '',
+                'description' => 'Für ein einzelnes Unternehmen.', 'limits' => ['businesses' => 1]],
+            'pro' => ['name' => 'Pro', 'price_id' => getenv('STRIPE_PRICE_PRO') ?: '',
+                'description' => 'Für mehrere Unternehmen.', 'limits' => ['businesses' => 10]],
+        ],
+    ],
+
     /* ---- Apple Wallet (PassKit) ----------------------------------
      * Setup-Anleitung: docs/WALLET.md
      * Ohne diese Werte antwortet der Apple-Pass-Endpunkt mit HTTP 501.
