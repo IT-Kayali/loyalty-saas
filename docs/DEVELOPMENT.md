@@ -92,6 +92,7 @@ python tests/run-lifecycle.py
 python tests/run-transfers.py
 python tests/run-claims.py
 python tests/run-cardlayout.py
+python tests/run-voucher-batches.py
 python tests/run-webhooks.py
 python tests/run-backup.py
 python tests/run-browser.py

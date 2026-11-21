@@ -22,7 +22,7 @@ Zusätzlich zu den bisherigen einfachen Gutscheinkarten:
 - Gratisprodukt bestätigt die Ausgabe eines benannten Artikels, Bonuspunkte brauchen eine bereits bestehende aktive Punktekarte.
 - Keine Zahlung oder automatische POS-Rabattierung. Externen Kaufbetrag und Gutscheinwährung an der Kasse prüfen.
 
-Noch offen: Gutschein-Claimseite/QR, gezielter Versand von Codes, Deaktivierung/Stornierung von Batches, rückgängig machen einer Einlösung, verschachtelte Eligibility-Regeln, Geburtstags-/Winback-Automation, eigene Gutscheine je Mitglied und vollständige Berichte. Bestehende einfache Gutscheinkarten verwenden weiterhin ihre eigenen Regeln, sie sind nicht nachträglich an die Code-Regeln gebunden.
+Noch offen: Gutschein-Claimseite/QR, gezielter Versand von Codes, rückgängig machen einer Einlösung, verschachtelte Eligibility-Regeln, Geburtstags-/Winback-Automation, eigene Gutscheine je Mitglied und vollständige Berichte. Bestehende einfache Gutscheinkarten verwenden weiterhin ihre eigenen Regeln, sie sind nicht nachträglich an die Code-Regeln gebunden.
 
 ## Prepaid-Besuchspässe
 
@@ -57,3 +57,18 @@ Bei der Löschung eines Mitglieds werden die Identitätsverknüpfungen verkaufte
 - https://rewardloyalty.co/docs/5.x/vouchers/partner-discount-types
 - https://rewardloyalty.co/docs/5.x/prepaid-passes/overview
 - https://rewardloyalty.co/docs/5.x/prepaid-passes/staff-selling-and-scanning
+
+## Gutschein-Batches stornieren und wiederherstellen
+
+Auf der Programmseite zeigt die Batch-Tabelle Codes, bisherige Einlösungen, offene und stornierte Codes. Auf kleinen Bildschirmen erscheinen die Batches als beschriftete Zeilenkarten, ohne seitliches Scrollen.
+
+- Nur der Eigentümer kann einen Batch stornieren oder wiederherstellen. Beide Aktionen brauchen CSRF und eine Browser-Bestätigung.
+- Storno sperrt alle noch offenen Codes dieses Batchnamens im gewählten Programm. Vollständig verbrauchte Codes bleiben unverändert. Bei teilweise genutzten Mehrfachcodes werden weitere Einlösungen gesperrt; bisherige Nutzungen bleiben erhalten.
+- Wiederherstellen setzt nur stornierte Codes wieder auf aktiv. Nutzungszähler, Ablaufdatum, persönliche Zuordnung und gespeicherte Rabattregeln bleiben erhalten. Abgelaufene Codes werden dadurch nicht wieder gültig.
+- An der Kasse werden stornierte Codes bei Vorschau und Einlösen abgelehnt. Persönliche stornierte Codes verschwinden aus der Wallet. CSV enthält den Status `cancelled`.
+- Audit-Ereignisse `voucher.batch_cancel` und `voucher.batch_restore` enthalten Programm, Batchname und Anzahl geänderter Codes. Eine leere oder wiederholte Aktion erzeugt keinen neuen Audit-Eintrag.
+- Neue Batchnamen müssen innerhalb des Programms exakt eindeutig sein. Historisch mehrfach verwendete Namen werden gemeinsam behandelt. Keine nachträgliche Umbenennung.
+
+Grenzen: Die Übersicht zeigt die letzten 20 Batchnamen, ohne Suche/Seitenwechsel. Offene Codes können abgelaufen sein; die Anzeige ist kein Gültigkeitsversprechen. Es gibt keine Einzelcode-Stornierung, Benachrichtigung betroffener Mitglieder, Rückerstattung oder Rücknahme vergangener Einlösungen und keinen eigenen Storno-Webhook. Batchaktionen und Einlösen verwenden `BEGIN IMMEDIATE`; ein eigener Paralleltest für Storno gegen Einlösen fehlt. Kein Test mit echten Geräten/POS-Systemen.
+
+Tests: `python3 tests/run-voucher-batches.py`, Wegwerf-Datenbank, HTTP/Rechte/Audit/CSV, teilweise verwendete Codes, historische Namensduplikate und Ablauf nach Wiederherstellung sowie Chromium Desktop/Mobil einschließlich Bestätigung abbrechen.

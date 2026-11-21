@@ -480,3 +480,13 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 .cl-title, .cl-text, .cl-reward { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .cl-warning { color: #753b00; background: #fff1d6; border: 1px solid #bd7a29; border-radius: 10px; padding: 12px; font-size: 14px; line-height: 1.5; }
 .cl-warning[hidden] { display: none; }
+.inline-action{display:inline-block;margin:0 4px 0 0}
+
+@media (max-width: 640px) {
+  .voucher-batches table, .voucher-batches tbody, .voucher-batches tr, .voucher-batches td { display: block; width: 100%; }
+  .voucher-batches tr:first-child { display: none; }
+  .voucher-batches tr + tr { border-top: 1px solid var(--line); }
+  .voucher-batches td { display: flex; gap: 12px; justify-content: space-between; align-items: center; white-space: normal; overflow-wrap: anywhere; border: 0; padding: 8px 12px; }
+  .voucher-batches td::before { content: attr(data-label); font-weight: 600; flex-shrink: 0; }
+  .voucher-batches .inline-action { margin: 0; }
+}

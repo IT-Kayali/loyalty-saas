@@ -44,6 +44,7 @@ function voucher_redeem(string $code,int $memberId,int $spend,array $actor,strin
     $db=db();$db->exec('BEGIN IMMEDIATE');
     try {
         $q=$db->prepare('SELECT v.*,p.business_id,p.voucher_rules,p.active FROM voucher_codes v JOIN programs p ON p.id=v.program_id WHERE v.code=?');$q->execute([$code]);$v=$q->fetch();
+        if($v && $v['status']==='cancelled')throw new InvalidArgumentException('Gutschein wurde storniert.');
         if(!$v || !$v['active'] || $v['status']!=='active')throw new InvalidArgumentException('Gutschein nicht aktiv.');
         $actor=assert_business_actor((int)$v['business_id'],$actor,'redeem');
         $r=json_decode($v['rules_snapshot'],true);$today=gmdate('Y-m-d');
@@ -85,9 +86,14 @@ function voucher_form_html(array $p): string
     foreach(['min_spend'=>'Mindestkaufbetrag','max_discount'=>'Maximalrabatt (0 = kein Cap)'] as $k=>$n)$html.='<label>'.$n.'<input name="'.$k.'" value="'.number_format($r[$k]/100,2,'.','').'"></label>';
     foreach(['max_total'=>'Gesamteinlösungen (0 = unbegrenzt)','per_member'=>'Einlösungen pro Mitglied','min_lifetime'=>'Mindestens Lifetime-Punkte'] as $k=>$n)$html.='<label>'.$n.'<input type="number" min="0" name="'.$k.'" value="'.(int)$r[$k].'"></label>';
     foreach(['starts'=>'Gültig ab (UTC)','ends'=>'Gültig bis (UTC)'] as $k=>$n)$html.='<label>'.$n.'<input type="date" name="'.$k.'" value="'.h($r[$k]).'"></label>';
-    $html.='<button class="btn">Regeln speichern</button></form></section><section class="panel"><h2>Codes erzeugen</h2><form method="post" action="/program/'.$id.'/vouchers" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="batch"><label>Batchname<input name="name" maxlength="80" required></label><label>Anzahl<input type="number" name="count" min="1" max="500" value="25"></label><button class="btn">Batch erzeugen</button></form><p><a href="/program/'.$id.'/voucher-export">Alle Codes als CSV exportieren</a> · <a href="/business/'.$p['business_id'].'/voucher-counter">Code an der Kasse einlösen</a></p><div class="table-wrap"><table><tr><th>Batch</th><th>Codes</th><th>Einlösungen</th><th>Status</th></tr>';
-    $q=db()->prepare('SELECT batch,COUNT(*) AS codes,SUM(used) AS used,MIN(status) AS status FROM voucher_codes WHERE program_id=? GROUP BY batch ORDER BY MAX(id) DESC LIMIT 20');$q->execute([$id]);
-    foreach($q->fetchAll() as $row)$html.='<tr><td>'.h($row['batch']).'</td><td>'.(int)$row['codes'].'</td><td>'.(int)$row['used'].'</td><td>'.h($row['status']).'</td></tr>';
+    $html.='<button class="btn">Regeln speichern</button></form></section><section class="panel"><h2>Codes erzeugen</h2><form method="post" action="/program/'.$id.'/vouchers" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="batch"><label>Batchname<input name="name" maxlength="80" required></label><label>Anzahl<input type="number" name="count" min="1" max="500" value="25"></label><button class="btn">Batch erzeugen</button></form><p><a href="/program/'.$id.'/voucher-export">Alle Codes als CSV exportieren</a> · <a href="/business/'.$p['business_id'].'/voucher-counter">Code an der Kasse einlösen</a></p><p class="muted">Offene Codes können auch abgelaufen sein. Storno sperrt weitere Einlösungen, erstattet aber keine früheren Nutzungen. Wiederherstellen ändert weder Laufzeit noch Zähler.</p><div class="table-wrap voucher-batches"><table><tr><th>Batch</th><th>Codes</th><th>Einlösungen</th><th>Offene Codes</th><th>Storniert</th><th></th></tr>';
+    $q=db()->prepare("SELECT batch,COUNT(*) AS codes,SUM(used) AS used,SUM(CASE WHEN status='active' AND used<max_uses THEN 1 ELSE 0 END) AS open,SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) AS cancelled FROM voucher_codes WHERE program_id=? GROUP BY batch ORDER BY MAX(id) DESC LIMIT 20");$q->execute([$id]);
+    foreach($q->fetchAll() as $row) {
+        $act='';
+        foreach(['batch_cancel'=>[(int)$row['open'],'Stornieren','Alle '.(int)$row['open'].' offenen Codes dieses Batches stornieren? Vollständig aufgebrauchte Codes bleiben unverändert; bei teilweise genutzten Codes werden weitere Nutzungen gesperrt.'],'batch_restore'=>[(int)$row['cancelled'],'Wiederherstellen','Stornierte Codes dieses Batches wieder aktivieren?']] as $a=>[$cnt,$label,$ask])
+            if($cnt>0)$act.='<form method="post" action="/program/'.$id.'/vouchers" class="inline-action" onsubmit="return confirm(\''.h($ask).'\')">'.csrf_field().'<input type="hidden" name="action" value="'.$a.'"><input type="hidden" name="batch" value="'.h($row['batch']).'"><button class="btn ghost small">'.$label.'</button></form>';
+        $html.='<tr><td data-label="Batch">'.h($row['batch']).'</td><td data-label="Codes">'.(int)$row['codes'].'</td><td data-label="Einlösungen">'.(int)$row['used'].'</td><td data-label="Offene Codes">'.(int)$row['open'].'</td><td data-label="Storniert">'.(int)$row['cancelled'].'</td><td data-label="Aktion">'.$act.'</td></tr>';
+    }
     return $html.'</table></div></section>';
 }
 function route_voucher_program(int $id): never
@@ -106,9 +112,20 @@ function route_voucher_program(int $id): never
             $name=mb_substr(trim((string)($_POST['name'] ?? '')),0,80);$count=(int)($_POST['count'] ?? 0);
             if($name===''||$count<1||$count>500)throw new InvalidArgumentException('Batchname und 1 bis 500 Codes angeben.');
             db()->exec('BEGIN IMMEDIATE');
+            $dup=db()->prepare('SELECT 1 FROM voucher_codes WHERE program_id=? AND batch=? LIMIT 1');$dup->execute([$id,$name]);
+            if($dup->fetchColumn())throw new InvalidArgumentException('Ein Batch mit diesem Namen existiert schon. Bitte einen anderen Namen wählen.');
             $q=db()->prepare('INSERT INTO voucher_codes(program_id,batch,code,rules_snapshot)VALUES(?,?,?,?)');
             for($i=0;$i<$count;$i++)$q->execute([$id,$name,strtoupper(bin2hex(random_bytes(12))),json_encode(voucher_rules($p),JSON_UNESCAPED_UNICODE)]);
             db()->exec('COMMIT');
+        } elseif(in_array(($_POST['action'] ?? ''),['batch_cancel','batch_restore'],true)) {
+            $batch=(string)($_POST['batch'] ?? '');$cancel=$_POST['action']==='batch_cancel';
+            db()->exec('BEGIN IMMEDIATE');
+            $q=db()->prepare($cancel?"UPDATE voucher_codes SET status='cancelled' WHERE program_id=? AND batch=? AND status='active' AND used<max_uses":"UPDATE voucher_codes SET status='active' WHERE program_id=? AND batch=? AND status='cancelled'");
+            $q->execute([$id,$batch]);$n=$q->rowCount();
+            if($n<1){db()->exec('ROLLBACK');throw new InvalidArgumentException($cancel?'Keine offenen Codes in diesem Batch.':'Keine stornierten Codes in diesem Batch.');}
+            audit_log((int)$u['id'],$cancel?'voucher.batch_cancel':'voucher.batch_restore',['program_id'=>$id,'batch'=>mb_substr($batch,0,80),'codes'=>$n]);
+            db()->exec('COMMIT');
+            flash($n.($cancel?' Codes storniert. Sie lassen sich nicht mehr einlösen.':' Codes wieder aktiviert.'));redirect('/program/'.$id);
         } else throw new InvalidArgumentException('Ungültige Aktion.');
         flash('Gutschein-Einstellungen gespeichert.');
     }catch(InvalidArgumentException $e){try{db()->exec('ROLLBACK');}catch(Throwable){}flash($e->getMessage(),'err');}
@@ -132,6 +149,7 @@ function route_voucher_counter(int $bid,string $method): never
             $op=(string)($_POST['operation'] ?? '');if(!preg_match('/^[a-f0-9]{32}$/D',$op))throw new InvalidArgumentException('Ungültige Vorgangskennung.');
             if(($_POST['action'] ?? '')==='preview') {
                 $q=db()->prepare('SELECT v.rules_snapshot,v.status,v.used,v.max_uses,p.name FROM voucher_codes v JOIN programs p ON p.id=v.program_id WHERE v.code=? AND p.business_id=?');$q->execute([$code,$bid]);$v=$q->fetch();
+                if($v && $v['status']==='cancelled')throw new InvalidArgumentException('Gutschein wurde storniert.');
                 if(!$v || $v['status']!=='active' || $v['used']>=$v['max_uses'])throw new InvalidArgumentException('Gutschein nicht aktiv oder aufgebraucht.');
                 $memberQuery=db()->prepare('SELECT name,code FROM members WHERE id=? AND business_id=?');$memberQuery->execute([(int)($_POST['member_id'] ?? 0),$bid]);$chosenMember=$memberQuery->fetch();if(!$chosenMember)throw new InvalidArgumentException('Mitglied passt nicht zum Unternehmen.');
                 $rules=json_decode($v['rules_snapshot'],true);$spend=money_cents((string)($_POST['spend'] ?? '0'));$discount=voucher_quote($rules,$spend);

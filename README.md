@@ -39,7 +39,7 @@ TLS-SMTP, geprüfte Outbox-/Workerzustände, Einwilligung und Abmeldelinks, Welc
 
 ## Programm-Ausbau
 
-Eigener Designer pro Programm mit Hintergrundfoto, Overlay und Emoji; Code-Gutscheine mit Rabattregeln und Batches; separat verkaufte Besuchs-/Zeitpässe mit Ledger, Idempotency und Storno. Bisherige einfache Karten bleiben erhalten. Grenzen, Geldguthaben-Lücke und Tests: [docs/PROGRAMS.md](docs/PROGRAMS.md).
+Eigener Designer pro Programm mit Hintergrundfoto, Overlay und Emoji; Code-Gutscheine mit Rabattregeln, Batches und Batchstorno/Wiederherstellen; separat verkaufte Besuchs-/Zeitpässe mit Ledger, Idempotency und Storno. Bisherige einfache Karten bleiben erhalten. Grenzen, Geldguthaben-Lücke und Tests: [docs/PROGRAMS.md](docs/PROGRAMS.md).
 
 ## Produktionsgrundlage und Planberechtigungen
 
