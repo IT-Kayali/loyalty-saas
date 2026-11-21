@@ -188,6 +188,7 @@ function segments_html(int $businessId): string
         $count = count(segment_members($s));
         $list .= '<li><strong>' . h($s['name']) . '</strong> <span class="muted">' . h(segment_label($s))
             . ' - ' . t('aktuell {n} Mitglieder', ['n' => $count]) . '</span>'
+            . ' <a class="btn ghost small" href="/segment/' . (int)$s['id'] . '/edit">Bearbeiten</a>'
             . ' <form method="post" action="/segment/delete" style="display:inline">' . csrf_field()
             . '<input type="hidden" name="business_id" value="' . $businessId . '">'
             . '<input type="hidden" name="segment_id" value="' . (int)$s['id'] . '">'
@@ -257,4 +258,35 @@ function campaigns_html(int $businessId): string
         </form>
       </details>';
     return $list . $form;
+}
+
+/** Formularkonflikte erkennen, kein Empfänger-Snapshot. */
+function segment_revision(array $s): string
+{
+    return hash('sha256',json_encode([(int)$s['id'],(int)$s['business_id'],(string)$s['name'],(string)$s['rule'],(int)$s['param']],JSON_UNESCAPED_UNICODE));
+}
+function route_segment_edit(int $id,string $method): never
+{
+    $u=require_login();
+    $q=db()->prepare('SELECT s.* FROM segments s JOIN businesses b ON b.id=s.business_id WHERE s.id=? AND b.user_id=?');$q->execute([$id,$u['id']]);$s=$q->fetch();if(!$s)not_found();
+    header('Cache-Control: private, no-store');
+    if($method==='POST') {
+        $name=trim((string)($_POST['name'] ?? ''));$rule=(string)($_POST['rule'] ?? '');$param=(string)($_POST['param'] ?? '');
+        if($name==='' || mb_strlen($name)>80 || !isset(segment_rules()[$rule]) || !preg_match('/^[0-9]{1,6}$/D',$param) || (int)$param>100000) {
+            flash('Name mit 1 bis 80 Zeichen, gültige Regel und ganzen Wert von 0 bis 100000 angeben.','err');redirect('/segment/'.$id.'/edit');
+        }
+        db()->exec('BEGIN IMMEDIATE');
+        try {
+            $q=db()->prepare('SELECT * FROM segments WHERE id=? AND business_id=?');$q->execute([$id,$s['business_id']]);$fresh=$q->fetch();
+            if(!$fresh || !hash_equals(segment_revision($fresh),(string)($_POST['revision'] ?? '')))throw new InvalidArgumentException('Segment wurde inzwischen geändert. Aktuellen Stand prüfen und erneut bearbeiten.');
+            db()->prepare('UPDATE segments SET name=?,rule=?,param=? WHERE id=? AND business_id=?')->execute([$name,$rule,(int)$param,$id,$s['business_id']]);
+            audit_log((int)$u['id'],'segment.update',['segment_id'=>$id,'business_id'=>(int)$s['business_id']]);db()->exec('COMMIT');
+        } catch(Throwable $e) {
+            db()->exec('ROLLBACK');if($e instanceof InvalidArgumentException){flash($e->getMessage(),'err');redirect('/segment/'.$id.'/edit');}throw $e;
+        }
+        flash('Segment gespeichert. Es wurden keine Nachrichten versendet.');redirect('/segment/'.$id.'/edit');
+    }
+    $opts='';foreach(segment_rules() as $key=>$label)$opts.='<option value="'.h($key).'"'.($s['rule']===$key?' selected':'').'>'.h($label).'</option>';
+    $q=db()->prepare("SELECT COUNT(*) FROM campaigns WHERE segment_id=? AND status!='sent'");$q->execute([$id]);$drafts=(int)$q->fetchColumn();
+    page('Segment bearbeiten','<p><a href="/business/'.(int)$s['business_id'].'">← Unternehmen</a></p><h1>Segment bearbeiten</h1><section class="panel"><p><strong>'.count(segment_members($s)).'</strong> Mitglieder passen zur aktuell gespeicherten Regel. Die Zielgruppe ist dynamisch, kein fester Empfängerbestand.</p><p class="muted">'.$drafts.' noch nicht gesendete Kampagnen sind verknüpft. Sie nutzen beim späteren Senden die dann gültige Regel. Bereits versendete Nachrichten und Versandprotokolle bleiben unverändert. Speichern sendet keine Nachrichten.</p><form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.segment_revision($s).'"><label>Name<input name="name" maxlength="80" value="'.h($s['name']).'" required></label><label>Regel<select name="rule">'.$opts.'</select></label><label>Wert (X)<input type="number" name="param" min="0" max="100000" step="1" value="'.(int)$s['param'].'" required></label><p class="muted">Bei „Alle Mitglieder“ wird der Wert ignoriert. Tagesregeln verwenden UTC. Die neue Anzahl siehst du nach dem Speichern.</p><button class="btn">Segment speichern</button></form></section>',$u);exit;
 }

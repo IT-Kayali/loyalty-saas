@@ -152,3 +152,7 @@ Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Pari
 ## Analytics
 
 `python3 tests/run-analytics.py`: Code-Gutschein-Einlösungen im bisherigen Dashboard, Allzeit-/30-Tage-Grenzen, Stornos, Idempotenz, Rechte und mobile Programm-Performance. [ANALYTICS.md](ANALYTICS.md).
+
+## Segment-Editor
+
+`python3 tests/run-segments.py`: vorhandene Einzelregeln editieren, Konfliktschutz, kein Versand, Kampagnenverknüpfung/-historie und Rechte. [SEGMENTS.md](SEGMENTS.md).

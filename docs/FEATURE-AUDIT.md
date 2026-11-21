@@ -32,7 +32,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Prepaid | Basis | Neu: getrennt verkaufte Besuchs-/unbegrenzte Zeitpässe, Snapshots, Ablaufprüfung, Ledger/CSV und Storno. Geldguthaben, Refunds, Kauf-QR und Reminder fehlen. |
 | Achievements | Basis | Schwellen/Metriken und Punktebonus. Keine wöchentlichen Läufe und vollständige Reward-/Limitkonfiguration. |
 | Empfehlungen | Basis | Empfehlungslink, Prämien für Werber/Geworbenen. Kein detailliertes Missbrauchs-/Kampagnenmanagement. |
-| Segmente | Basis | Gespeicherte regelbasierte Zielgruppen. Kein vollständiger verschachtelter Segment-Builder. |
+| Segmente | Basis | Gespeicherte regelbasierte Zielgruppen. Neu: Name/Einzelregel/Wert bestehender Segmente mit Konfliktschutz editierbar, aktuelle Anzahl und Hinweis auf spätere Kampagnenwirkung, ohne Versand (SEGMENTS.md). Kein vollständiger verschachtelter Builder, ungespeicherte Vorschau oder Empfänger-Versionierung. |
 | Kampagnen | Basis | Segmentauswahl, Inbox und vorhandener optionaler Mailpfad. Die SMTP-Konfiguration allein ist kein Nachweis einer produktionsreifen SMTP-Zustellung; Neu: TLS-SMTP, Queue/Worker und Abmeldung. Echte Providerzustellung, Bounces und Double-Opt-In fehlen. |
 | Automatische Nachrichten | Offen | Neu: Welcome/Birthday/Winback-Textregeln mit Deduplizierung. Neu: optional persönlicher Einmal-Gutschein je Mail (Geburtstag/Winback/Willkommen, siehe LIFECYCLE-VOUCHERS.md), per E-Mail und/oder Wallet-Inbox (Inbox ohne SMTP, Cron-Worker nötig), ohne echte Zustellabnahme. Kein vollständiger Lifecycle-Katalog. |
 | Karten-/QR-Studio | Basis | QR für Join/Staff/Karten, Logo und Druck/PNG. Keine trackbaren Kartenbatches, Batchinventar oder Hardwareverwaltung. |

@@ -107,6 +107,7 @@ try {
         $path === '/achievement/delete' && $method === 'POST' => route_achievement_delete(),
         $path === '/business/referral' && $method === 'POST' => route_business_referral(),
         $path === '/business/timezone' && $method === 'POST' => route_business_timezone(),
+        preg_match('#^/segment/(\d+)/edit$#',$path,$m)===1 && in_array($method,['GET','POST'],true) => route_segment_edit((int)$m[1],$method),
         $path === '/segment/create' && $method === 'POST' => route_segment_create(),
         $path === '/segment/delete' && $method === 'POST' => route_segment_delete(),
         $path === '/campaign/create' && $method === 'POST' => route_campaign_create(),
