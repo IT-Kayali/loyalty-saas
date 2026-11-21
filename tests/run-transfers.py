@@ -63,7 +63,7 @@ with tempfile.TemporaryDirectory(prefix='loyalty-xfer-') as temp:
   page=req(L,c=B_)[1];check('Dein Guthaben' in page and '100 Punkte' in page,'Sendeformular zeigt Guthaben')
   op=re.search(r'name="op" value="([a-f0-9]+)"',page).group(1)
   def send(c,amount,op_,confirm=True):
-   d={'csrf':csrf(c,L),'op':op_,'amount':amount}
+   d={'csrf':csrf(c,'/member/preferences'),'op':op_,'amount':amount}
    if confirm:d['confirm']=1
    return req(L,d,c)
   send(B_,30,op,False);check(pts(b)==100,'ohne Bestätigung nichts übertragen')
@@ -97,6 +97,35 @@ with tempfile.TemporaryDirectory(prefix='loyalty-xfer-') as temp:
   req('/program/transfer',{'csrf':csrf(o,'/program/%d'%pid),'program_id':pid},o)
   check(req('/send/'+tok2,c=B_)[0]==404,'Programm ohne Opt-in: Links liefern 404')
   check(req('/send/zzzz',c=B_)[0]==404,'ungültiger Token: 404')
+  # Tageslimits
+  L='/send/'+tok2;
+  req('/program/transfer',{'csrf':csrf(o,'/program/%d'%pid),'program_id':pid,'enabled':1},o)
+  def setlim(out,inn,cnt,en=1):
+   req('/program/transfer',{'csrf':csrf(o,'/program/%d'%pid),'program_id':pid,'enabled':en,'transfer_out_daily':out,'transfer_in_daily':inn,'transfer_count_daily':cnt},o)
+  def reset(pa,pb):
+   sql("db()->exec('DELETE FROM point_transfers');db()->exec('UPDATE cards SET points=%d WHERE id=%d');db()->exec('UPDATE cards SET points=%d WHERE id=%d');"%(pa,card[a],pb,card[b]))
+  def nop():
+   m=re.search(r'name="op" value="([a-f0-9]+)"',req(L,c=B_)[1]);return m.group(1) if m else 'f'*32
+  setlim(-1,0,0);check(val("SELECT transfer_out_daily FROM programs WHERE id=%d"%pid)!='-1','negatives Limit abgelehnt')
+  setlim(2000000,0,0);check(val("SELECT transfer_out_daily FROM programs WHERE id=%d"%pid)!='2000000','zu großes Limit abgelehnt')
+  setlim(50,60,2);check(val("SELECT transfer_out_daily||','||transfer_in_daily||','||transfer_count_daily FROM programs WHERE id=%d"%pid)=='50,60,2','Limits gespeichert (50 / 60 / 2)')
+  reset(0,100)
+  check('noch 50 Punkte' in req(L,c=B_)[1] and 'max="50"' in req(L,c=B_)[1],'Sendeformular zeigt Rest und begrenzt das Feld')
+  send(B_,51,nop());check(pts(b)==100,'über Sende-Tageslimit abgelehnt')
+  send(B_,30,nop());check(pts(b)==70,'30 innerhalb des Limits gesendet')
+  send(B_,25,nop());check(pts(b)==70,'25 würde das Sende-Limit überschreiten (nur noch 20)')
+  send(B_,20,nop());check(pts(b)==50 and pts(a)==50,'20 gesendet, Limit ausgeschöpft')
+  send(B_,1,nop());check(pts(b)==50,'Übertragungs-Anzahl-Limit (2) greift')
+  check('Aktuell ist keine Übertragung möglich' in req(L,c=B_)[1] or 'Übertragungen in 24 Stunden' in req(L,c=B_)[1],'Formular meldet Limit statt Eingabefeld')
+  check('Letzte Übertragungen' in req('/program/%d'%pid,c=o)[1],'Betreiber sieht letzte Übertragungen')
+  setlim(0,60,0);reset(0,100)
+  send(B_,70,nop());check(pts(b)==100,'Empfangs-Limit des Empfängers greift (70 > 60)')
+  send(B_,60,nop());check(pts(b)==40 and pts(a)==60,'60 innerhalb des Empfangs-Limits')
+  send(B_,5,nop());check(pts(b)==40,'Empfänger kann heute nichts mehr erhalten')
+  sql("db()->exec(\"UPDATE point_transfers SET created_at=datetime('now','-2 days')\");")
+  send(B_,10,nop());check(pts(b)==30 and pts(a)==70,'nach 24 Stunden wieder möglich (gleitendes Fenster)')
+  setlim(0,0,0);reset(0,100);send(B_,90,nop());send(B_,5,nop());send(B_,5,nop());check(pts(b)==0,'0 = unbegrenzt (nur Guthaben und 10000 begrenzen)')
+  setlim(500,1000,5)
   # Browser
   req('/program/transfer',{'csrf':csrf(o,'/program/%d'%pid),'program_id':pid,'enabled':1},o)
   sql("db()->exec('UPDATE cards SET points=80 WHERE id=%d');"%card[b]);sql("db()->prepare('INSERT INTO cards(program_id,member_id,points,points_lifetime) VALUES(?,?,0,0)')->execute([%d,%d]);"%(pid,c3))

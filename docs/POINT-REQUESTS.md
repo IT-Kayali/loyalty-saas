@@ -21,7 +21,11 @@ Referenz: https://rewardloyalty.co/docs/5.x/loyalty-cards/member-point-requests.
 
 ## Grenzen
 
-- Wer den Link kennt und angemeldet ist, kann senden. Kein Freigabeschritt für den Empfänger, keine Limits pro Tag oder pro Absender, keine Missbrauchserkennung.
+- Wer den Link kennt und angemeldet ist, kann senden. Kein Freigabeschritt für den Empfänger, Es gelten Tageslimits je Programm (siehe unten). Keine Limits pro Absender-Empfänger-Paar, keine Missbrauchserkennung über Konten hinweg.
+
+## Tageslimits
+
+Im Programm (Bereich Übertragungen) stellt der Owner drei Werte ein, jeweils in einem gleitenden 24-Stunden-Fenster je Karte: Punkte senden (Standard 500), Punkte empfangen (Standard 1000) und Anzahl Übertragungen (Standard 5). 0 heißt unbegrenzt, erlaubt sind 0 bis 1000000 (Anzahl 0 bis 1000). Die Prüfung läuft in der Transaktion von `transfer_points()` (`app/inc/transfers.php`), Fehlermeldungen sind deutsch. Das Sendeformular zeigt den Rest und begrenzt das Betragsfeld. Der Owner sieht außerdem die letzten 20 Übertragungen.
 - Der Link-Aufruf ohne Anmeldung leitet zum Login, danach muss der Link erneut geöffnet werden.
 - Keine Anfrage ohne gewählte Karte („für alle Karten“) wie in der Referenz.
 - Keine Live-Aktualisierung der Wallet.
@@ -29,4 +33,4 @@ Referenz: https://rewardloyalty.co/docs/5.x/loyalty-cards/member-point-requests.
 
 ## Test
 
-`python tests/run-transfers.py`: 29 Prüfungen (Opt-in, Rechte, Linklimit, Beträge, Bestätigung, Replay, Lifetime, Verlauf, Nachricht, Undo gesperrt, Löschen, 404) und Browser Desktop und Mobil mit Screenshots.
+`python tests/run-transfers.py`: 45 Prüfungen (Tageslimits, Opt-in, Rechte, Linklimit, Beträge, Bestätigung, Replay, Lifetime, Verlauf, Nachricht, Undo gesperrt, Löschen, 404) und Browser Desktop und Mobil mit Screenshots.

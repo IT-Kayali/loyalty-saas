@@ -65,6 +65,24 @@ function route_member_requests(string $method): never
     exit;
 }
 
+/** Restkontingente der letzten 24 Stunden (null = unbegrenzt). */
+function transfer_allowance(int $programId, int $fromCard, int $toCard): array
+{
+    $db = db();
+    $p = $db->prepare('SELECT transfer_out_daily,transfer_in_daily,transfer_count_daily FROM programs WHERE id=?');$p->execute([$programId]);$p = $p->fetch() ?: [];
+    $sum = function (string $col, int $card) use ($db, $programId): int {
+        $q = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM point_transfers WHERE program_id=? AND $col=? AND created_at > datetime('now','-1 day')");$q->execute([$programId, $card]);return (int)$q->fetchColumn();
+    };
+    $cnt = $db->prepare("SELECT COUNT(*) FROM point_transfers WHERE program_id=? AND from_card=? AND created_at > datetime('now','-1 day')");$cnt->execute([$programId, $fromCard]);
+    $out = (int)($p['transfer_out_daily'] ?? 0);$in = (int)($p['transfer_in_daily'] ?? 0);$cm = (int)($p['transfer_count_daily'] ?? 0);
+    return [
+        'out_left' => $out > 0 ? max(0, $out - $sum('from_card', $fromCard)) : null,
+        'in_left' => $in > 0 ? max(0, $in - $sum('to_card', $toCard)) : null,
+        'count_left' => $cm > 0 ? max(0, $cm - (int)$cnt->fetchColumn()) : null,
+        'count_max' => $cm,
+    ];
+}
+
 /** Ergebnis: [Fehlertext|null]. Ausfuehrung atomar und je op genau einmal. */
 function transfer_points(int $linkId, int $fromCardId, int $amount, string $op): void
 {
@@ -84,6 +102,10 @@ function transfer_points(int $linkId, int $fromCardId, int $amount, string $op):
         if (!$to) throw new InvalidArgumentException('Der Empfänger hat keine Karte mehr.');
         if ((int)$to['id'] === (int)$from['id'] || (int)$to['member_id'] === (int)$from['member_id']) throw new InvalidArgumentException('Du kannst dir nicht selbst Punkte senden.');
         if ((int)$from['points'] < $amount) throw new InvalidArgumentException('Nicht genug Punkte.');
+        $lim = transfer_allowance((int)$link['program_id'], (int)$from['id'], (int)$to['id']);
+        if ($lim['count_left'] !== null && $lim['count_left'] < 1) throw new InvalidArgumentException('Tageslimit erreicht: höchstens ' . $lim['count_max'] . ' Übertragungen in 24 Stunden.');
+        if ($lim['out_left'] !== null && $amount > $lim['out_left']) throw new InvalidArgumentException('Tageslimit: du kannst in 24 Stunden noch ' . $lim['out_left'] . ' Punkte senden.');
+        if ($lim['in_left'] !== null && $amount > $lim['in_left']) throw new InvalidArgumentException('Der Empfänger kann heute höchstens noch ' . $lim['in_left'] . ' Punkte erhalten.');
         $db->prepare('UPDATE cards SET points=points-? WHERE id=? AND points>=?')->execute([$amount, $from['id'], $amount]);
         $db->prepare('UPDATE cards SET points=points+? WHERE id=?')->execute([$amount, $to['id']]);
         $db->prepare('INSERT INTO point_transfers(op,link_id,program_id,from_card,to_card,amount)VALUES(?,?,?,?,?,?)')->execute([$op, $linkId, $link['program_id'], $from['id'], $to['id'], $amount]);
@@ -115,9 +137,19 @@ function route_send_points(string $token, string $method): never
     $body = '<h1>Punkte senden</h1><p class="muted">' . h($link['business'] . ' · ' . $link['program_name']) . '</p>';
     if (!$mine) $body .= '<p class="notice">Du hast bei diesem Geschäft keine Karte in diesem Programm und kannst keine Punkte senden.</p>';
     elseif ($self) $body .= '<p class="notice">Das ist dein eigener Link. Teile ihn mit jemand anderem.</p>';
-    else $body .= '<p>Dein Guthaben: <strong>' . (int)$mine['points'] . ' Punkte</strong></p><form method="post" class="form">' . csrf_field() . '<input type="hidden" name="op" value="' . bin2hex(random_bytes(16)) . '">
-      <label>Anzahl Punkte<input type="number" name="amount" min="1" max="' . min((int)$mine['points'], TRANSFER_MAX_AMOUNT) . '" required></label>
+    else {
+        $t = db()->prepare('SELECT id FROM cards WHERE member_id=? AND program_id=?');$t->execute([$link['member_id'], $link['program_id']]);
+        $lim = transfer_allowance((int)$link['program_id'], (int)$mine['id'], (int)$t->fetchColumn());
+        $cap = min((int)$mine['points'], TRANSFER_MAX_AMOUNT, $lim['out_left'] ?? PHP_INT_MAX, $lim['in_left'] ?? PHP_INT_MAX);
+        $hint = [];
+        if ($lim['out_left'] !== null) $hint[] = 'Du kannst in 24 Stunden noch ' . $lim['out_left'] . ' Punkte senden.';
+        if ($lim['count_left'] !== null) $hint[] = 'Noch ' . $lim['count_left'] . ' Übertragungen in 24 Stunden.';
+        if ($lim['in_left'] !== null && $lim['in_left'] < (int)$mine['points']) $hint[] = 'Der Empfänger kann noch ' . $lim['in_left'] . ' Punkte erhalten.';
+        if ($cap < 1 || ($lim['count_left'] !== null && $lim['count_left'] < 1)) $body .= '<p>Dein Guthaben: <strong>' . (int)$mine['points'] . ' Punkte</strong></p><p class="notice">' . h($hint ? implode(' ', $hint) : 'Aktuell ist keine Übertragung möglich.') . '</p>';
+        else $body .= '<p>Dein Guthaben: <strong>' . (int)$mine['points'] . ' Punkte</strong></p>' . ($hint ? '<p class="muted">' . h(implode(' ', $hint)) . '</p>' : '') . '<form method="post" class="form">' . csrf_field() . '<input type="hidden" name="op" value="' . bin2hex(random_bytes(16)) . '">
+      <label>Anzahl Punkte<input type="number" name="amount" min="1" max="' . $cap . '" required></label>
       <label class="check"><input type="checkbox" name="confirm" value="1"> Ich möchte diese Punkte von meiner Karte an das Mitglied senden. Das lässt sich nicht rückgängig machen.</label><button class="btn">Punkte senden</button></form>';
+    }
     page('Punkte senden', '<div class="auth-box">' . $body . '</div>');
     exit;
 }
@@ -128,15 +160,37 @@ function route_program_transfer_setting(): never
     $p = own_program((int)$u['id'], (int)($_POST['program_id'] ?? 0));
     if (!$p || $p['type'] !== 'points') { flash(t('Ungültige Eingabe.'), 'err'); redirect('/dashboard'); }
     $on = isset($_POST['enabled']) ? 1 : 0;
-    db()->prepare('UPDATE programs SET points_transfer=? WHERE id=?')->execute([$on, $p['id']]);
-    audit_log((int)$u['id'], 'points.transfer.set', ['program_id' => (int)$p['id'], 'enabled' => $on]);
-    flash($on ? 'Punkteanfragen zwischen Mitgliedern aktiv.' : 'Punkteanfragen aus. Bestehende Links funktionieren nicht mehr.');
+    $lim = [];
+    foreach (['transfer_out_daily' => 1000000, 'transfer_in_daily' => 1000000, 'transfer_count_daily' => 1000] as $k => $max) {
+        $v = (int)($_POST[$k] ?? ($p[$k] ?? 0));
+        if ($v < 0 || $v > $max) { flash('Limits zwischen 0 (unbegrenzt) und ' . $max . '.', 'err'); redirect('/program/' . (int)$p['id']); }
+        $lim[$k] = $v;
+    }
+    db()->prepare('UPDATE programs SET points_transfer=?,transfer_out_daily=?,transfer_in_daily=?,transfer_count_daily=? WHERE id=?')
+        ->execute([$on, $lim['transfer_out_daily'], $lim['transfer_in_daily'], $lim['transfer_count_daily'], $p['id']]);
+    audit_log((int)$u['id'], 'points.transfer.set', ['program_id' => (int)$p['id'], 'enabled' => $on] + $lim);
+    flash($on ? 'Punkteanfragen zwischen Mitgliedern gespeichert (aktiv).' : 'Punkteanfragen aus. Bestehende Links funktionieren nicht mehr.');
     redirect('/program/' . (int)$p['id']);
 }
 
 function points_transfer_form_html(array $p): string
 {
-    return '<h2>Punkteanfragen zwischen Mitgliedern</h2><p class="muted">Mitglieder können Anfrage-Links teilen und von anderen Mitgliedern Punkte erhalten. Das verschiebt nur Guthaben, Lifetime-Punkte und Stufen bleiben. Standard: aus.</p>
+    $n = fn(string $k, int $d): int => (int)($p[$k] ?? $d);
+    $h = '<h2>Punkteanfragen zwischen Mitgliedern</h2><p class="muted">Mitglieder können Anfrage-Links teilen und von anderen Mitgliedern Punkte erhalten. Das verschiebt nur Guthaben, Lifetime-Punkte und Stufen bleiben. Standard: aus. Limits gelten pro Karte und gleitend über 24 Stunden, 0 heißt unbegrenzt.</p>
       <form method="post" action="/program/transfer" class="form inline-form panel">' . csrf_field() . '<input type="hidden" name="program_id" value="' . (int)$p['id'] . '">
-        <label class="check"><input type="checkbox" name="enabled" value="1"' . ((int)($p['points_transfer'] ?? 0) ? ' checked' : '') . '> Aktiv</label><button class="btn">Speichern</button></form>';
+        <label class="check"><input type="checkbox" name="enabled" value="1"' . ((int)($p['points_transfer'] ?? 0) ? ' checked' : '') . '> Aktiv</label>
+        <label>Senden je Karte (Punkte)<input type="number" name="transfer_out_daily" min="0" max="1000000" value="' . $n('transfer_out_daily', 500) . '"></label>
+        <label>Empfangen je Karte (Punkte)<input type="number" name="transfer_in_daily" min="0" max="1000000" value="' . $n('transfer_in_daily', 1000) . '"></label>
+        <label>Übertragungen je Sender<input type="number" name="transfer_count_daily" min="0" max="1000" value="' . $n('transfer_count_daily', 5) . '"></label>
+        <button class="btn">Speichern</button></form>';
+    if (!empty($p['id'])) {
+        $q = db()->prepare("SELECT t.created_at,t.amount,mf.name AS from_name,mt.name AS to_name FROM point_transfers t JOIN cards cf ON cf.id=t.from_card JOIN members mf ON mf.id=cf.member_id JOIN cards ct ON ct.id=t.to_card JOIN members mt ON mt.id=ct.member_id WHERE t.program_id=? ORDER BY t.id DESC LIMIT 20");
+        $q->execute([$p['id']]);$rows = $q->fetchAll();
+        if ($rows) {
+            $h .= '<h3>Letzte Übertragungen</h3><div class="table-wrap"><table><tr><th>UTC</th><th>Von</th><th>An</th><th>Punkte</th></tr>';
+            foreach ($rows as $r) $h .= '<tr><td>' . h($r['created_at']) . '</td><td>' . h($r['from_name']) . '</td><td>' . h($r['to_name']) . '</td><td>' . (int)$r['amount'] . '</td></tr>';
+            $h .= '</table></div>';
+        }
+    }
+    return $h;
 }
