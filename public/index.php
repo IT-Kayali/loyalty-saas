@@ -109,6 +109,7 @@ try {
         $path === '/apikey/regenerate' && $method === 'POST' => route_apikey_regenerate(),
         $path === '/webhook/create' && $method === 'POST' => route_webhook_create(),
         $path === '/webhook/delete' && $method === 'POST' => route_webhook_delete(),
+        $path === '/webhook/retry' && $method === 'POST' => route_webhook_retry(),
         $path === '/integration/save' && $method === 'POST' => route_integration_save(),
         preg_match('#^/business/(\d+)/analytics$#', $path, $m) === 1 => route_analytics((int)$m[1]),
         preg_match('#^/program/(\d+)/design$#', $path, $m) === 1 => route_program_design((int)$m[1],$method),

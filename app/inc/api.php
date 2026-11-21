@@ -84,16 +84,75 @@ function fire_webhook(int $businessId, string $event, array $payload): void
         ], JSON_UNESCAPED_UNICODE);
         db()->prepare('INSERT INTO webhook_deliveries (webhook_id, event, payload) VALUES (?,?,?)')
             ->execute([$hook['id'], $event, $body]);
-        $deliveryId = (int)db()->lastInsertId();
-        [$status, $response] = webhook_post($hook['url'], $body, (string)$hook['secret']);
-        db()->prepare('UPDATE webhook_deliveries SET status = ?, response = ?, delivered_at = datetime("now") WHERE id = ?')
-            ->execute([$status, mb_strimwidth((string)$response, 0, 500, ''), $deliveryId]);
+        webhook_attempt((int)db()->lastInsertId(), true);
     }
 }
 
-/** POSTet die Payload an die Webhook-URL (SSRF-geprüft, keine Redirects). Liefert [status, response]. */
-function webhook_post(string $url, string $body, string $secret): array
+const WEBHOOK_MAX_ATTEMPTS = 6;
+/** Wartezeit in Minuten nach Versuch 1, 2, 3 ... */
+const WEBHOOK_BACKOFF_MIN = [1, 5, 30, 120, 720];
+
+/**
+ * Ein Zustellversuch fuer eine gespeicherte Zustellung. Bei Erfolg 'delivered'.
+ * Bei Fehler 'failed' mit next_attempt_at (Backoff), nach WEBHOOK_MAX_ATTEMPTS 'dead'
+ * (nur noch manuell wiederholbar). $first: erster Versuch direkt beim Ereignis.
+ * Liefert den neuen Status.
+ */
+function webhook_attempt(int $deliveryId, bool $first = false): string
 {
+    $st = db()->prepare('SELECT d.*, w.url, w.secret, w.active FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id WHERE d.id = ?');
+    $st->execute([$deliveryId]);
+    $d = $st->fetch();
+    if (!$d) {
+        return 'missing';
+    }
+    $attempts = $first ? 1 : (int)$d['attempts'] + 1;
+    if (!(int)$d['active']) {
+        db()->prepare("UPDATE webhook_deliveries SET status='dead', response=?, next_attempt_at=NULL, delivered_at=datetime('now') WHERE id=?")
+            ->execute(['Webhook ist deaktiviert', $deliveryId]);
+        return 'dead';
+    }
+    [$status, $response] = webhook_post((string)$d['url'], (string)$d['payload'], (string)$d['secret'], [
+        'X-Webhook-Delivery: ' . $deliveryId,
+        'X-Webhook-Attempt: ' . $attempts,
+    ]);
+    $next = null;
+    if ($status !== 'delivered') {
+        if ($attempts >= WEBHOOK_MAX_ATTEMPTS) {
+            $status = 'dead';
+        } else {
+            $status = 'failed';
+            $wait = WEBHOOK_BACKOFF_MIN[min($attempts, count(WEBHOOK_BACKOFF_MIN)) - 1];
+            $next = gmdate('Y-m-d H:i:s', time() + $wait * 60);
+        }
+    }
+    db()->prepare("UPDATE webhook_deliveries SET status=?, response=?, attempts=?, next_attempt_at=?, delivered_at=datetime('now') WHERE id=?")
+        ->execute([$status, mb_strimwidth((string)$response, 0, 500, ''), $attempts, $next, $deliveryId]);
+    return $status;
+}
+
+/** Wiederholt alle faelligen fehlgeschlagenen Zustellungen (Cron: tools/webhook-retry.php). Liefert [versucht, geliefert]. */
+function webhook_retry_due(int $limit = 50): array
+{
+    $ids = db()->prepare("SELECT id FROM webhook_deliveries WHERE status='failed' AND next_attempt_at IS NOT NULL AND next_attempt_at <= ? ORDER BY next_attempt_at LIMIT " . max(1, $limit));
+    $ids->execute([gmdate('Y-m-d H:i:s')]);
+    $tried = $ok = 0;
+    foreach ($ids->fetchAll(PDO::FETCH_COLUMN) as $id) {
+        $tried++;
+        if (webhook_attempt((int)$id) === 'delivered') {
+            $ok++;
+        }
+    }
+    return [$tried, $ok];
+}
+
+/** POSTet die Payload an die Webhook-URL (SSRF-geprüft, keine Redirects). Liefert [status, response]. */
+function webhook_post(string $url, string $body, string $secret, array $extraHeaders = []): array
+{
+    $transport = config('webhook_transport', null);
+    if (is_callable($transport)) { // Testnaht: ersetzt nur den Versand, nicht die Statuslogik
+        return $transport($url, $body, $secret, $extraHeaders);
+    }
     $urlError = webhook_url_error($url);
     if ($urlError !== null) {
         return ['failed', 'SSRF-Schutz: ' . $urlError];
@@ -103,11 +162,11 @@ function webhook_post(string $url, string $body, string $secret): array
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $body,
-        CURLOPT_HTTPHEADER => array_filter([
+        CURLOPT_HTTPHEADER => array_filter(array_merge($extraHeaders, [
             'Content-Type: application/json',
             'User-Agent: LoyaltyApp-Webhook/2.0',
             $signature !== '' ? 'X-Webhook-Signature: sha256=' . $signature : null,
-        ]),
+        ])),
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 5,
         CURLOPT_CONNECTTIMEOUT => 4,
@@ -177,6 +236,26 @@ function route_webhook_delete(): never
     redirect('/dashboard');
 }
 
+/** Owner: eine fehlgeschlagene Zustellung sofort erneut senden. */
+function route_webhook_retry(): never
+{
+    $u = require_login();
+    $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
+    if (!$b) {
+        redirect('/dashboard');
+    }
+    $st = db()->prepare('SELECT d.id, d.status FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id WHERE d.id = ? AND w.business_id = ?');
+    $st->execute([(int)($_POST['delivery_id'] ?? 0), $b['id']]);
+    $d = $st->fetch();
+    if (!$d || $d['status'] === 'delivered') {
+        flash(t('Zustellung nicht gefunden oder bereits zugestellt.'), 'err');
+    } else {
+        $r = webhook_attempt((int)$d['id']);
+        flash($r === 'delivered' ? t('Webhook zugestellt.') : t('Zustellung weiter fehlgeschlagen. Details im Protokoll.'), $r === 'delivered' ? 'ok' : 'err');
+    }
+    redirect('/business/' . (int)$b['id']);
+}
+
 /** Speichert die Shop/POS-Integrationseinstellungen (Shopify-Secret, Auto-Punkte). */
 function route_integration_save(): never
 {
@@ -199,12 +278,19 @@ function api_html(array $b): string
     $hooks->execute([$b['id']]);
     $list = '';
     foreach ($hooks->fetchAll() as $hook) {
-        $del = db()->prepare('SELECT event, status, response, delivered_at FROM webhook_deliveries WHERE webhook_id = ? ORDER BY id DESC LIMIT 5');
+        $del = db()->prepare('SELECT id, event, status, response, delivered_at, attempts, next_attempt_at FROM webhook_deliveries WHERE webhook_id = ? ORDER BY id DESC LIMIT 5');
         $del->execute([$hook['id']]);
         $log = '';
         foreach ($del->fetchAll() as $dl) {
             $log .= '<br><span class="muted" style="font-size:12px">' . h($dl['delivered_at']) . ' ' . h($dl['event'])
-                . ' – ' . h($dl['status']) . ' (' . h($dl['response']) . ')</span>';
+                . ' – ' . h($dl['status']) . ' (' . h($dl['response']) . ', ' . (int)$dl['attempts'] . ' ' . t('Versuch(e)')
+                . ($dl['status'] === 'failed' && $dl['next_attempt_at'] ? ', ' . t('nächster Versuch') . ' ' . h($dl['next_attempt_at']) . ' UTC' : '') . ')</span>';
+            if ($dl['status'] !== 'delivered') {
+                $log .= ' <form method="post" action="/webhook/retry" style="display:inline">' . csrf_field()
+                    . '<input type="hidden" name="business_id" value="' . (int)$b['id'] . '">'
+                    . '<input type="hidden" name="delivery_id" value="' . (int)$dl['id'] . '">'
+                    . '<button class="btn ghost small">' . t('Erneut senden') . '</button></form>';
+            }
         }
         $list .= '<li><code>' . h($hook['url']) . '</code> <span class="muted">' . h($hook['events']) . '</span>'
             . ' <form method="post" action="/webhook/delete" style="display:inline">' . csrf_field()

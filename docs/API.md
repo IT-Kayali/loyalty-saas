@@ -57,7 +57,8 @@ Business-Seite → Integrationen → Webhook anlegen. Events: Mitglied erstellt,
 - Nur **HTTPS-Ziele mit öffentlicher IP** (SSRF-Schutz; für lokale Entwicklung `webhook_allow_http => true` in config.php)
 - Mit Secret: HMAC-SHA256-Signatur des Roh-Body im Header `X-Webhook-Signature` (`hash_hmac('sha256', $rawBody, $secret)`)
 - Payload: `{"event": "...", "business_id": 1, "data": {...}, "sent_at": "..."}`
-- Zustellprotokoll (Status + Antwort) unter dem Webhook in der App
+- Zustellprotokoll (Status, Antwort, Versuche) unter dem Webhook in der App
+- Fehlgeschlagene Zustellungen werden automatisch wiederholt (Cron) und lassen sich manuell neu senden, Header `X-Webhook-Delivery` und `X-Webhook-Attempt`: [WEBHOOK-RETRIES.md](WEBHOOK-RETRIES.md)
 
 ## PassKit Web Service (intern)
 

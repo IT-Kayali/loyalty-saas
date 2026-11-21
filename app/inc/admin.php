@@ -38,6 +38,16 @@ function route_admin(string $method): never
             audit_log((int)$u['id'],'platform.settings');
             flash(t('Plattform-Einstellungen gespeichert.'));
         }
+        if ($action==='webhook_retry') {
+            $r=webhook_attempt((int)($_POST['delivery_id'] ?? 0));
+            audit_log((int)$u['id'],'webhook.retry',['delivery'=>(int)($_POST['delivery_id'] ?? 0),'result'=>$r]);
+            flash($r==='delivered' ? t('Webhook zugestellt.') : t('Zustellung weiter fehlgeschlagen. Details im Protokoll.'), $r==='delivered' ? 'ok' : 'err');
+        }
+        if ($action==='webhook_run_due') {
+            [$tried,$ok]=webhook_retry_due();
+            audit_log((int)$u['id'],'webhook.run_due',['tried'=>$tried,'delivered'=>$ok]);
+            flash(sprintf(t('Fällige Wiederholungen: %d versucht, %d zugestellt.'),$tried,$ok));
+        }
         redirect('/admin');
     }
     $stats=[];
@@ -62,7 +72,14 @@ function route_admin(string $method): never
     ];
     foreach($checks as $label=>$ok) $body.='<section class="panel"><strong>'.h($label).'</strong><p>'.($ok?'✓ Bereit':'○ Nicht eingerichtet / prüfen').'</p></section>';
     $failed=(int)db()->query("SELECT COUNT(*) FROM webhook_deliveries WHERE status!='delivered'")->fetchColumn();
-    $body.='</div><p>'.t('Webhook-Zustellungen zur Prüfung').': '.$failed.'</p><section class="panel"><h2>'.t('Transaktionen exportieren').'</h2><p>CSV mit Datum, Unternehmen, Programm, Aktion und Betrag. Maximal 10.000 Einträge pro Zeitraum.</p><form method="get" action="/admin/export" class="form inline-form"><label>Von<input type="date" name="from" value="'.date('Y-m-01').'" required></label><label>Bis<input type="date" name="to" value="'.date('Y-m-d').'" required></label><button class="btn">CSV herunterladen</button></form></section>';
+    $body.='</div><h2>'.t('Webhook-Zustellungen zur Prüfung').': '.$failed.'</h2>';
+    $rowsF='';
+    foreach(db()->query("SELECT d.id,d.event,d.status,d.response,d.attempts,d.next_attempt_at,d.delivered_at,w.url,b.name AS bname FROM webhook_deliveries d JOIN webhooks w ON w.id=d.webhook_id JOIN businesses b ON b.id=w.business_id WHERE d.status!='delivered' ORDER BY d.id DESC LIMIT 20")->fetchAll() as $d) {
+        $rowsF.='<section class="panel"><strong>'.h($d['bname']).'</strong> <span class="muted">'.h($d['event']).' &middot; '.h($d['status']).' &middot; '.(int)$d['attempts'].' Versuch(e)'.($d['next_attempt_at'] ? ' &middot; nächster '.h($d['next_attempt_at']).' UTC' : '').'</span><p><code style="word-break:break-all">'.h($d['url']).'</code><br><span class="muted">'.h($d['response']).'</span></p><form method="post">'.csrf_field().'<input type="hidden" name="action" value="webhook_retry"><input type="hidden" name="delivery_id" value="'.(int)$d['id'].'"><button class="btn ghost small">'.t('Wiederholen').'</button></form></section>';
+    }
+    if($rowsF) $body.='<div class="grid">'.$rowsF.'</div><p class="muted">Maximal 20 neueste. failed = wird automatisch wiederholt (Cron), dead = nur manuell.</p>';
+    $body.='<form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="webhook_run_due"><button class="btn ghost small">'.t('Fällige Wiederholungen jetzt ausführen').'</button></form><p></p>';
+    $body.='<section class="panel"><h2>'.t('Transaktionen exportieren').'</h2><p>CSV mit Datum, Unternehmen, Programm, Aktion und Betrag. Maximal 10.000 Einträge pro Zeitraum.</p><form method="get" action="/admin/export" class="form inline-form"><label>Von<input type="date" name="from" value="'.date('Y-m-01').'" required></label><label>Bis<input type="date" name="to" value="'.date('Y-m-d').'" required></label><button class="btn">CSV herunterladen</button></form></section>';
     $body.='<section class="panel"><h2>'.t('Plattform-Einstellungen').'</h2><form method="post" class="form">'.csrf_field().'<input type="hidden" name="action" value="settings"><label>Plattform-Name<input name="platform_name" maxlength="60" value="'.h(platform_setting('platform_name','Loyalty')).'" required></label><label class="check"><input type="checkbox" name="registration_open" '.(platform_setting('registration_open','1')==='1'?'checked':'').'> Betreiber-Registrierung erlauben</label><button class="btn">Speichern</button></form></section>';
     $body.='<h2>'.t('Aktivitätsprotokoll').'</h2><div class="table-wrap"><table><thead><tr><th>UTC</th><th>Konto</th><th>Aktion</th></tr></thead><tbody>';
     foreach(db()->query('SELECT a.created_at,u.email,a.action FROM audit_logs a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 100')->fetchAll() as $a) $body.='<tr><td>'.h($a['created_at']).'</td><td>'.h($a['email']).'</td><td>'.h($a['action']).'</td></tr>';

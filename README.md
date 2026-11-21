@@ -24,6 +24,8 @@ E-Mail-Automationen können einen persönlichen Einmal-Gutschein beilegen (Gebur
 
 Mitglieder-Punkteanfragen per Link, opt-in je Programm. [Regeln und Grenzen](docs/POINT-REQUESTS.md).
 
+Webhook-Retries mit Backoff und Wiederholung durch Owner/Admin. [Ablauf und Cron](docs/WEBHOOK-RETRIES.md).
+
 ## WordPress-Händlerdashboard
 
 Eigener WordPress-Adminbereich für Mitglieder, aktuelle Salden, Punkte/Stempel und bestätigte Prämieneinlösung, auch ohne WooCommerce. Admin-only-Verbindung, geschützter API-Schlüssel und transaktionaler Wiederholschutz. Eine Site verbindet genau ein Unternehmen. Einrichtung, echte lokale WordPress-Tests und Grenzen: [Plugin-README](integrations/woocommerce/README.md).
