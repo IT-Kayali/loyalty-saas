@@ -57,7 +57,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
 | Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. Neu: Passwortreset mit Einmaltoken und Sessionwiderruf; eigenes Betreiberpasswort mit bisherigem Passwort ändern (OWNER-PASSWORD.md), beendet Websitzungen, nicht API-/Agent-Schlüssel. OTP, Geräteverwaltung und vollständiger Security-Audit fehlen. |
 | Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Getestetes Backup-/Restore-Werkzeug jetzt vorhanden. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker oder automatischer Updater. |
-| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Status/Priorität/Kanal/Namens-Zuständigkeit/Suche, filtertreuer Paginierung und mobiler Volldatenliste, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Neu: eigener sichtbarer Partner-Thread als privater JSON-Download, ohne interne Notizen. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
+| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Thema/Status/Priorität/Kanal/Namens-Zuständigkeit/Suche, filtertreuer Paginierung und mobiler Volldatenliste, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Neu: eigener sichtbarer Partner-Thread als privater JSON-Download, ohne interne Notizen. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
 
 ## Empfohlene weitere Baupakete
 
@@ -134,3 +134,7 @@ Optionaler MCP-Endpunkt (docs/AI.md): Schlüsselverwaltung unter /ai (gehasht, A
 ## Nachtrag: PWA-Test-Kaltstart
 
 Nur Tests/Dokumentation: Nach aktiver Root-Registrierung erfolgt vor dem Offlinewechsel ein Online-Neuladen samt Prüfung des erwarteten Controllers. Die 23 Chromium-Prüfungen bestehen in drei voneinander getrennten Kaltstart-Läufen. Desktop-/Mobilansicht geprüft. Keine produktive PWA-Änderung und kein Nachweis echter Geräte-/Browser-Parität; alle bisherigen PWA-Grenzen bleiben offen. Siehe [PWA-Testablauf](PWA.md).
+
+## Nachtrag: Support-Themen
+
+Bereits gespeicherte Themen sind in Thread und Listen sichtbar, Betreiber und Admin können sie zusätzlich zu ihren bestehenden Filtern eingrenzen. Filtertreue Paginierung und sichere Ablehnung unbekannter Themen. Keine Bearbeitung/Automatik und keine Erweiterung von Kontakt- oder internen Notizrechten. Tests: 23 Domänen-, 91 HTTP- und 48 Browserprüfungen. [Details und Grenzen](SUPPORT.md).

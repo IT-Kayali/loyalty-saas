@@ -205,3 +205,7 @@ Eigene sichtbare Support-Threads lassen sich privat als JSON herunterladen, ohne
 Meilensteinregeln vor erster Freischaltung bearbeiten, erreichte Regeln schützen: [ACHIEVEMENTS.md](docs/ACHIEVEMENTS.md), Tests `python3 tests/run-achievement-edit.py`.
 
 Meilensteine können ohne Entzug bestehender Freischaltungen pausiert und fortgesetzt werden: [ACHIEVEMENTS.md](docs/ACHIEVEMENTS.md).
+
+## Support nach Thema
+
+Supportlisten für Betreiber und Admin zeigen das Ticketthema und lassen sich danach filtern, mit den vorhandenen Filtern kombinierbar und über Folgeseiten erhalten. Keine neue Kontaktfreigabe oder automatische Kategorisierung. [Support, Rechte und Grenzen](docs/SUPPORT.md).

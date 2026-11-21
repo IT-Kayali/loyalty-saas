@@ -8,7 +8,7 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  const pc=await b.newContext({viewport:vp}),ac=await b.newContext({viewport:vp});
  const p=await login(pc,'demo@loyalty.local','demo1234'),a=await login(ac,'admin@test.local','adminpass1');
  await p.goto(U+'/support');yes(await p.locator('h1').textContent()==='Hilfe & Support',label+': partner support page');
- await p.locator('[name=subject]').fill('Rechnung falsch ('+label+')');await p.locator('[name=message]').fill('Meine Rechnung zeigt einen falschen Betrag.\nBitte prüfen.');await p.locator('form button.btn').last().click();await p.waitForURL(/\/support\/[A-F0-9]{16}$/);
+ await p.locator('form[method=post] [name=topic]').selectOption('billing');await p.locator('[name=subject]').fill('Rechnung falsch ('+label+')');await p.locator('[name=message]').fill('Meine Rechnung zeigt einen falschen Betrag.\nBitte prüfen.');await p.locator('form button.btn').last().click();await p.waitForURL(/\/support\/[A-F0-9]{16}$/);
  yes((await p.content()).includes('falschen Betrag'),label+': ticket created in browser');
  const ref=p.url().split('/').pop();
  await p.screenshot({path:`${out}/support-partner-thread-${label}.png`,fullPage:true});yes(await noScroll(p),label+': partner thread has no horizontal overflow');
@@ -36,6 +36,13 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  yes(await a.locator('.support-inbox-table').evaluate(e=>e.scrollWidth<=e.clientWidth+1),label+': vollständige Inbox ohne Tabellen-Scrollen');
  yes(await noScroll(a),label+': Kanalfilter auf Desktop/Mobil ohne Überlauf');await a.screenshot({path:`${out}/support-channel-filter-${label}.png`,fullPage:true});
  await a.locator('[name=channel]').selectOption('partner');await a.getByRole('button',{name:'Suchen',exact:true}).click();await a.waitForLoadState();yes((await a.content()).includes(ref) && !(await a.content()).includes('Frage vor Registrierung'),label+': Betreiberkanal ohne Kontaktanfragen');
+ await a.locator('[name=topic]').selectOption('billing');await a.getByRole('button',{name:'Suchen',exact:true}).click();await a.waitForLoadState();
+ yes((await a.content()).includes(ref) && (await a.locator('.support-inbox-table').textContent()).includes('Abrechnung'),label+': Themenfilter zeigt lesbares Thema');
+ yes(new URL(a.url()).searchParams.get('channel')==='partner' && await a.locator('[name=topic]').inputValue()==='billing',label+': Thema kombiniert mit Kanal');
+ await a.screenshot({path:`${out}/support-topic-filter-${label}.png`,fullPage:true});yes(await noScroll(a),label+': Themenfilter ohne horizontalen Überlauf');
+ await a.locator('[name=topic]').selectOption('technical');await a.getByRole('button',{name:'Suchen',exact:true}).click();await a.waitForLoadState();yes(!(await a.content()).includes(ref),label+': anderes Thema schliesst Ticket aus');
+ await p.goto(U+'/support');await p.locator('form[method=get] [name=topic]').selectOption('billing');await p.getByRole('button',{name:'Suchen',exact:true}).click();await p.waitForLoadState();yes((await p.content()).includes(ref),label+': Betreiberfilter findet eigenes Ticket');
+ await p.screenshot({path:`${out}/support-topic-partner-${label}.png`,fullPage:true});yes(await noScroll(p),label+': Betreiber-Themenliste ohne Überlauf');
  await pc.close();await ac.close();await c.close();
 }
 await b.close();console.log(n+' support browser assertions passed');})().catch(e=>{console.error(e);process.exit(1)});

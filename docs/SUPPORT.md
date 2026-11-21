@@ -27,7 +27,7 @@ Eingebauter Helpdesk zwischen Betreibern (Partnern) und Plattform-Admins. Alles 
 
 ## Tests
 
-`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/support-images python tests/run-support.py` führt 23 Domänenprüfungen, 79 HTTP-Prüfungen (Zugriff, Mandantentrennung, CSRF, Routenbindung, interne Notizen, Filter, Planablauf, Kontakt, Rate-Limit, Ausblenden) und 36 Chromium-Prüfungen mit Screenshots (Desktop und Mobil) aus. Benachrichtigungen werden nur in die Outbox geschrieben. Es läuft kein Mail-Worker und keine SMTP-Verbindung. Chromium über `NODE_PATH` mit Playwright.
+`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/support-images python tests/run-support.py` führt 23 Domänenprüfungen, 91 HTTP-Prüfungen (Zugriff, Mandantentrennung, CSRF, Routenbindung, interne Notizen, Filter, Planablauf, Kontakt, Rate-Limit, Ausblenden) und 48 Chromium-Prüfungen mit Screenshots (Desktop und Mobil) aus. Benachrichtigungen werden nur in die Outbox geschrieben. Es läuft kein Mail-Worker und keine SMTP-Verbindung. Chromium über `NODE_PATH` mit Playwright.
 
 ## Grenzen (ehrlich)
 
@@ -60,3 +60,11 @@ Nachrichten und Ticket werden in einer kurzen Lesetransaktion gelesen. Der Downl
 Die Datei enthält private Supportinhalte, lokal sicher aufbewahren und nicht unbedacht weitergeben. Sie ist ein Datenstand beim Download, keine vollständige Änderungshistorie, Rechts-/Datenschutzzusage oder unveränderbares Archiv. Autorennamen sind die beim Download aktuellen Kontonamen, keine historischen Identitätssnapshots. Kein Sammel-/Adminexport, keine Anhänge, kein CSV/PDF, keine neue API. Die bestehenden Threadanzeigen und Ausblendungsregeln bleiben unverändert.
 
 Zusatztests für den Download: 14 HTTP-Fälle für Schema/Feldliste, Volltextreihenfolge, Ausschluss interner Daten, exakten Eigentümer, Kontakt/ausgeblendet, no-store, Lesewirkung, Aboablauf und harte Nachrichten-/UTF-8-Bytegrenzen. Vier Browserprüfungen laden die tatsächliche Datei auf Desktop und Mobil herunter und prüfen den Inhalt ohne interne Notiz. Exportlink und Thread auf beiden Größen visuell geprüft.
+
+## Themenfilter und sichtbare Themen
+
+Das bei der Anlage gewählte Thema erscheint übersetzt im Threadkopf und in jeder Listenzeile. Betreiber und Plattform-Admins filtern ihre jeweilige Liste nach Abrechnung, Technik, Konto, Feedback oder Sonstiges. „Alle Themen“ entfernt nur den Themenfilter. Thema schränkt die vorhandenen Status-/Such-/Adminfilter zusätzlich ein; es ersetzt sie nicht. „Nächste 50“ behält das Thema und alle anderen Filter bei. Unbekannte Themen liefern 422 statt still alle Tickets zu zeigen.
+
+Die Auswahl ist eine reine Leseaktion, kein Umkategorisieren. Kein Themeneditor, keine automatische Klassifizierung, keine Themenstatistik. Betreiber sehen weiterhin nur ihre eigenen aktiven Partner-Tickets; ein Themenfilter verknüpft keine Kontaktadresse mit einem Konto. Interne Notizen bleiben unsichtbar. Thema und Suche stehen in der Browseradresse. Keine neuen Benachrichtigungen oder Audit-/Statusänderungen.
+
+Zusätzlich 12 HTTP-Prüfungen für sichtbare Bezeichnungen, beide Rollen, Filterkombinationen, fremde/ausgeblendete Tickets, Kontakttrennung, sichere Fehler, vollständige filtertreue Paginierung und reine Lesewirkung. Weitere 12 Browserprüfungen für Themenwechsel, Admin-/Betreiberliste, kombinierte Kanalauswahl und Desktop-/Mobilansichten.
