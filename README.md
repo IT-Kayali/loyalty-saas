@@ -203,3 +203,5 @@ Support-Admin-Inbox: Kanalfilter, Zuständigkeit per Name und mobile Volldatenli
 Eigene sichtbare Support-Threads lassen sich privat als JSON herunterladen, ohne interne Notizen: [SUPPORT.md](docs/SUPPORT.md).
 
 Meilensteinregeln vor erster Freischaltung bearbeiten, erreichte Regeln schützen: [ACHIEVEMENTS.md](docs/ACHIEVEMENTS.md), Tests `python3 tests/run-achievement-edit.py`.
+
+Meilensteine können ohne Entzug bestehender Freischaltungen pausiert und fortgesetzt werden: [ACHIEVEMENTS.md](docs/ACHIEVEMENTS.md).

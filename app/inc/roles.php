@@ -379,7 +379,7 @@ function route_wallet(): never
         /* Achievements: freigeschaltet + naechster Fortschritt */
         $achQ = db()->prepare('SELECT a.*, ma.unlocked_at FROM achievements a
             LEFT JOIN member_achievements ma ON ma.achievement_id = a.id AND ma.member_id = ?
-            WHERE a.business_id = ? AND a.active = 1 ORDER BY a.threshold');
+            WHERE a.business_id = ? AND (a.active = 1 OR ma.id IS NOT NULL) ORDER BY a.threshold');
         $achQ->execute([(int)$m['id'], (int)$m['business_id']]);
         $achs = $achQ->fetchAll();
         if ($achs) {

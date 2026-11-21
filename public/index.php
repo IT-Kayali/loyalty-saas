@@ -408,11 +408,11 @@ function route_business(int $id): never
     }
     $staffList = $staffList ? '<ul>' . $staffList . '</ul>' : '<p class="muted">' . t('Noch keine Staff-Zugänge.') . '</p>';
 
-    $achQ = db()->prepare('SELECT * FROM achievements WHERE business_id = ? AND active = 1 ORDER BY threshold');
+    $achQ = db()->prepare('SELECT * FROM achievements WHERE business_id = ? ORDER BY active DESC, threshold');
     $achQ->execute([$id]);
     $achList = '';
     foreach ($achQ->fetchAll() as $a) {
-        $achList .= '<li>🏆 <strong>' . h($a['name']) . '</strong> – ' . h(metric_label($a['metric']))
+        $achList .= '<li>'.((int)$a['active']===1?'🏆 ':'<span class="badge">Pausiert</span> ').'<strong>' . h($a['name']) . '</strong> – ' . h(metric_label($a['metric']))
             . ' ' . t('ab') . ' ' . (int)$a['threshold']
             . ((int)$a['reward_points'] > 0 ? ' (+' . (int)$a['reward_points'] . ' ' . t('Punkte') . ')' : '')
             . ' <a class="btn ghost small" href="/achievement/'.(int)$a['id'].'/edit">Prüfen / Bearbeiten</a>'

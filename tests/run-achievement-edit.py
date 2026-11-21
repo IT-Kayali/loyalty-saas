@@ -85,6 +85,39 @@ with tempfile.TemporaryDirectory(prefix='loyalty-campaign-edit-') as temp:
   check(req('/achievement/delete',{'csrf':csrf(o,'/business/1'),'business_id':2,'achievement_id':untouched},o)[0]==404,'Löschziel muss zum angegebenen Unternehmen gehören')
   req('/achievement/delete',{'csrf':csrf(o,'/business/1'),'business_id':1,'achievement_id':untouched},o)
   check(sql('echo db()->query(\"SELECT COUNT(*) FROM achievements WHERE id=%d\")->fetchColumn();'%untouched)=='0','Noch nie erreichter Meilenstein weiterhin löschbar')
+  # Pause/resume leaves earned rule and old awards intact.
+  def setstate(id,active,extra=None,token=True):
+   d={'action':'state','active':str(active),'revision':sql("echo achievement_revision(db()->query('SELECT * FROM achievements WHERE id=%d')->fetch());"%id)}
+   if token:d['csrf']=csrf(o,'/business/1')
+   if extra:d.update(extra)
+   return req('/achievement/%d/edit'%id,d,o)
+  check(req('/achievement/%d/edit'%aid,{'csrf':csrf(outsider,'/dashboard'),'action':'state','active':'0','revision':rev()},outsider)[0]==404,'Statuswechsel fremder Betreiber gesperrt')
+  (A/'config.php').write_text("<?php $c=require __DIR__.'/config.example.php';$c['stripe']['enforce_limits']=true;return $c;")
+  saved=state();check(setstate(aid,0)[0]==402 and state()==saved,'Plan blockiert Statuswechsel')
+  (A/'config.php').write_text("<?php return require __DIR__.'/config.example.php';")
+  before=effects();saved=state();check(setstate(aid,0,token=False)[0]==403 and state()==saved,'Pause benötigt CSRF')
+  check('pausiert' in setstate(aid,0)[1] and state()['active']==0 and effects()==before,'Erreichte Regel pausierbar ohne Entzug oder Nachricht')
+  benc=mk();req('/member/login',{'csrf':csrf(benc,'/member/login'),'email':'ben@example.com','password':'kunde1234'},benc)
+  check('Treuebonus' in req('/wallet',c=benc)[1] and 'erreicht' in req('/wallet',c=benc)[1],'Pausierter erreichter Meilenstein bleibt in Wallet')
+  check('Treuebonus' in req('/business/1',c=o)[1] and 'Pausiert' in req('/business/1',c=o)[1],'Betreiberliste zeigt pausierte Regeln')
+  check('Keine rückwirkende Vergabe' in setstate(aid,1)[1] and effects()==before,'Fortsetzen vergibt nichts rückwirkend')
+  oldrev=sql('echo achievement_revision(db()->query(\"SELECT * FROM achievements WHERE id=%d\")->fetch());'%aid);setstate(aid,0);saved=state()
+  check('inzwischen geändert' in setstate(aid,1,{'revision':oldrev})[1] and state()==saved,'Veralteter Statusschalter überschreibt nicht')
+  check('Ungültiger Aktivstatus' in setstate(aid,'2')[1] and state()==saved,'Nur Status null oder eins erlaubt')
+  paused=int(sql("db()->exec(\"INSERT INTO achievements(business_id,name,metric,threshold,reward_points,active)VALUES(1,'Pause ohne Vergabe','points_lifetime',1,23,0)\");echo db()->lastInsertId();"))
+  before=effects();sql('check_achievements(%d,1);'%mid)
+  check(not sql('echo (int)achievement_has_awards(%d);'%paused)=='1' and effects()==before,'Pausierte passende Regel löst nichts aus')
+  check('Pause ohne Vergabe' not in req('/wallet',c=benc)[1],'Nicht erreichte pausierte Regel nicht als Ziel in Wallet')
+  setstate(paused,1);check(effects()==before,'Fortsetzen passender Regel ohne automatische Freischaltung')
+  sql('check_achievements(%d,1);'%mid);check(sql('echo (int)achievement_has_awards(%d);'%paused)=='1','Nächste unterstützte Prüfung vergibt fortgesetzte Regel')
+  # Pause and check compete for same lock; once paused, subsequent checks never award.
+  race=int(sql("db()->exec(\"INSERT INTO achievements(business_id,name,metric,threshold,reward_points)VALUES(1,'Pausenrennen','points_lifetime',1,29)\");echo db()->lastInsertId();"))
+  revision=sql('echo achievement_revision(db()->query(\"SELECT * FROM achievements WHERE id=%d\")->fetch());'%race)
+  jobs=["achievement_change(1,%d,['active'=>'0','revision'=>'%s'],'state');"%(race,revision),'check_achievements(%d,1);'%mid]
+  workers=[subprocess.Popen([PHP,'-r',"require 'public/index.php';"+c],cwd=A,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True) for c in jobs];[w.communicate(timeout=15) for w in workers]
+  check(all(w.returncode==0 for w in workers) and sql('echo db()->query(\"SELECT active FROM achievements WHERE id=%d\")->fetchColumn();'%race)=='0','Pause und Vergabe ohne Wettlauffehler')
+  before=effects();sql('check_achievements(%d,1);'%mid);check(effects()==before,'Nach Pause kein späterer Bonus bei Wiederholung')
+  check(sql("echo db()->query(\"SELECT COUNT(*) FROM audit_logs WHERE action='achievement.state'\")->fetchColumn();")=='5','Statusaktionen mit ID-Audit protokolliert')
   # New untouched draft for UI.
   ui=int(sql("db()->exec(\"INSERT INTO achievements(business_id,name,metric,threshold,reward_points)VALUES(1,'Browser','visits_total',100000,0)\");echo db()->lastInsertId();"))
   subprocess.run(['node',str(R/'tests/achievement-edit-ui.cjs'),str(ui),str(aid)],cwd=R,check=True)
