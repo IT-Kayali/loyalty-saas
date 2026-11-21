@@ -129,7 +129,7 @@ function route_staff_counter(): never
         <a class="btn accent" href="/staff/scan">' . t('QR scannen') . '</a>
       </form>';
 
-    $body.='<p><a href="/staff/business/'.(int)$s['business_id'].'/voucher-counter">Code-Gutschein prüfen</a></p><p class="muted">Erlaubte Aktionen: '.h(implode(', ',staff_permissions($s)) ?: 'Nur lesen').'</p>';
+    $body.='<p><a href="/staff/business/'.(int)$s['business_id'].'/voucher-counter">Code-Gutschein prüfen</a> · <a href="/staff/business/'.(int)$s['business_id'].'/claim-counter">Prämien-Code einlösen</a></p><p class="muted">Erlaubte Aktionen: '.h(implode(', ',staff_permissions($s)) ?: 'Nur lesen').'</p>';
     if ($q !== '') {
         $like = '%' . $q . '%';
         $stmt = db()->prepare('SELECT * FROM members WHERE business_id = ? AND (name LIKE ? OR email LIKE ? OR code LIKE ?) ORDER BY name LIMIT 20');
@@ -333,11 +333,14 @@ function route_wallet(): never
     }
 
     $body .= member_vouchers_html(array_map('intval', array_column($rows, 'id')));
+    $claimsHtml = [];
+    foreach ($rows as $m0) $claimsHtml[(int)$m0['id']] = member_claims_html((int)$m0['id']);
 
     foreach ($rows as $m) {
         $body .= '<h2 class="wallet-biz">' . h($m['business_name']) . '</h2>';
         $cards = wallet_cards_html((int)$m['id']);
         $body .= $cards ?: '<p class="muted">' . t('Noch keine Karten bei diesem Geschäft.') . '</p>';
+        $body .= $claimsHtml[(int)$m['id']] ?? '';
         $body .= '<p><a href="/c/' . h($m['code']) . '" target="_blank">' . t('Karte zum Vorzeigen (QR)') . '</a></p>';
         $body .= wallet_buttons($m['code']);
 

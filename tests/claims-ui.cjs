@@ -1,0 +1,26 @@
+const {chromium}=require('playwright'),fs=require('fs');
+(async()=>{let n=0;const yes=(v,s)=>{if(!v)throw Error(s);n++;console.log('PASS '+s)};
+const out=process.env.TEST_OUTPUT||'/tmp/loyalty-claims';fs.mkdirSync(out,{recursive:true});const U='http://127.0.0.1:8099';
+const b=await chromium.launch({headless:true,args:['--no-sandbox']});
+for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:390,height:844}]]){
+ const m=await b.newContext({viewport:vp});const p=await m.newPage();p.on('pageerror',e=>{throw e});
+ await p.goto(U+'/member/login');await p.locator('[name=email]').fill('aylin@example.com');await p.locator('[name=password]').fill('kunde1234');await p.locator('button').first().click();await p.waitForURL('**/wallet');
+ const btn=p.getByRole('button',{name:/Code für „Kaffee“/});yes(await btn.count()===1,label+': Code-Button sichtbar');
+ await btn.click();await p.waitForLoadState();
+ yes(await p.locator('.claim-code').count()===1,label+': Code angezeigt');
+ await p.waitForFunction(()=>document.querySelector('.claim-active .qr-box canvas, .claim-active .qr-box img, .claim-active .qr-box svg'),null,{timeout:5000}).catch(()=>{});
+ yes(await p.locator('.claim-active .qr-box').first().evaluate(e=>e.children.length>0),label+': QR gezeichnet');
+ yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Wallet ohne horizontalen Überlauf');
+ await p.locator('.claim-box').first().scrollIntoViewIfNeeded();await p.screenshot({path:`${out}/claims-wallet-${label}.png`});
+ const code=(await p.locator('.claim-code').first().textContent()).trim();
+ const o=await b.newContext({viewport:vp});const q=await o.newPage();q.on('pageerror',e=>{throw e});
+ await q.goto(U+'/login');await q.locator('[name=email]').fill('demo@loyalty.local');await q.locator('[name=password]').fill('demo1234');await q.locator('button').first().click();await q.waitForURL('**/dashboard');
+ await q.goto(U+'/business/1/claim-counter');await q.locator('[name=code]').fill(code);await q.getByRole('button',{name:'Prüfen'}).click();await q.waitForLoadState();
+ yes((await q.content()).includes('Einlösen und 50 Punkte'),label+': Kasse zeigt Vorschau');
+ yes(await q.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Kasse ohne horizontalen Überlauf');
+ await q.screenshot({path:`${out}/claims-counter-${label}.png`,fullPage:true});
+ await q.getByRole('button',{name:/Einlösen und 50/}).click();await q.waitForLoadState();
+ yes((await q.content()).includes('eingelöst'),label+': Einlösung bestätigt');
+ await p.reload();yes((await p.locator('.claim-code').count())===0,label+': Code verschwindet aus der Wallet');
+ await m.close();await o.close();}
+await b.close();console.log(n+' Einlösecode-Browser-Prüfungen bestanden');})().catch(e=>{console.error(e);process.exit(1)});

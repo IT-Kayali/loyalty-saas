@@ -25,6 +25,7 @@ E-Mail-Automationen können einen persönlichen Einmal-Gutschein beilegen (Gebur
 Mitglieder-Punkteanfragen per Link, opt-in je Programm. [Regeln und Grenzen](docs/POINT-REQUESTS.md).
 
 Webhook-Retries mit Backoff und Wiederholung durch Owner/Admin. [Ablauf und Cron](docs/WEBHOOK-RETRIES.md).
+Einlösecodes mit QR für Prämien. [Ablauf und Grenzen](docs/REWARD-CODES.md).
 
 ## WordPress-Händlerdashboard
 

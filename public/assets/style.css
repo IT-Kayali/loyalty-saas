@@ -440,3 +440,10 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 
 .scope-box { border: 1px solid var(--line, #e3ddd0); border-radius: 12px; padding: 12px 16px; margin: 0; display: grid; gap: 8px; min-width: 0; }
 .scope-box legend { font-weight: 600; padding: 0 6px; }
+
+.claim-box { display: grid; gap: 12px; }
+.claim-box h3 { margin: 0; }
+.claim-active { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); }
+.claim-active p { margin: 2px 0; }
+.claim-code { font-size: 28px; font-weight: 700; letter-spacing: 3px; font-variant-numeric: tabular-nums; }
+.claim-new { margin: 0; }

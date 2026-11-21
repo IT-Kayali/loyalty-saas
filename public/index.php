@@ -35,6 +35,7 @@ require_once ROOT_DIR . '/app/inc/ai.php';
 require_once ROOT_DIR . '/app/inc/templates.php';
 require_once ROOT_DIR . '/app/inc/expiry.php';
 require_once ROOT_DIR . '/app/inc/transfers.php';
+require_once ROOT_DIR . '/app/inc/claims.php';
 
 /* ------------------------------------------------------------------ */
 /* Router                                                              */
@@ -136,6 +137,10 @@ try {
         $path==='/wallet/request' => route_member_requests($method),
         preg_match('#^/send/([a-f0-9]{32})$#',$path,$m)===1 => route_send_points($m[1],$method),
         $path==='/program/transfer' && $method==='POST' => route_program_transfer_setting(),
+        $path==='/program/claims' && $method==='POST' => route_program_claims(),
+        $path==='/wallet/claim' && $method==='POST' => route_wallet_claim(),
+        preg_match('#^/claim/([A-Za-z0-9-]{8,12})$#',$path,$m)===1 && $method==='GET' => route_claim_entry($m[1]),
+        preg_match('#^/(?:staff/)?business/(\d+)/claim-counter$#',$path,$m)===1 => route_claim_counter((int)$m[1],$method),
         $path==='/member/preferences' => route_member_preferences($method),
         $path === '/api/docs' => route_api_docs(),
         $path === '/member/create' && $method === 'POST' => route_member_create(),
@@ -627,7 +632,7 @@ function route_program(int $id): never
           <label>' . t('Bis') . ' <input type="number" name="end_hour" value="16" min="1" max="24"></label>
           <label>' . t('Multiplikator') . ' <input type="number" name="multiplier" value="2" min="2" max="10"></label>
           <button class="btn">' . t('Hinzufügen') . '</button>
-        </form>' . points_expiry_form_html($p) . points_transfer_form_html($p);
+        </form>' . points_expiry_form_html($p) . points_transfer_form_html($p) . program_claims_form_html($p);
     }
 
     if($p['type']==='voucher')$body.=voucher_form_html($p);
