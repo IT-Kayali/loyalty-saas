@@ -230,6 +230,7 @@ function campaigns_html(int $businessId): string
             : '<span class="badge badge-draft">' . t('Entwurf') . '</span>';
         $list .= '<li>' . $status . ' <strong>' . h($c['name']) . '</strong> - ' . h($c['subject'])
             . ' <span class="muted">' . t('Segment:') . ' ' . h($c['segment_name']) . '</span>'
+            . ' <a class="btn ghost small" href="/campaign/' . (int)$c['id'] . '/edit">Prüfen / Bearbeiten</a>'
             . ' <form method="post" action="/campaign/send" style="display:inline">' . csrf_field()
             . '<input type="hidden" name="business_id" value="' . $businessId . '">'
             . '<input type="hidden" name="campaign_id" value="' . (int)$c['id'] . '">'
@@ -303,4 +304,49 @@ function route_segment_edit(int $id,string $method): never
     $opts='';foreach(segment_rules() as $key=>$label)$opts.='<option value="'.h($key).'"'.($s['rule']===$key?' selected':'').'>'.h($label).'</option>';
     $q=db()->prepare("SELECT COUNT(*) FROM campaigns WHERE segment_id=? AND status!='sent'");$q->execute([$id]);$drafts=(int)$q->fetchColumn();
     page('Segment bearbeiten','<p><a href="/business/'.(int)$s['business_id'].'">← Unternehmen</a></p><h1>Segment bearbeiten</h1><section class="panel"><p><strong>'.count(segment_members($saved)).'</strong> Mitglieder passen zur aktuell gespeicherten Regel. Die Zielgruppe ist dynamisch, kein fester Empfängerbestand.</p><p class="muted">'.$drafts.' noch nicht gesendete Kampagnen sind verknüpft. Sie nutzen beim späteren Senden die dann gültige Regel. Bereits versendete Nachrichten und Versandprotokolle bleiben unverändert. Speichern sendet keine Nachrichten.</p>'.($preview!==null?'<div class="notice segment-preview"><h2>Ungespeicherte Vorschau</h2><p><strong>'.$preview.'</strong> Mitglieder bei der letzten Prüfung für '.h(segment_label($s)).'. Nach weiteren Eingaben erneut prüfen. Segment und Kampagnen bleiben unverändert. Es wurden keine Nachrichten versendet. Erst „Segment speichern“ übernimmt diese Regel.</p></div>':'').'<form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.h($revision).'"><label>Name<input name="name" maxlength="80" value="'.h($s['name']).'" required></label><label>Regel<select name="rule">'.$opts.'</select></label><label>Wert (X)<input type="number" name="param" min="0" max="100000" step="1" value="'.(int)$s['param'].'" required></label><p class="muted">Bei „Alle Mitglieder“ wird der Wert ignoriert. Tagesregeln verwenden UTC. Prüfe die neue Anzahl ohne Speichern über „Vorschau prüfen“. Die Zahl kann sich bis zu einem späteren Versand ändern.</p><div class="btn-row"><button class="btn ghost" name="action" value="preview">Vorschau prüfen</button><button class="btn" name="action" value="save">Segment speichern</button></div></form></section>',$u);exit;
+}
+
+function campaign_revision(array $c): string
+{
+    return hash('sha256',json_encode([(int)$c['id'],(int)$c['segment_id'],$c['name'],$c['subject'],$c['body'],$c['status']],JSON_UNESCAPED_UNICODE));
+}
+function campaign_editable(array $c): bool
+{
+    if($c['status']!=='draft')return false;
+    $q=db()->prepare('SELECT COUNT(*) FROM campaign_sends WHERE campaign_id=?');$q->execute([$c['id']]);
+    $q2=db()->prepare('SELECT COUNT(*) FROM mail_outbox WHERE dedup_key LIKE ?');$q2->execute(['campaign:'.$c['id'].':%']);
+    return (int)$q->fetchColumn()===0 && (int)$q2->fetchColumn()===0;
+}
+function campaign_update(int $uid,int $id,array $in): void
+{
+    $name=trim((string)($in['name'] ?? ''));$subject=trim((string)($in['subject'] ?? ''));$body=trim((string)($in['body'] ?? ''));$sid=(int)($in['segment_id'] ?? 0);
+    if(preg_match('//u',$name.$subject.$body)!==1||$name===''||mb_strlen($name)>80||$subject===''||mb_strlen($subject)>120||$body===''||mb_strlen($body)>2000||str_contains($name.$subject.$body,"\0"))throw new InvalidArgumentException('Name (1–80), Betreff (1–120) und Text (1–2000 Zeichen) erforderlich.');
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try {
+        $q=$db->prepare('SELECT c.* FROM campaigns c JOIN businesses b ON b.id=c.business_id WHERE c.id=? AND b.user_id=?');$q->execute([$id,$uid]);$c=$q->fetch();
+        if(!$c)throw new InvalidArgumentException('Kampagne nicht verfügbar.');
+        if(($e=plan_policy($uid,'campaigns'))!==null)throw new InvalidArgumentException($e);
+        if(!campaign_editable($c))throw new InvalidArgumentException('Nicht editierbar: Versand bereits vorbereitet oder ungeklärter Teilversand. Keine Inhalte geändert.');
+        if(!hash_equals(campaign_revision($c),(string)($in['revision'] ?? '')))throw new InvalidArgumentException('Kampagne wurde inzwischen geändert. Aktuellen Stand prüfen.');
+        $q=$db->prepare('SELECT id FROM segments WHERE id=? AND business_id=?');$q->execute([$sid,$c['business_id']]);if(!$q->fetch())throw new InvalidArgumentException('Segment gehört nicht zum Unternehmen.');
+        $db->prepare('UPDATE campaigns SET name=?,subject=?,body=?,segment_id=? WHERE id=?')->execute([$name,$subject,$body,$sid,$id]);
+        audit_log($uid,'campaign.update',['campaign_id'=>$id,'business_id'=>(int)$c['business_id']]);$db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+}
+function route_campaign_edit(int $id,string $method): never
+{
+    $u=require_login();$q=db()->prepare('SELECT c.*,s.name AS segment_name FROM campaigns c JOIN businesses b ON b.id=c.business_id JOIN segments s ON s.id=c.segment_id AND s.business_id=c.business_id WHERE c.id=? AND b.user_id=?');$q->execute([$id,$u['id']]);$c=$q->fetch();if(!$c)not_found();
+    header('Cache-Control: private, no-store');
+    if($method==='POST') {
+        try{campaign_update((int)$u['id'],$id,$_POST);flash('Entwurf gespeichert. Keine Nachrichten versendet.');}catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
+        redirect('/campaign/'.$id.'/edit');
+    }
+    $body='<p><a href="/business/'.(int)$c['business_id'].'">← Unternehmen</a></p><h1>Kampagne prüfen</h1><p class="muted">Hier wird nichts versendet. Der Senden-Button bleibt getrennt auf der Unternehmensseite. Eine Zielgruppe ist dynamisch, keine Zusage tatsächlicher Mailzustellung.</p>';
+    if(campaign_editable($c)) {
+        $q=db()->prepare('SELECT * FROM segments WHERE business_id=? ORDER BY name');$q->execute([$c['business_id']]);$opts='';
+        foreach($q->fetchAll() as $s)$opts.='<option value="'.(int)$s['id'].'"'.((int)$s['id']===(int)$c['segment_id']?' selected':'').'>'.h($s['name']).' ('.count(segment_members($s)).' aktuell)</option>';
+        $body.='<section class="panel"><h2>Entwurf bearbeiten</h2><form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.campaign_revision($c).'"><label>Name<input name="name" maxlength="80" value="'.h($c['name']).'" required></label><label>Segment<select name="segment_id">'.$opts.'</select></label><label>Betreff<input name="subject" maxlength="120" value="'.h($c['subject']).'" required></label><label>Vollständiger Text<textarea name="body" rows="10" maxlength="2000" required>'.h($c['body']).'</textarea></label><button class="btn">Entwurf speichern</button></form></section>';
+    } else $body.='<p class="notice">Nur lesen: Versand bereits vorbereitet oder ungeklärter Teilversand. Inhalte bleiben unverändert. Bei Unklarheit Protokoll und Outbox mit dem Administrator abgleichen.</p>';
+    $body.='<section class="panel campaign-review"><h2>Gespeicherter Stand</h2><p>Name: '.h($c['name']).'</p><p>Segment: '.h($c['segment_name']).'</p><h3>'.h($c['subject']).'</h3><p style="white-space:pre-wrap;overflow-wrap:anywhere">'.h($c['body']).'</p><p class="muted">Textansicht, keine HTML-Mailvorschau. Die Wallet-Inbox zeigt weiterhin einen gekürzten Ausschnitt, die optionale E-Mail den vollständigen Text.</p></section>';
+    page('Kampagne prüfen',$body,$u);exit;
 }

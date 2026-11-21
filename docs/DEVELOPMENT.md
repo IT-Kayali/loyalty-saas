@@ -166,3 +166,7 @@ Die Segment-Suite prüft zusätzlich die ungespeicherte Anzahl-Vorschau ohne Än
 ## Kampagnen-Vorbereitung
 
 `python3 tests/run-campaign-dispatch.py`: atomare lokale Vorbereitung, Rollback durch injizierten Fehler, konkurrierende Prozesse, sichere Wiederholung und blockierte historische Teilversände, ohne SMTP. [CAMPAIGN-DISPATCH.md](CAMPAIGN-DISPATCH.md).
+
+## Kampagnenentwurf
+
+`python3 tests/run-campaign-edit.py`: 35 Domänen-/HTTP-/Parallelprüfungen und 12 Browserprüfungen für Editieren ohne Versand, vollständige Textansicht, Konflikte und unveränderbare vorbereitete Inhalte. [CAMPAIGN-EDIT.md](CAMPAIGN-EDIT.md).

@@ -22,8 +22,10 @@ Ein unerwarteter Fehler zeigt, dass der neue Vorbereitungsversuch zurückgenomme
 
 ## Grenzen
 
-Keine Queue-Worker-Neuentwicklung, kein Zeitplan, Entwurfseditor, Double-Opt-In, Bounce-/Providerabnahme oder vollständige Marketingfreigabe. Kein neuer API-/MCP-Versand. Keine Aussage über rechtliche Zulässigkeit einer Kampagne. Die Transaktion schreibt synchron, damit kann sie bei großen Zielgruppen andere SQLite-Schreiber blockieren. Kein Produktions-Lasttest. Laufender Worker, externe Zustellung oder historische Nachrichten werden durch die Datenbanktransaktion nicht zurückgerufen. Bestehendes Löschen von Kampagnen/Segmenten wurde nicht neu entworfen, vor Löschen ungeklärte Vorgänge abgleichen.
+Keine Queue-Worker-Neuentwicklung, kein Zeitplan, Double-Opt-In, Bounce-/Providerabnahme oder vollständige Marketingfreigabe. Kein neuer API-/MCP-Versand. Keine Aussage über rechtliche Zulässigkeit einer Kampagne. Die Transaktion schreibt synchron, damit kann sie bei großen Zielgruppen andere SQLite-Schreiber blockieren. Kein Produktions-Lasttest. Laufender Worker, externe Zustellung oder historische Nachrichten werden durch die Datenbanktransaktion nicht zurückgerufen. Bestehendes Löschen von Kampagnen/Segmenten wurde nicht neu entworfen, vor Löschen ungeklärte Vorgänge abgleichen.
 
 ## Tests
 
 `python3 tests/run-campaign-dispatch.py`: Wegwerfkonten, vollständige lokale Vorbereitung, Einwilligung/Adresse, Wiederholung, zwei konkurrierende PHP-Prozesse, gezielt injizierter Datenbankfehler beim zweiten Mitglied und vollständiger Rollback, erneuter Versuch nach Rollback, historische Teilversände, leere Zielgruppe, Eigentümer/Segment/CSRF/Plan, HTTP-Ergebnis und Fehlermeldung. Chromium Desktop/Mobil für Erfolg, sichere Wiederholung und Altlastwarnung. Keine SMTP-Verbindung oder echte Kampagne versendet. Screenshots unter `/tmp/loyalty-campaign-dispatch/` visuell geprüft.
+
+Entwurfseditor und Volltextprüfung wurden separat ergänzt: [CAMPAIGN-EDIT.md](CAMPAIGN-EDIT.md).

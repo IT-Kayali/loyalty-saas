@@ -112,6 +112,7 @@ try {
         preg_match('#^/segment/(\d+)/edit$#',$path,$m)===1 && in_array($method,['GET','POST'],true) => route_segment_edit((int)$m[1],$method),
         $path === '/segment/create' && $method === 'POST' => route_segment_create(),
         $path === '/segment/delete' && $method === 'POST' => route_segment_delete(),
+        preg_match('#^/campaign/(\d+)/edit$#',$path,$m)===1 && in_array($method,['GET','POST'],true) => route_campaign_edit((int)$m[1],$method),
         $path === '/campaign/create' && $method === 'POST' => route_campaign_create(),
         $path === '/campaign/send' && $method === 'POST' => route_campaign_send(),
         $path === '/campaign/delete' && $method === 'POST' => route_campaign_delete(),
