@@ -259,8 +259,15 @@ function wallet_cards_html(int $memberId): string
     $business=$designQ->fetch() ?: [];
     $design=business_design($business);
     $body = '';
+    $mq = db()->prepare('SELECT code FROM members WHERE id=?');
+    $mq->execute([$memberId]);
+    $memberCode = (string)$mq->fetchColumn();
     foreach ($stmt->fetchAll() as $c) {
         $design=program_design($c,$business);
+        if (design_layout($design)['on']) {
+            $body .= card_faces_html($design, ['program_name' => $c['program_name'], 'business_name' => (string)($business['name'] ?? ''), 'type' => $c['type'], 'stamps' => (int)$c['stamps'], 'required' => (int)$c['stamps_required'], 'reward_text' => (string)$c['reward_text'], 'pending' => (int)$c['pending_rewards'], 'points' => (int)$c['points'], 'voucher_value' => (string)$c['voucher_value'], 'uses_left' => (int)($c['uses_left'] ?? 0), 'visits_left' => (int)($c['visits_left'] ?? 0), 'qr_url' => base_url() . '/c/' . $memberCode]);
+            continue;
+        }
         $body .= '<section class="loyal-card designed-card" style="'.h(card_face_style($design)).'">';
         if ($c['type'] === 'stamps') {
             $req = (int)$c['stamps_required'];

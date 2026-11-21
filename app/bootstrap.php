@@ -726,6 +726,7 @@ function design_defaults(): array
         'show_points'  => 1,
         'show_tier'    => 1,
         'qr_logo'      => 1,           // Logo in der Mitte des QR-Codes
+        'layout'       => [],          // gestaltete Karte, siehe app/inc/cardlayout.php
     ];
 }
 

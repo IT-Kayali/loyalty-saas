@@ -46,6 +46,13 @@ function route_design(int $id, string $method, int $programId=0): never
             }
         }
 
+        try {
+            layout_apply_post($d, $id);
+        } catch (InvalidArgumentException $e) {
+            flash(t($e->getMessage()), 'err');
+            redirect($designPath);
+        }
+
         $table=$program?'programs':'businesses';$target=$program?$programId:$id;
         db()->prepare('UPDATE '.$table.' SET card_design=? WHERE id=?')->execute([json_encode($d,JSON_UNESCAPED_UNICODE),$target]);
         flash(t('Karten-Design gespeichert.'));
@@ -93,6 +100,7 @@ function route_design(int $id, string $method, int $programId=0): never
         <label class="check"><input type="checkbox" name="show_tier" value="1" ' . ($d['show_tier'] ? 'checked' : '') . ' style="width:auto"> ' . t('Mitgliedsstufe zeigen') . '</label>
         <label class="check"><input type="checkbox" name="qr_logo" value="1" ' . ($d['qr_logo'] ? 'checked' : '') . ' style="width:auto"> ' . t('Logo in der Mitte des QR-Codes') . '</label>
 
+        ' . layout_form_html($d) . '
         <button class="btn">' . t('Speichern') . '</button>
       </form>
 
@@ -112,6 +120,9 @@ function route_design(int $id, string $method, int $programId=0): never
           </div>
         </div>
         <p class="muted">' . t('Die Vorschau aktualisiert sich direkt. Speichern übernimmt das Design für alle Karten.') . '</p>
+        <h2>Webkarte mit Vorder- und Rückseite</h2>
+        ' . card_faces_html($d, ['program_name' => $program ? $program['name'] : 'Kaffee-Karte', 'business_name' => $b['name'], 'type' => 'stamps', 'stamps' => 4, 'required' => 10, 'reward_text' => $program ? ($program['reward_text'] ?: 'Gratis-Getränk') : 'Gratis-Getränk', 'pending' => 0, 'points' => 0, 'voucher_value' => '', 'uses_left' => 0, 'visits_left' => 0, 'qr_url' => base_url() . '/c/DEMO1234AB'], true) . '
+        <p class="muted">Beispieldaten. Die Karte erscheint beim Kunden nur, wenn "Gestaltete Karte verwenden" aktiv ist.</p>
       </div>
       </div>', $u, $b['brand_color']);
     exit;

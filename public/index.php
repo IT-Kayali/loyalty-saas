@@ -23,6 +23,7 @@ require_once ROOT_DIR . '/app/inc/billing.php';
 require_once ROOT_DIR . '/app/inc/paypal.php';
 require_once ROOT_DIR . '/app/inc/admin.php';
 require_once ROOT_DIR . '/app/inc/designer.php';
+require_once ROOT_DIR . '/app/inc/cardlayout.php';
 require_once ROOT_DIR . '/app/inc/vouchers.php';
 require_once ROOT_DIR . '/app/inc/prepaid.php';
 require_once ROOT_DIR . '/app/inc/mail.php';

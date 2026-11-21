@@ -447,3 +447,31 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 .claim-active p { margin: 2px 0; }
 .claim-code { font-size: 28px; font-weight: 700; letter-spacing: 3px; font-variant-numeric: tabular-nums; }
 .claim-new { margin: 0; }
+
+/* Gestaltete Webkarte mit Vorder-/Rückseite */
+.cl-wrap { margin: 14px 0; text-align: left; }
+.cl-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.cl-tab { border: 1px solid var(--line-strong); background: transparent; color: inherit; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer; }
+.cl-tab.active { background: var(--ink, #1C1A17); color: #fff; border-color: transparent; }
+.cl-face { position: relative; aspect-ratio: 1.586 / 1; container-type: inline-size; overflow: hidden; border-radius: 18px; margin: 0 0 12px; box-shadow: var(--shadow); background-color: var(--card-bg); color: var(--card-text); }
+.cl-wrap[data-js="1"][data-side="front"] .cl-face-back, .cl-wrap[data-js="1"][data-side="back"] .cl-face-front { display: none; }
+.cl-el { position: absolute; max-width: 94%; line-height: 1.25; touch-action: none; }
+.cl-title { font-family: var(--font-display); font-weight: 700; font-size: 6.4cqw; }
+.cl-text { font-size: 3.7cqw; opacity: .9; max-width: 80%; }
+.cl-reward { font-size: 3.6cqw; font-weight: 600; }
+.cl-stamps { width: auto; }
+.cl-el { overflow-wrap: anywhere; }
+.cl-stamps .stamp-row { margin: 0; gap: 1.6cqw; max-width: 90cqw; }
+.cl-stamps .dot { width: var(--sz, 9cqw); height: var(--sz, 9cqw); border-color: currentColor; opacity: .55; box-shadow: none; }
+.cl-stamps .dot.filled { background: var(--brand); border-color: var(--brand); opacity: 1; }
+.cl-stamps .emoji-stamp { font-size: calc(var(--sz, 9cqw) * .8); width: var(--sz, 9cqw); height: var(--sz, 9cqw); opacity: .25; }
+.cl-stamps .emoji-stamp.filled { opacity: 1; }
+.cl-qr .cl-qrbox { background: #fff; padding: 6%; border-radius: 10px; box-shadow: none; width: 100%; min-height: 0; }
+.cl-qr canvas, .cl-qr img { width: 100% !important; height: auto !important; display: block; }
+.cl-set { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 14px 0; }
+.cl-set legend { font-weight: 600; padding: 0 6px; }
+.cl-row { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; display: grid; gap: 4px; }
+#layoutPreview .cl-el { cursor: grab; outline: 1px dashed transparent; }
+#layoutPreview .cl-el:hover, #layoutPreview .cl-el.drag { outline-color: rgba(255,255,255,.7); }
+#layoutPreview .cl-el.drag { cursor: grabbing; }
+.cl-wrap#layoutPreview { position: sticky; top: 12px; }

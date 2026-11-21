@@ -91,6 +91,7 @@ python tests/run-expiry.py
 python tests/run-lifecycle.py
 python tests/run-transfers.py
 python tests/run-claims.py
+python tests/run-cardlayout.py
 python tests/run-webhooks.py
 python tests/run-backup.py
 python tests/run-browser.py
@@ -123,6 +124,7 @@ Das WordPress-Testfixture blockiert E-Mail und externe Requests. Nur seine feste
 - [Webhook-Retries](WEBHOOK-RETRIES.md)
 - [Einlösecodes für Prämien](REWARD-CODES.md)
 - [Zeitzone je Unternehmen](TIMEZONE.md)
+- [Karten-Designer: Vorder-/Rückseite](CARD-DESIGNER.md)
 - [Organisation, Standorte und Team](ORGANIZATION.md)
 - [SMTP, Outbox, Automationen und Recovery](MAIL.md)
 - [Stripe](STRIPE.md), [PayPal](PAYPAL.md), [Wallet](WALLET.md)

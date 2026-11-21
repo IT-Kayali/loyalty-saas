@@ -190,8 +190,102 @@
     renderQrBox(qr);
   }
 
+  /* Gestaltete Webkarte: Vorder-/Rueckseite umschalten */
+  function initFaces() {
+    document.querySelectorAll(".cl-wrap").forEach(function (w) {
+      w.setAttribute("data-js", "1");
+      w.querySelectorAll(".cl-tab").forEach(function (b) {
+        b.addEventListener("click", function () {
+          w.setAttribute("data-side", b.getAttribute("data-side"));
+          w.querySelectorAll(".cl-tab").forEach(function (o) { o.classList.toggle("active", o === b); });
+        });
+      });
+    });
+  }
+
+  /* Designer: Live-Vorschau und Ziehen der Elemente */
+  function initLayoutPreview() {
+    var wrap = document.getElementById("layoutPreview");
+    var form = document.querySelector(".designer-grid form");
+    if (!wrap || !form) return;
+    function f(n) { return form.elements[n]; }
+    function rgb(hex) { return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]; }
+    function bg(side) {
+      var face = wrap.querySelector('.cl-face[data-side="' + side + '"]');
+      var same = f("lay_" + side + "_overlay_same").checked;
+      var col = same ? f("bg_color").value : f("lay_" + side + "_overlay_color").value;
+      var op = (side === "front" ? f("overlay_opacity").value : f("lay_back_overlay_opacity").value) / 100;
+      var img = face.getAttribute("data-image");
+      face.style.setProperty("--card-bg", f("bg_color").value);
+      face.style.setProperty("--card-text", f("text_color").value);
+      face.style.setProperty("--brand", f("accent_color").value);
+      if (img) {
+        var c = "rgba(" + rgb(col).join(",") + "," + op + ")";
+        face.style.backgroundImage = "linear-gradient(" + c + "," + c + "),url(" + JSON.stringify(img) + ")";
+        face.style.backgroundSize = "cover"; face.style.backgroundPosition = "center";
+      } else { face.style.backgroundImage = "none"; }
+    }
+    function el(side, name) { return wrap.querySelector('.cl-el[data-side="' + side + '"][data-el="' + name + '"]'); }
+    function upd(side, name) {
+      var n = el(side, name), p = "lay_" + side + "_" + name + "_";
+      if (!n) return;
+      n.style.display = f(p + "show").checked ? "" : "none";
+      n.style.left = f(p + "x").value + "%"; n.style.top = f(p + "y").value + "%";
+      if (name === "qr") n.style.width = f(p + "size").value + "cqw";
+      if (name === "stamps") n.style.setProperty("--sz", f(p + "size").value + "cqw");
+      if (name !== "qr") n.style.maxWidth = "calc(100% - " + f(p + "x").value + "% - 3%)";
+      if (name === "title" || name === "text") {
+        var t = f(p + "text").value;
+        if (name === "title" && !t) t = side === "front" ? n.getAttribute("data-default") : n.getAttribute("data-default");
+        n.textContent = t;
+      }
+    }
+    ["front", "back"].forEach(function (s) {
+      ["title", "text", "reward", "stamps", "qr"].forEach(function (e) {
+        var n = el(s, e);
+        if (n && (e === "title")) n.setAttribute("data-default", n.textContent);
+        upd(s, e);
+      });
+      bg(s);
+    });
+    form.addEventListener("input", function (ev) {
+      var m = /^lay_(front|back)_(title|text|reward|stamps|qr)_/.exec(ev.target.name || "");
+      if (m) upd(m[1], m[2]);
+      bg("front"); bg("back");
+    });
+    form.addEventListener("change", function (ev) {
+      var n = ev.target.name;
+      if (n !== "background_image" && n !== "lay_back_image") return;
+      var file = ev.target.files && ev.target.files[0];
+      if (!file || file.size > 2097152 || !/^image\/(png|jpeg|webp)$/.test(file.type)) return;
+      var r = new FileReader();
+      r.onload = function () {
+        wrap.querySelector('.cl-face[data-side="' + (n === "lay_back_image" ? "back" : "front") + '"]').setAttribute("data-image", r.result);
+        bg("front"); bg("back");
+      };
+      r.readAsDataURL(file);
+    });
+    wrap.querySelectorAll(".cl-el").forEach(function (n) {
+      n.addEventListener("pointerdown", function (ev) {
+        var face = n.parentNode, rect = face.getBoundingClientRect();
+        var side = n.getAttribute("data-side"), name = n.getAttribute("data-el"), p = "lay_" + side + "_" + name + "_";
+        var sx = ev.clientX, sy = ev.clientY, x0 = parseFloat(f(p + "x").value), y0 = parseFloat(f(p + "y").value);
+        n.classList.add("drag"); n.setPointerCapture(ev.pointerId); ev.preventDefault();
+        function mv(e) {
+          f(p + "x").value = Math.max(0, Math.min(95, Math.round(x0 + (e.clientX - sx) / rect.width * 100)));
+          f(p + "y").value = Math.max(0, Math.min(95, Math.round(y0 + (e.clientY - sy) / rect.height * 100)));
+          upd(side, name);
+        }
+        function up() { n.classList.remove("drag"); n.removeEventListener("pointermove", mv); n.removeEventListener("pointerup", up); n.removeEventListener("pointercancel", up); }
+        n.addEventListener("pointermove", mv); n.addEventListener("pointerup", up); n.addEventListener("pointercancel", up);
+      });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     initQr();
     initDesigner();
+    initFaces();
+    initLayoutPreview();
   });
 })();
