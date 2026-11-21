@@ -138,6 +138,7 @@ try {
         preg_match('#^/send/([a-f0-9]{32})$#',$path,$m)===1 => route_send_points($m[1],$method),
         $path==='/program/transfer' && $method==='POST' => route_program_transfer_setting(),
         $path==='/program/claims' && $method==='POST' => route_program_claims(),
+        $path==='/reward/window' && $method==='POST' => route_reward_window(),
         $path==='/wallet/claim' && $method==='POST' => route_wallet_claim(),
         preg_match('#^/claim/([A-Za-z0-9-]{8,12})$#',$path,$m)===1 && $method==='GET' => route_claim_entry($m[1]),
         preg_match('#^/(?:staff/)?business/(\d+)/claim-counter$#',$path,$m)===1 => route_claim_counter((int)$m[1],$method),
@@ -632,7 +633,7 @@ function route_program(int $id): never
           <label>' . t('Bis') . ' <input type="number" name="end_hour" value="16" min="1" max="24"></label>
           <label>' . t('Multiplikator') . ' <input type="number" name="multiplier" value="2" min="2" max="10"></label>
           <button class="btn">' . t('Hinzufügen') . '</button>
-        </form>' . points_expiry_form_html($p) . points_transfer_form_html($p) . program_claims_form_html($p);
+        </form>' . points_expiry_form_html($p) . points_transfer_form_html($p) . program_claims_form_html($p) . reward_windows_form_html($p);
     }
 
     if($p['type']==='voucher')$body.=voucher_form_html($p);
@@ -884,6 +885,10 @@ function do_card_action(array $card, string $action): void
             $reward = $r->fetch();
             if (!$reward || $card['points'] < $reward['points_cost']) {
                 flash(t('Nicht genug Punkte.'), 'err');
+                break;
+            }
+            if ($werr = reward_window_error($reward)) {
+                flash($werr, 'err');
                 break;
             }
             $db->prepare('UPDATE cards SET points = points - ? WHERE id = ?')->execute([$reward['points_cost'], $cardId]);

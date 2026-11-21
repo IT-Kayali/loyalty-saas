@@ -22,5 +22,10 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await q.getByRole('button',{name:/Einlösen und 50/}).click();await q.waitForLoadState();
  yes((await q.content()).includes('eingelöst'),label+': Einlösung bestätigt');
  await p.reload();yes((await p.locator('.claim-code').count())===0,label+': Code verschwindet aus der Wallet');
+ await p.goto(U+'/wallet');yes((await p.locator('.claim-soon').count())>=1,label+': Wallet zeigt Prämie mit Fenster als noch nicht verfügbar');
+ await p.locator('.claim-soon').first().scrollIntoViewIfNeeded();await p.screenshot({path:`${out}/claims-window-wallet-${label}.png`});
+ await q.goto(U+'/program/'+process.argv[4]);yes((await q.locator('.reward-window').count())>=2,label+': Zeitfenster-Formulare je Prämie');
+ yes(await q.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Programmseite ohne horizontalen Überlauf');
+ await q.locator('.reward-window').first().scrollIntoViewIfNeeded();await q.screenshot({path:`${out}/claims-window-program-${label}.png`});
  await m.close();await o.close();}
 await b.close();console.log(n+' Einlösecode-Browser-Prüfungen bestanden');})().catch(e=>{console.error(e);process.exit(1)});

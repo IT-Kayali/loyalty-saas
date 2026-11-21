@@ -30,6 +30,32 @@ function claim_state_label(string $s): string
     return ['active' => 'Gültig', 'expired' => 'Abgelaufen', 'used' => 'Eingelöst', 'cancelled' => 'Zurückgezogen'][$s] ?? $s;
 }
 
+/** Zeitfenster einer Praemie (UTC). null = innerhalb oder unbegrenzt, sonst Klartext-Grund. */
+function reward_window_error(array $r, ?string $now = null): ?string
+{
+    $now = $now ?? gmdate('Y-m-d H:i:s');
+    $f = (string)($r['valid_from'] ?? '');
+    $u = (string)($r['valid_until'] ?? '');
+    if ($f !== '' && $now < $f) return 'Die Prämie „' . $r['name'] . '“ ist erst ab ' . $f . ' UTC verfügbar.';
+    if ($u !== '' && $now >= $u) return 'Die Prämie „' . $r['name'] . '“ ist seit ' . $u . ' UTC nicht mehr verfügbar.';
+    return null;
+}
+function reward_window_label(array $r): string
+{
+    $f = (string)($r['valid_from'] ?? '');
+    $u = (string)($r['valid_until'] ?? '');
+    if ($f === '' && $u === '') return '';
+    return ($f !== '' ? 'ab ' . substr($f, 0, 16) : '') . ($f !== '' && $u !== '' ? ' ' : '') . ($u !== '' ? 'bis ' . substr($u, 0, 16) : '') . ' UTC';
+}
+/** 'YYYY-MM-DDTHH:MM' oder leer -> 'YYYY-MM-DD HH:MM:00' oder null; false bei ungueltig. */
+function reward_window_parse(string $in): string|null|false
+{
+    $in = trim($in);
+    if ($in === '') return null;
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/', $in, $m) || !checkdate((int)$m[2], (int)$m[3], (int)$m[1]) || (int)$m[4] > 23 || (int)$m[5] > 59) return false;
+    return "$m[1]-$m[2]-$m[3] $m[4]:$m[5]:00";
+}
+
 /** Erzeugt einen Code. $memberIds: Mitglieds-IDs des angemeldeten Kontos. */
 function claim_create(array $memberIds, int $cardId, int $rewardId): array
 {
@@ -46,6 +72,7 @@ function claim_create(array $memberIds, int $cardId, int $rewardId): array
         $r->execute([$rewardId, $card['program_id']]);
         $reward = $r->fetch();
         if (!$reward) throw new InvalidArgumentException('Prämie nicht gefunden.');
+        if ($werr = reward_window_error($reward)) throw new InvalidArgumentException($werr);
         if ((int)$card['points'] < (int)$reward['points_cost']) throw new InvalidArgumentException('Nicht genug Punkte für diese Prämie.');
         $act = $db->prepare("SELECT reward_id FROM reward_claims WHERE card_id=? AND status='active' AND expires_at>?");
         $act->execute([$cardId, gmdate('Y-m-d H:i:s')]);
@@ -53,6 +80,7 @@ function claim_create(array $memberIds, int $cardId, int $rewardId): array
         if (in_array($rewardId, array_map('intval', $open), true)) throw new InvalidArgumentException('Für diese Prämie hast du schon einen gültigen Code.');
         if (count($open) >= CLAIM_MAX_ACTIVE) throw new InvalidArgumentException('Höchstens ' . CLAIM_MAX_ACTIVE . ' gültige Codes gleichzeitig. Ziehe einen zurück oder warte, bis er abläuft.');
         $exp = gmdate('Y-m-d H:i:s', time() + (int)$card['claim_minutes'] * 60);
+        if ((string)($reward['valid_until'] ?? '') !== '' && $reward['valid_until'] < $exp) $exp = $reward['valid_until'];
         for ($try = 0; $try < 5; $try++) {
             $code = claim_new_code();
             $ins = $db->prepare("INSERT OR IGNORE INTO reward_claims(card_id,reward_id,reward_name,points_cost,code,expires_at) VALUES(?,?,?,?,?,?)");
@@ -89,6 +117,9 @@ function claim_redeem(int $businessId, string $code, array $actor): array
         if (!$c) throw new InvalidArgumentException('Code nicht gefunden.');
         $state = claim_state($c);
         if ($state !== 'active') throw new InvalidArgumentException('Code ' . strtolower(claim_state_label($state)) . '. Es wurde nichts abgebucht.');
+        $rw = $db->prepare('SELECT * FROM rewards WHERE id=?');
+        $rw->execute([(int)$c['reward_id']]);
+        if (($rwRow = $rw->fetch()) && ($werr = reward_window_error($rwRow))) throw new InvalidArgumentException($werr . ' Es wurde nichts abgebucht.');
         if ((int)$c['points'] < (int)$c['points_cost']) throw new InvalidArgumentException('Das Mitglied hat nicht mehr genug Punkte (' . (int)$c['points'] . ' von ' . (int)$c['points_cost'] . '). Es wurde nichts abgebucht.');
         $u = $db->prepare("UPDATE reward_claims SET status='used', used_at=datetime('now'), used_by=? WHERE id=? AND status='active'");
         $u->execute([$actor['kind'] . ':' . (int)$actor['id'], $c['id']]);
@@ -155,7 +186,14 @@ function route_claim_counter(int $bid, string $method): never
             $st = claim_state($c);
             $enough = (int)$c['points'] >= (int)$c['points_cost'];
             $body .= '<section class="panel claim-preview"><h2>' . h($c['reward_name']) . '</h2><p>Mitglied: <strong>' . h($c['member_name']) . '</strong> (' . h($c['member_code']) . ')</p><p>Kosten: ' . (int)$c['points_cost'] . ' Punkte, Guthaben jetzt: ' . (int)$c['points'] . '</p><p>Status: <strong>' . h(claim_state_label($st)) . '</strong>, gültig bis ' . h($c['expires_at']) . ' UTC</p>';
-            if ($st === 'active' && $enough) {
+            $rwq = db()->prepare('SELECT * FROM rewards WHERE id=?');
+            $rwq->execute([(int)$c['reward_id']]);
+            $rwr = $rwq->fetch();
+            $werr = $rwr ? reward_window_error($rwr) : null;
+            if ($rwr && reward_window_label($rwr)) $body .= '<p>Zeitfenster der Prämie: ' . h(reward_window_label($rwr)) . '</p>';
+            if ($werr && $st === 'active') {
+                $body .= '<p class="claim-window-err"><strong>Außerhalb des Zeitfensters:</strong> ' . h($werr) . '</p>';
+            } elseif ($st === 'active' && $enough) {
                 $body .= '<form method="post" action="' . $base . '">' . csrf_field() . '<input type="hidden" name="action" value="redeem"><input type="hidden" name="code" value="' . h($c['code']) . '"><button class="btn accent">Einlösen und ' . (int)$c['points_cost'] . ' Punkte abbuchen</button></form>';
             } elseif ($st === 'active') {
                 $body .= '<p class="muted">Nicht genug Punkte. Einlösen ist nicht möglich.</p>';
@@ -196,7 +234,9 @@ function member_claims_html(int $memberId): string
         $have = array_map('intval', array_column($claims, 'reward_id'));
         foreach ($rw->fetchAll() as $r) {
             if ((int)$c['points'] < (int)$r['points_cost'] || in_array((int)$r['id'], $have, true)) continue;
-            $out .= '<form method="post" action="/wallet/claim" class="claim-new">' . csrf_field() . '<input type="hidden" name="action" value="create"><input type="hidden" name="card_id" value="' . (int)$c['card_id'] . '"><input type="hidden" name="reward_id" value="' . (int)$r['id'] . '"><button class="btn small">Code für „' . h($r['name']) . '“ (' . (int)$r['points_cost'] . ' Punkte)</button></form>';
+            if ((string)($r['valid_until'] ?? '') !== '' && reward_window_error($r) && $r['valid_until'] <= gmdate('Y-m-d H:i:s')) continue;
+            if ($werr = reward_window_error($r)) { $out .= '<p class="muted claim-soon">„' . h($r['name']) . '“: ' . h(reward_window_label($r)) . '</p>'; continue; }
+            $out .= '<form method="post" action="/wallet/claim" class="claim-new">' . csrf_field() . '<input type="hidden" name="action" value="create"><input type="hidden" name="card_id" value="' . (int)$c['card_id'] . '"><input type="hidden" name="reward_id" value="' . (int)$r['id'] . '"><button class="btn small">Code für „' . h($r['name']) . '“ (' . (int)$r['points_cost'] . ' Punkte)</button>' . (reward_window_label($r) ? '<span class="muted claim-window">' . h(reward_window_label($r)) . '</span>' : '') . '</form>';
         }
         $out .= '</section>';
     }
@@ -246,4 +286,39 @@ function program_claims_form_html(array $p): string
         <label>Gültigkeit in Minuten (0 = aus) <input type="number" name="minutes" value="' . $m . '" min="0" max="' . CLAIM_MAX_MINUTES . '"></label>
         <button class="btn">Speichern</button>
         <a href="/business/' . (int)$p['business_id'] . '/claim-counter">Code an der Kasse einlösen</a></form>';
+}
+
+/** POST /reward/window: Zeitfenster einer Praemie setzen (Owner). */
+function route_reward_window(): never
+{
+    $u = require_login();
+    $q = db()->prepare('SELECT r.*, p.id AS pid FROM rewards r JOIN programs p ON p.id=r.program_id WHERE r.id=?');
+    $q->execute([(int)($_POST['reward_id'] ?? 0)]);
+    $r = $q->fetch();
+    $p = $r ? own_program((int)$u['id'], (int)$r['pid']) : null;
+    if (!$p) { flash(t('Ungültige Eingabe.'), 'err'); redirect('/dashboard'); }
+    $back = '/program/' . (int)$p['id'];
+    $f = reward_window_parse((string)($_POST['valid_from'] ?? ''));
+    $to = reward_window_parse((string)($_POST['valid_until'] ?? ''));
+    if ($f === false || $to === false) { flash('Datum ungültig. Format: Jahr-Monat-Tag Stunde:Minute (UTC).', 'err'); redirect($back); }
+    if ($f !== null && $to !== null && $to <= $f) { flash('Das Ende muss nach dem Start liegen.', 'err'); redirect($back); }
+    db()->prepare('UPDATE rewards SET valid_from=?, valid_until=? WHERE id=?')->execute([$f, $to, $r['id']]);
+    audit_log((int)$u['id'], 'reward.window', ['reward_id' => (int)$r['id'], 'valid_from' => $f, 'valid_until' => $to]);
+    flash($f === null && $to === null ? 'Zeitfenster entfernt.' : 'Zeitfenster gespeichert (UTC).');
+    redirect($back);
+}
+
+function reward_windows_form_html(array $p): string
+{
+    $q = db()->prepare('SELECT * FROM rewards WHERE program_id=? ORDER BY points_cost');
+    $q->execute([$p['id']]);
+    $rows = '';
+    foreach ($q->fetchAll() as $r) {
+        $v = fn($x) => $x ? h(str_replace(' ', 'T', substr((string)$x, 0, 16))) : '';
+        $now = reward_window_error($r);
+        $rows .= '<form method="post" action="/reward/window" class="form inline-form panel reward-window">' . csrf_field() . '<input type="hidden" name="reward_id" value="' . (int)$r['id'] . '"><strong>' . h($r['name']) . '</strong>'
+            . '<label>Ab (UTC) <input type="datetime-local" name="valid_from" value="' . $v($r['valid_from']) . '"></label><label>Bis (UTC) <input type="datetime-local" name="valid_until" value="' . $v($r['valid_until']) . '"></label><button class="btn">Speichern</button>'
+            . (reward_window_label($r) ? '<span class="muted">' . ($now ? 'Gerade nicht verfügbar' : 'Gerade verfügbar') . '</span>' : '') . '</form>';
+    }
+    return $rows === '' ? '' : '<h2>Zeitfenster für Prämien</h2><p class="muted">Optional je Prämie: Einlösen und Codes nur zwischen Start und Ende (UTC). Leer = immer. Ein Code läuft spätestens am Ende des Fensters ab.</p>' . $rows;
 }
