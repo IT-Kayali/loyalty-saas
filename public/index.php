@@ -106,6 +106,7 @@ try {
         $path === '/program/expiry' && $method === 'POST' => route_program_expiry(),
         $path === '/bonus/create' && $method === 'POST' => route_bonus_create(),
         $path === '/bonus/delete' && $method === 'POST' => route_bonus_delete(),
+        preg_match('#^/achievement/(\d+)/edit$#',$path,$m)===1 && in_array($method,['GET','POST'],true) => route_achievement_edit((int)$m[1],$method),
         $path === '/achievement/create' && $method === 'POST' => route_achievement_create(),
         $path === '/achievement/delete' && $method === 'POST' => route_achievement_delete(),
         $path === '/business/referral' && $method === 'POST' => route_business_referral(),
@@ -414,6 +415,7 @@ function route_business(int $id): never
         $achList .= '<li>🏆 <strong>' . h($a['name']) . '</strong> – ' . h(metric_label($a['metric']))
             . ' ' . t('ab') . ' ' . (int)$a['threshold']
             . ((int)$a['reward_points'] > 0 ? ' (+' . (int)$a['reward_points'] . ' ' . t('Punkte') . ')' : '')
+            . ' <a class="btn ghost small" href="/achievement/'.(int)$a['id'].'/edit">Prüfen / Bearbeiten</a>'
             . ' <form method="post" action="/achievement/delete" style="display:inline">' . csrf_field()
             . '<input type="hidden" name="business_id" value="' . $id . '">'
             . '<input type="hidden" name="achievement_id" value="' . (int)$a['id'] . '">'

@@ -201,3 +201,5 @@ Bestätigtes Löschen nur unverknüpfter Segmente und unvorbereiteter Kampagnene
 Support-Admin-Inbox: Kanalfilter, Zuständigkeit per Name und mobile Volldatenliste, siehe [SUPPORT.md](docs/SUPPORT.md). Tests `python3 tests/run-support.py`.
 
 Eigene sichtbare Support-Threads lassen sich privat als JSON herunterladen, ohne interne Notizen: [SUPPORT.md](docs/SUPPORT.md).
+
+Meilensteinregeln vor erster Freischaltung bearbeiten, erreichte Regeln schützen: [ACHIEVEMENTS.md](docs/ACHIEVEMENTS.md), Tests `python3 tests/run-achievement-edit.py`.

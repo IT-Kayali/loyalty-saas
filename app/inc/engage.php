@@ -48,39 +48,44 @@ const METRIC_LABELS = [
  */
 function check_achievements(int $memberId, int $businessId): void
 {
-    $metrics = member_metrics($memberId, $businessId);
-    $stmt = db()->prepare('SELECT * FROM achievements WHERE business_id = ? AND active = 1');
-    $stmt->execute([$businessId]);
-    foreach ($stmt->fetchAll() as $a) {
-        $value = $metrics[$a['metric']] ?? 0;
-        if ($value < (int)$a['threshold']) {
-            continue;
-        }
-        $has = db()->prepare('SELECT 1 FROM member_achievements WHERE achievement_id = ? AND member_id = ?');
-        $has->execute([$a['id'], $memberId]);
-        if ($has->fetch()) {
-            continue;
-        }
-        db()->prepare('INSERT INTO member_achievements (achievement_id, member_id) VALUES (?,?)')
-            ->execute([$a['id'], $memberId]);
-        $text = '🏆 ' . t('Meilenstein erreicht:') . ' ' . $a['name'];
-        if ((int)$a['reward_points'] > 0) {
-            $card = db()->prepare("SELECT c.id FROM cards c JOIN programs p ON c.program_id = p.id
-                WHERE c.member_id = ? AND p.business_id = ? AND p.type = 'points' LIMIT 1");
-            $card->execute([$memberId, $businessId]);
-            $cid = $card->fetchColumn();
-            if ($cid) {
-                db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
-                    ->execute([(int)$a['reward_points'], (int)$a['reward_points'], $cid]);
-                txn((int)$cid, 'points_add', (int)$a['reward_points'], '+' . (int)$a['reward_points'] . ' Punkte (Meilenstein: ' . $a['name'] . ')');
-                $text .= ' – +' . (int)$a['reward_points'] . ' ' . t('Punkte') . '!';
+    $db=db();$db->exec('BEGIN IMMEDIATE');$events=[];
+    try {
+        $q=$db->prepare('SELECT id FROM members WHERE id=? AND business_id=?');$q->execute([$memberId,$businessId]);if(!$q->fetch())throw new InvalidArgumentException('Mitglied passt nicht zum Unternehmen.');
+        $metrics = member_metrics($memberId, $businessId);
+        $stmt = db()->prepare('SELECT * FROM achievements WHERE business_id = ? AND active = 1');
+        $stmt->execute([$businessId]);
+        foreach ($stmt->fetchAll() as $a) {
+            $value = $metrics[$a['metric']] ?? 0;
+            if ($value < (int)$a['threshold']) {
+                continue;
             }
+            $has = db()->prepare('SELECT 1 FROM member_achievements WHERE achievement_id = ? AND member_id = ?');
+            $has->execute([$a['id'], $memberId]);
+            if ($has->fetch()) {
+                continue;
+            }
+            db()->prepare('INSERT INTO member_achievements (achievement_id, member_id) VALUES (?,?)')
+                ->execute([$a['id'], $memberId]);
+            $text = '🏆 ' . t('Meilenstein erreicht:') . ' ' . $a['name'];
+            if ((int)$a['reward_points'] > 0) {
+                $card = db()->prepare("SELECT c.id FROM cards c JOIN programs p ON c.program_id = p.id
+                    WHERE c.member_id = ? AND p.business_id = ? AND p.type = 'points' LIMIT 1");
+                $card->execute([$memberId, $businessId]);
+                $cid = $card->fetchColumn();
+                if ($cid) {
+                    db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
+                        ->execute([(int)$a['reward_points'], (int)$a['reward_points'], $cid]);
+                    txn((int)$cid, 'points_add', (int)$a['reward_points'], '+' . (int)$a['reward_points'] . ' Punkte (Meilenstein: ' . $a['name'] . ')');
+                    $text .= ' – +' . (int)$a['reward_points'] . ' ' . t('Punkte') . '!';
+                }
+            }
+            member_message($memberId, 'achievement', $text);
+            $events[]=['member_id'=>$memberId,'achievement'=>$a['name']];
         }
-        member_message($memberId, 'achievement', $text);
-        fire_webhook($businessId, 'achievement.unlocked', [
-            'member_id' => $memberId, 'achievement' => $a['name'],
-        ]);
-    }
+        $db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+    // Provider work must never hold the milestone write lock.
+    foreach($events as $event)fire_webhook($businessId,'achievement.unlocked',$event);
 }
 
 /* ------------------------------------------------------------------ */
@@ -104,15 +109,11 @@ function route_achievement_create(): never
 
 function route_achievement_delete(): never
 {
-    $u = require_login();
-    $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
-    if ($b) {
-        db()->prepare('DELETE FROM achievements WHERE id = ? AND business_id = ?')
-            ->execute([(int)$_POST['achievement_id'], $b['id']]);
-        flash(t('Meilenstein gelöscht.'));
-        redirect('/business/' . (int)$b['id']);
-    }
-    redirect('/dashboard');
+    $u=require_login();$bid=(int)($_POST['business_id'] ?? 0);$id=(int)($_POST['achievement_id'] ?? 0);
+    if(!own_business((int)$u['id'],$bid))not_found();
+    $q=db()->prepare('SELECT id FROM achievements WHERE id=? AND business_id=?');$q->execute([$id,$bid]);if(!$q->fetch())not_found();
+    try{achievement_change((int)$u['id'],$id,[],'delete');flash('Noch nicht erreichter Meilenstein gelöscht.');}catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
+    redirect('/business/'.$bid);
 }
 
 function route_business_referral(): never
@@ -167,4 +168,44 @@ function credit_referral(array $b, int $newMemberId, string $refCode): void
         txn((int)$cid, 'points_add', $newBonus, '+' . $newBonus . ' Punkte (Willkommensbonus)');
         member_message($newMemberId, 'referral', '🤝 ' . t('Willkommensbonus: +{n} Punkte, weil du geworben wurdest.', ['n' => $newBonus]));
     }
+}
+
+function achievement_revision(array $a): string
+{
+    return hash('sha256',json_encode([(int)$a['id'],$a['name'],$a['metric'],(int)$a['threshold'],(int)$a['reward_points'],(int)$a['active']],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
+}
+function achievement_has_awards(int $id): bool
+{
+    $q=db()->prepare('SELECT 1 FROM member_achievements WHERE achievement_id=? LIMIT 1');$q->execute([$id]);return (bool)$q->fetchColumn();
+}
+function achievement_change(int $uid,int $id,array $in,string $action='update'): void
+{
+    if(!in_array($action,['update','delete'],true))throw new InvalidArgumentException('Ungültige Aktion.');
+    $name=trim((string)($in['name'] ?? ''));$metric=(string)($in['metric'] ?? '');$threshold=(string)($in['threshold'] ?? '');$reward=(string)($in['reward_points'] ?? '');
+    if($action==='update' && ($name==='' || !mb_check_encoding($name,'UTF-8') || mb_strlen($name)>80 || preg_match('/[\x00-\x1f\x7f]/u',$name) || !isset(METRIC_LABELS[$metric]) || !preg_match('/^[0-9]{1,6}$/D',$threshold) || (int)$threshold<1 || (int)$threshold>100000 || !preg_match('/^[0-9]{1,6}$/D',$reward) || (int)$reward>100000))throw new InvalidArgumentException('Name (1–80 Zeichen), gültige Messgröße, Schwelle 1–100000 und Bonus 0–100000 angeben.');
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try {
+        $q=$db->prepare('SELECT a.* FROM achievements a JOIN businesses b ON b.id=a.business_id WHERE a.id=? AND b.user_id=?');$q->execute([$id,$uid]);$a=$q->fetch();if(!$a)throw new InvalidArgumentException('Meilenstein nicht verfügbar.');
+        if(($err=plan_policy($uid,'achievements'))!==null)throw new InvalidArgumentException($err);
+        if(achievement_has_awards($id))throw new InvalidArgumentException('Bereits erreicht: Regel und Vergabebelege bleiben unverändert. Nicht editierbar oder löschbar.');
+        if($action==='update') {
+            if(!hash_equals(achievement_revision($a),(string)($in['revision'] ?? '')))throw new InvalidArgumentException('Meilenstein wurde inzwischen geändert. Aktuellen Stand prüfen.');
+            $db->prepare('UPDATE achievements SET name=?,metric=?,threshold=?,reward_points=? WHERE id=?')->execute([$name,$metric,(int)$threshold,(int)$reward,$id]);
+        }else $db->prepare('DELETE FROM achievements WHERE id=?')->execute([$id]);
+        audit_log($uid,'achievement.'.$action,['achievement_id'=>$id,'business_id'=>(int)$a['business_id']]);$db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+}
+function route_achievement_edit(int $id,string $method): never
+{
+    $u=require_login();$q=db()->prepare('SELECT a.* FROM achievements a JOIN businesses b ON b.id=a.business_id WHERE a.id=? AND b.user_id=?');$q->execute([$id,$u['id']]);$a=$q->fetch();if(!$a)not_found();
+    header('Cache-Control: private, no-store');
+    if($method==='POST'){try{achievement_change((int)$u['id'],$id,$_POST);flash('Meilenstein gespeichert. Keine Punkte oder Nachrichten vergeben.');}catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}redirect('/achievement/'.$id.'/edit');}
+    $count=db()->prepare('SELECT COUNT(*) FROM member_achievements WHERE achievement_id=?');$count->execute([$id]);$awards=(int)$count->fetchColumn();
+    $body='<p><a href="/business/'.(int)$a['business_id'].'">← Unternehmen</a></p><h1>Meilenstein prüfen</h1><section class="panel achievement-review"><h2>'.h($a['name']).'</h2><p>'.h(METRIC_LABELS[$a['metric']] ?? $a['metric']).' ab '.(int)$a['threshold'].' · Bonus: '.(int)$a['reward_points'].' Punkte</p><p>'.$awards.' gespeicherte Freischaltungen. Bonus nur bei der bisherigen Punktekarte. Speichern führt keine Prüfung oder Vergabe aus; die nächste unterstützte Kartenaktion prüft die dann gültigen Regeln.</p>';
+    if($awards)$body.='<p class="notice">Nur lesen: Bereits erreicht. Regel und Vergabebelege bleiben erhalten, keine nachträgliche Änderung oder Löschung über diese Verwaltung.</p>';
+    else {
+        $opts='';foreach(METRIC_LABELS as $v=>$label)$opts.='<option value="'.$v.'"'.($v===$a['metric']?' selected':'').'>'.h($label).'</option>';
+        $body.='<form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.achievement_revision($a).'"><label>Name<input name="name" maxlength="80" value="'.h($a['name']).'" required></label><label>Messgröße<select name="metric">'.$opts.'</select></label><label>Schwelle<input name="threshold" type="number" min="1" max="100000" value="'.(int)$a['threshold'].'" required></label><label>Bonus-Punkte<input name="reward_points" type="number" min="0" max="100000" value="'.(int)$a['reward_points'].'" required></label><button class="btn">Meilenstein speichern</button></form>';
+    }
+    page('Meilenstein prüfen',$body.'</section>',$u);exit;
 }

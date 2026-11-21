@@ -184,3 +184,7 @@ Die Gutschein-Auswertung prüft jetzt auch den aggregierten CSV-Download: 40 Dom
 Die Support-Suite prüft jetzt 23 Domänen-, 65 HTTP- und 32 Browserfälle, einschließlich Kanal-/Namensfilter, kombinierter Paginierung über 52 Datensätze und vollständig lesbarer mobiler Inbox. [SUPPORT.md](SUPPORT.md).
 
 Support-Thread-Download: Suite jetzt 23 Domänen-, 79 HTTP- und 36 Browserprüfungen. Eigenes JSON mit expliziter Feldliste, ohne interne Notizen/Metadaten, 1000-Nachrichten-/2-MiB-Grenzen, echte Browserdownloads. [SUPPORT.md](SUPPORT.md).
+
+## Meilenstein-Editor
+
+`python3 tests/run-achievement-edit.py`: 34 Domänen-/HTTP-/Parallel- und 12 Browserprüfungen für Bearbeiten vor erster Freischaltung, keine Vergabe beim Speichern, Konflikt, Regel-/Historienerhalt und atomare lokale Bonusvergabe. [ACHIEVEMENTS.md](ACHIEVEMENTS.md).
