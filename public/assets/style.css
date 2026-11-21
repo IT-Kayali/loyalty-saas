@@ -558,3 +558,6 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 .network-list,.network-editor {overflow-wrap:anywhere;}
 
 .location-editor,.organization-business {overflow-wrap:anywhere;}
+
+/* Voucher batch actions remain visible when print/QR joins status actions. */
+.voucher-actions{display:flex;flex-wrap:wrap;gap:6px;min-width:0;max-width:100%}.voucher-actions .inline-action{margin:0}.voucher-actions .btn{white-space:normal}.voucher-batches td:last-child{white-space:normal}

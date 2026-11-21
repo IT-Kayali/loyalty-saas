@@ -237,3 +237,7 @@ Eigene Netzwerke ohne zugeordnetes Unternehmen lassen sich nach getrennter Prüf
 ## Standortstatus bewusst ändern
 
 Organisation bietet explizites Aktivieren/Deaktivieren mit geprüftem Ausgangsstatus statt blindem Umschalten. Alte/doppelte Formulare kippen den unmittelbar geänderten Zustand nicht zurück. [Rechte, Wirkung und Grenzen](docs/ORGANIZATION.md).
+
+## Gutschein-Batch-Druck
+
+Privater A4-Browserdruck und einzelne lokale QR-PNGs, ohne Erzeugen/Einlösen oder Versand: [docs/VOUCHER-PRINT.md](docs/VOUCHER-PRINT.md). Tests: `python3 tests/run-voucher-print.py`.

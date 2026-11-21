@@ -210,3 +210,7 @@ Meilenstein-Suite jetzt 50 Domänen-/HTTP-/Parallel- und 18 Browserprüfungen ei
 ### Expliziter Standortstatus
 
 `python3 tests/run-location-state.py`: 19 HTTP-/Domänen- und 10 Browserprüfungen für explizite Aktivierung, Konflikte, Rechte, atomaren Audit und zwei parallele Deaktivierungen. `run-organization.py` prüft weiterhin den Team-Sitzungsentzug am inaktiven Standort. [ORGANIZATION.md](ORGANIZATION.md).
+
+## Gutschein-Batch-Druck
+
+Privater A4-Browserdruck und einzelne lokale QR-PNGs, ohne Erzeugen/Einlösen oder Versand: [VOUCHER-PRINT.md](VOUCHER-PRINT.md). Tests: `python3 tests/run-voucher-print.py`.
