@@ -92,15 +92,7 @@ function route_segment_create(): never
 
 function route_segment_delete(): never
 {
-    $u = require_login();
-    $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
-    if ($b) {
-        db()->prepare('DELETE FROM segments WHERE id = ? AND business_id = ?')
-            ->execute([(int)$_POST['segment_id'], $b['id']]);
-        flash(t('Segment gelöscht.'));
-        redirect('/business/' . (int)$b['id']);
-    }
-    redirect('/dashboard');
+    route_marketing_delete('segment');
 }
 
 /* ------------------------------------------------------------------ */
@@ -168,15 +160,7 @@ function route_campaign_send(): never
 
 function route_campaign_delete(): never
 {
-    $u = require_login();
-    $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
-    if ($b) {
-        db()->prepare('DELETE FROM campaigns WHERE id = ? AND business_id = ?')
-            ->execute([(int)$_POST['campaign_id'], $b['id']]);
-        flash(t('Kampagne gelöscht.'));
-        redirect('/business/' . (int)$b['id']);
-    }
-    redirect('/dashboard');
+    route_marketing_delete('campaign');
 }
 
 /* ------------------------------------------------------------------ */
@@ -349,4 +333,47 @@ function route_campaign_edit(int $id,string $method): never
     } else $body.='<p class="notice">Nur lesen: Versand bereits vorbereitet oder ungeklärter Teilversand. Inhalte bleiben unverändert. Bei Unklarheit Protokoll und Outbox mit dem Administrator abgleichen.</p>';
     $body.='<section class="panel campaign-review"><h2>Gespeicherter Stand</h2><p>Name: '.h($c['name']).'</p><p>Segment: '.h($c['segment_name']).'</p><h3>'.h($c['subject']).'</h3><p style="white-space:pre-wrap;overflow-wrap:anywhere">'.h($c['body']).'</p><p class="muted">Textansicht, keine HTML-Mailvorschau. Die Wallet-Inbox zeigt weiterhin einen gekürzten Ausschnitt, die optionale E-Mail den vollständigen Text.</p></section>';
     page('Kampagne prüfen',$body,$u);exit;
+}
+
+/** Kein implizites Loeschen von Kampagnenhistorie ueber die Segment-Kaskade. */
+function marketing_delete_check(string $kind,array $row): void
+{
+    if($kind==='campaign') {
+        if(!campaign_editable($row))throw new InvalidArgumentException('Nicht löschbar: Versand vorbereitet oder ungeklärter Teilversand. Kampagne und Historie bleiben erhalten.');
+    } else {
+        $q=db()->prepare('SELECT COUNT(*) FROM campaigns WHERE segment_id=?');$q->execute([$row['id']]);
+        if((int)$q->fetchColumn()>0)throw new InvalidArgumentException('Segment ist mit Kampagnen verknüpft und wird nicht gelöscht. Unvorbereitete Entwürfe zuerst einem anderen Segment zuordnen oder einzeln löschen. Vorbereitete Kampagnen und ihre Historie bleiben erhalten.');
+    }
+}
+function marketing_delete(int $uid,int $bid,int $id,string $kind,string $revision): void
+{
+    if(!in_array($kind,['segment','campaign'],true))throw new InvalidArgumentException('Ungültiger Objekttyp.');
+    $table=$kind==='segment'?'segments':'campaigns';$rev=$kind==='segment'?'segment_revision':'campaign_revision';
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try {
+        $q=$db->prepare('SELECT x.* FROM '.$table.' x JOIN businesses b ON b.id=x.business_id WHERE x.id=? AND x.business_id=? AND b.user_id=?');$q->execute([$id,$bid,$uid]);$row=$q->fetch();
+        if(!$row)throw new InvalidArgumentException('Datensatz nicht verfügbar.');
+        if(($err=plan_policy($uid,'campaigns'))!==null)throw new InvalidArgumentException($err);
+        marketing_delete_check($kind,$row);
+        if(!hash_equals($rev($row),$revision))throw new InvalidArgumentException('Datensatz wurde inzwischen geändert. Löschung erneut prüfen.');
+        $db->prepare('DELETE FROM '.$table.' WHERE id=? AND business_id=?')->execute([$id,$bid]);
+        audit_log($uid,$kind.'.delete',[$kind.'_id'=>$id,'business_id'=>$bid]);$db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+}
+function route_marketing_delete(string $kind): never
+{
+    $u=require_login();$bid=(int)($_POST['business_id'] ?? 0);$id=(int)($_POST[$kind.'_id'] ?? 0);
+    $b=own_business((int)$u['id'],$bid);if(!$b)not_found();
+    $table=$kind==='segment'?'segments':'campaigns';$rev=$kind==='segment'?'segment_revision':'campaign_revision';
+    $q=db()->prepare('SELECT * FROM '.$table.' WHERE id=? AND business_id=?');$q->execute([$id,$bid]);$row=$q->fetch();if(!$row)not_found();
+    header('Cache-Control: private, no-store');
+    try {
+        marketing_delete_check($kind,$row);
+        if(($_POST['confirm_delete'] ?? '')==='1') {
+            marketing_delete((int)$u['id'],$bid,$id,$kind,(string)($_POST['revision'] ?? ''));
+            flash($kind==='segment'?'Unverknüpftes Segment gelöscht.':'Unvorbereiteter Kampagnenentwurf gelöscht.');redirect('/business/'.$bid);
+        }
+    }catch(InvalidArgumentException $e){flash($e->getMessage(),'err');redirect('/business/'.$bid);}
+    $label=$kind==='segment'?'Segment':'Kampagnenentwurf';
+    page('Löschen prüfen','<h1>'.$label.' löschen?</h1><section class="panel marketing-delete"><h2>'.h($row['name']).'</h2><p>Unternehmen: '.h($b['name']).'</p><p>'.($kind==='segment'?'Das Segment hat aktuell keine verknüpften Kampagnen.':'Nur dieser unvorbereitete Entwurf wird entfernt. Es wird keine Nachricht versendet oder zurückgerufen.').'</p><p>Diese Aktion lässt sich nicht rückgängig machen. Bei Änderung seit dieser Prüfung wird die Löschung abgewiesen.</p><form method="post" action="/'.$kind.'/delete">'.csrf_field().'<input type="hidden" name="business_id" value="'.$bid.'"><input type="hidden" name="'.$kind.'_id" value="'.$id.'"><input type="hidden" name="revision" value="'.$rev($row).'"><button class="btn" name="confirm_delete" value="1">Endgültig löschen</button></form><p><a href="/business/'.$bid.'">Abbrechen, nichts löschen</a></p></section>',$u);exit;
 }

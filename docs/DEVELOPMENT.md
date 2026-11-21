@@ -176,3 +176,7 @@ Die Gutschein-Auswertung prüft jetzt auch den aggregierten CSV-Download: 40 Dom
 ## QR gekaufter Pässe
 
 `python3 tests/run-prepaid-qr.py`: 26 Domänen-/HTTP- und 11 Browserprüfungen für eigene Wallet-QRs, keine öffentlichen Vollcodes, Scan ohne Buchung, Rechte, Datum, Version und ausdrückliche Besuchsbestätigung. [PREPAID-QR.md](PREPAID-QR.md).
+
+## Marketing-Löschschutz
+
+`python3 tests/run-marketing-delete.py`: 23 Domänen-/HTTP- und 11 Browserprüfungen für Bestätigung, Revision, Mandant, unverknüpfte Segmente, unvorbereitete Entwürfe und Konkurrenz mit Versand. [MARKETING-DELETE.md](MARKETING-DELETE.md).

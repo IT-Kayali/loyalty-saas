@@ -13,8 +13,10 @@ Unternehmen öffnen, in der Kampagnenliste **Prüfen / Bearbeiten** wählen. Auf
 
 ## Grenzen
 
-Die Zielgruppe bleibt dynamisch. Die Segmentzahlen sind aktuelle Leseergebnisse und kein fester Empfängerbestand. Die Ansicht zeigt den gespeicherten Text escaped, keine HTML-Mailvorschau oder Zustellbestätigung. Die Wallet-Inbox enthält weiterhin nur den bestehenden gekürzten Ausschnitt, optionale E-Mail den vollständigen Text. Keine Zeitplanung, Testmail, automatische Speicherung oder Versionenliste. Kein neuer API-/MCP-Pfad. Vorhandenes Löschen und Kampagnenanlage wurden in dieser Etappe nicht neu entworfen. Ältere überlange Entwürfe bleiben lesbar, müssen zum Bearbeiten auf die angegebenen Längen gekürzt werden. Kein echter Provider-, Geräte- oder Lasttest.
+Die Zielgruppe bleibt dynamisch. Die Segmentzahlen sind aktuelle Leseergebnisse und kein fester Empfängerbestand. Die Ansicht zeigt den gespeicherten Text escaped, keine HTML-Mailvorschau oder Zustellbestätigung. Die Wallet-Inbox enthält weiterhin nur den bestehenden gekürzten Ausschnitt, optionale E-Mail den vollständigen Text. Keine Zeitplanung, Testmail, automatische Speicherung oder Versionenliste. Kein neuer API-/MCP-Pfad. Kampagnenanlage wurde in dieser Etappe nicht neu entworfen, Löschschutz siehe MARKETING-DELETE.md. Ältere überlange Entwürfe bleiben lesbar, müssen zum Bearbeiten auf die angegebenen Längen gekürzt werden. Kein echter Provider-, Geräte- oder Lasttest.
 
 ## Tests
 
 `python3 tests/run-campaign-edit.py`: 35 Prüfungen für Felder, Mandant, CSRF, Plan, Revision, escaping, fehlende Nebenwirkungen, abgeschlossene/teilweise vorbereitete Kampagnen und vier echte konkurrierende Edit-/Versand-Prozesspaare mit Inhaltsabgleich. Dazu 12 Chromium-Prüfungen auf Desktop und Mobilgerät-Größe für Link, Speichern, Volltext, zwei Tabs, Nur-Lesen und Überlauf. Nur lokale Wegwerfdaten, kein SMTP-Versand. Screenshots in `/tmp/loyalty-campaign-edit/` visuell geprüft.
+
+Die bestehenden Löschaktionen sind jetzt separat gehärtet: Bestätigung, Konfliktschutz, keine verknüpften Segmente oder vorbereiteten Kampagnen löschen. [MARKETING-DELETE.md](MARKETING-DELETE.md). Unternehmens-/Mitgliederlöschung bleibt davon getrennt.

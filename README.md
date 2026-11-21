@@ -195,3 +195,5 @@ Eigene Kampagnenentwürfe bearbeiten und vollständigen Text prüfen: [CAMPAIGN-
 Die Code-Gutschein-Auswertung bietet einen aggregierten CSV-Download für denselben UTC-Zeitraum, ohne Mitgliedsdaten/Codes: [VOUCHER-REPORT.md](docs/VOUCHER-REPORT.md).
 
 Persönlicher QR bereits gekaufter Prepaid-Pässe mit getrennter Team-Prüfung vor Besuchsbuchung: [PREPAID-QR.md](docs/PREPAID-QR.md), Tests `python3 tests/run-prepaid-qr.py`.
+
+Bestätigtes Löschen nur unverknüpfter Segmente und unvorbereiteter Kampagnenentwürfe: [MARKETING-DELETE.md](docs/MARKETING-DELETE.md), Tests `python3 tests/run-marketing-delete.py`.

@@ -21,3 +21,5 @@ Die bestehende Planprüfung für Kampagnen blockiert Vorschau-POSTs und Änderun
 `python3 tests/run-segments.py`: Wegwerf-Datenbank, alle sechs Regeln, Feldvalidierung, CSRF, Eigentümer-/Mitglieder-/Gastgrenzen, fixiertes Ziel, Konflikt, dynamische Anzahl, kein Versand, unveränderte gesendete Kampagne/Protokoll, Audit, Planrechte. Chromium Desktop/Mobil mit echten Zwei-Tab-Konflikten und visueller Prüfung. Screenshots unter `/tmp/loyalty-segments/`. Kein Produktions-Last- oder paralleler Versandtest.
 
 Vorschau-Tests ergänzen alle sechs Regeln, getrennte Anzahlen, unveränderte Segment-/Kampagnen-/Versand-/Auditdaten, erhaltene Formularwerte/Revision und Konfliktschutz nach Vorschau.
+
+Die bestehenden Löschaktionen sind jetzt separat gehärtet: Bestätigung, Konfliktschutz, keine verknüpften Segmente oder vorbereiteten Kampagnen löschen. [MARKETING-DELETE.md](MARKETING-DELETE.md). Unternehmens-/Mitgliederlöschung bleibt davon getrennt.
