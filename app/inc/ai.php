@@ -66,6 +66,47 @@ function ai_key_create(int $uid, string $name, string $scope, int $days, ?array 
     return $secret;
 }
 
+/** Umfang eines aktiven eigenen Schluessels aendern, offene Freigaben verwerfen. */
+function ai_key_update(int $uid, int $keyId, string $scope, array $groups, ?int $businessId): void
+{
+    if (!in_array($scope, ['read','write'], true)) throw new InvalidArgumentException('Ungültiger Zugriff.');
+    $groups = array_values(array_intersect(array_keys(AI_GROUPS), $groups));
+    if (!$groups) throw new InvalidArgumentException('Mindestens eine Werkzeuggruppe auswählen.');
+    if ($businessId !== null && !own_business($uid, $businessId)) throw new InvalidArgumentException('Unternehmen nicht gefunden.');
+    db()->exec('BEGIN IMMEDIATE');
+    try {
+        $q = db()->prepare("UPDATE ai_keys SET scope=?,tool_groups=?,business_id=? WHERE id=? AND user_id=? AND revoked_at IS NULL AND expires_at>datetime('now')");
+        $q->execute([$scope, count($groups) === count(AI_GROUPS) ? null : implode(',', $groups), $businessId, $keyId, $uid]);
+        if (!$q->rowCount()) throw new InvalidArgumentException('Aktiver Schlüssel nicht gefunden.');
+        db()->prepare("UPDATE ai_requests SET status='expired' WHERE key_id=? AND status IN ('pending','approved')")->execute([$keyId]);
+        audit_log($uid, 'ai.key.update', ['key_id'=>$keyId,'scope'=>$scope,'groups'=>implode(',', $groups),'business'=>$businessId ?? 'all']);
+        db()->exec('COMMIT');
+    } catch (Throwable $e) { db()->exec('ROLLBACK'); throw $e; }
+}
+
+function route_ai_key(int $keyId, string $method): never
+{
+    $u = require_login(); $uid = (int)$u['id'];
+    if (!ai_enabled()) not_found();
+    $q = db()->prepare("SELECT * FROM ai_keys WHERE id=? AND user_id=? AND revoked_at IS NULL AND expires_at>datetime('now')");
+    $q->execute([$keyId,$uid]); $key = $q->fetch();
+    if (!$key) not_found();
+    if ($method === 'POST') {
+        try {
+            ai_key_update($uid,$keyId,(string)($_POST['scope'] ?? ''),array_map('strval',(array)($_POST['groups'] ?? [])),(int)($_POST['business_id'] ?? 0) ?: null);
+            flash('Schlüsselumfang gespeichert. Offene Freigaben sind abgelaufen.'); redirect('/ai');
+        } catch (InvalidArgumentException $e) { flash($e->getMessage(),'err'); redirect('/ai/key/'.$keyId); }
+    }
+    header('Cache-Control: no-store');
+    $body = '<p><a href="/ai">← KI-Verbindungen</a></p><h1>Schlüsselumfang ändern</h1><section class="panel"><h2>'.h($key['name']).'</h2><p>Präfix: <code>'.h($key['prefix']).'</code></p><p class="muted">Speichern ändert die Rechte für folgende Anfragen mit demselben Schlüssel. Offene und schon freigegebene, noch nicht ausgeführte Löschanfragen dieses Schlüssels laufen ab, auch wenn du dieselben Werte speicherst. Bereits laufende Vorgänge können nicht zurückgerufen werden. Geheimnis und Ablaufdatum bleiben unverändert.</p><form method="post" class="form">'.csrf_field().'<label>Zugriff<select name="scope"><option value="read"'.($key['scope']==='read'?' selected':'').'>Nur lesen</option><option value="write"'.($key['scope']==='write'?' selected':'').'>Lesen und ändern</option></select></label><label>Unternehmen<select name="business_id"><option value="0">Alle Unternehmen des Kontos</option>';
+    $bs=db()->prepare('SELECT id,name FROM businesses WHERE user_id=? ORDER BY id');$bs->execute([$uid]);
+    foreach ($bs->fetchAll() as $b) $body.='<option value="'.(int)$b['id'].'"'.((int)$key['business_id']===(int)$b['id']?' selected':'').'>'.h($b['name']).'</option>';
+    $body.='</select></label><fieldset><legend>Werkzeuggruppen</legend>';
+    foreach (AI_GROUPS as $g=>$def) $body.='<label class="check"><input type="checkbox" name="groups[]" value="'.h($g).'"'.(in_array($g,ai_key_groups($key),true)?' checked':'').'> '.h($def['label']).'</label>';
+    $body.='</fieldset><button class="btn">Umfang speichern</button></form></section>';
+    page('Schlüsselumfang ändern',$body,$u);exit;
+}
+
 function ai_key_revoke(int $uid, int $keyId): bool
 {
     $q = db()->prepare("UPDATE ai_keys SET revoked_at=datetime('now') WHERE id=? AND user_id=? AND revoked_at IS NULL");
@@ -521,7 +562,7 @@ function route_ai(string $method): never
     foreach ($k->fetchAll() as $key) {
         $dead = $key['revoked_at'] !== null || $key['expires_at'] <= gmdate('Y-m-d H:i:s');
         $body .= '<tr><td>' . h($key['name']) . '</td><td><code>' . h($key['prefix']) . '</code></td><td>' . ($key['scope'] === 'write' ? 'Lesen und ändern' : 'Nur lesen') . '</td><td>' . h(ai_key_scope_label($key, $bnames)) . '</td><td>' . h($key['expires_at']) . ($dead ? ' (inaktiv)' : '') . '</td><td>' . h($key['last_used_at'] ?? 'nie') . '</td><td>'
-            . ($dead ? '' : '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="revoke"><input type="hidden" name="key_id" value="' . (int)$key['id'] . '"><button class="btn ghost">Widerrufen</button></form>') . '</td></tr>';
+            . ($dead ? '' : '<p><a href="/ai/key/' . (int)$key['id'] . '">Umfang ändern</a></p><form method="post">' . csrf_field() . '<input type="hidden" name="action" value="revoke"><input type="hidden" name="key_id" value="' . (int)$key['id'] . '"><button class="btn ghost">Widerrufen</button></form>') . '</td></tr>';
     }
     $bizSelect = '<label>Unternehmen<select name="business_id"><option value="0">Alle Unternehmen des Kontos</option>';
     foreach ($bnames as $bid => $bname) $bizSelect .= '<option value="' . (int)$bid . '">' . h($bname) . '</option>';

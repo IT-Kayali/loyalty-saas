@@ -86,6 +86,7 @@ try {
         ($path==='/support' || preg_match('#^/support/([A-F0-9]{16})$#D',$path)) => route_support($method,false),
         ($path==='/admin/support' || preg_match('#^/admin/support/([A-F0-9]{16})$#D',$path)) => route_support($method,true),
         $path === '/ai' => route_ai($method),
+        (bool)preg_match('#^/ai/key/(\d+)$#D',$path,$aim) => route_ai_key((int)$aim[1],$method),
         (bool)preg_match('#^/ai/approval/([a-f0-9]{24})$#D',$path,$aim) => route_ai_approval($aim[1],$method),
         $path === '/billing' => route_billing($method),
         $path === '/admin' => route_admin($method),

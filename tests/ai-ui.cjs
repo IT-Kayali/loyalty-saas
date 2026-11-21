@@ -31,6 +31,16 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await p.screenshot({path:`${out}/ai-scope-list-${label}.png`,fullPage:true});
  const tools=(await (await fetch(U+'/mcp',{method:'POST',headers:{'Authorization':'Bearer '+scoped,'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})})).json()).result.tools.map(t=>t.name);
  yes(tools.includes('get_business_overview')&&!tools.includes('list_members'),label+': Client sieht nur erlaubte Werkzeuge');
+ await p.goto(U+'/ai');await p.locator('tr',{hasText:'Nur Lesen Kasse '+label}).getByRole('link',{name:'Umfang ändern'}).click();
+ yes((await p.locator('[name=business_id]').inputValue())==='1',label+': Editor lädt bisherigen Umfang');
+ await p.locator('[name=scope]').selectOption('write');await p.locator('[name=business_id]').selectOption('2');
+ await p.locator('[name="groups[]"][value=reports]').uncheck();await p.locator('[name="groups[]"][value=programs]').check();
+ yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Scope-Editor ohne horizontalen Überlauf');
+ await p.evaluate(()=>{document.activeElement.blur();window.scrollTo(0,0)});await p.waitForTimeout(100);await p.screenshot({path:`${out}/ai-key-edit-${label}.png`,fullPage:true});
+ await p.getByRole('button',{name:'Umfang speichern'}).click();await p.waitForLoadState();
+ yes((await p.content()).includes('Schlüsselumfang gespeichert')&&!(await p.content()).includes(scoped),label+': Umfang gespeichert ohne Geheimnis erneut auszugeben');
+ const changed=(await (await fetch(U+'/mcp',{method:'POST',headers:{'Authorization':'Bearer '+scoped,'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})})).json()).result.tools.map(t=>t.name);
+ yes(changed.includes('create_program')&&!changed.includes('get_business_overview'),label+': alter Schlüssel folgt geändertem Zugriff und Gruppen');
  await p.goto(U+'/ai');await p.getByRole('button',{name:'Widerrufen'}).first().click();await p.waitForLoadState();yes((await p.content()).includes('inaktiv'),label+': key revoked in browser');
  await ctx.close();}
 await b.close();console.log(n+' AI browser assertions passed');})().catch(e=>{console.error(e);process.exit(1)});

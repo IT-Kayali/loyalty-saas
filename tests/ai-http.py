@@ -186,6 +186,32 @@ mkscoped(own,'Unbekannt','read',['nope','admin'],0,False);check(sql("echo db()->
 check('Nur Auswertungen' in req('/ai',c=own)[1] and 'Auswertungen' in req('/ai',c=own)[1],'Schlüsselliste zeigt Umfang')
 lk1=mkkey(own,'Alt Lesen','read');lk2=mkkey(own,'Alt Schreiben','write')
 check(len(tl(lk1))>=5 and len(tl(lk2))>=11 and sql("echo db()->query(\"SELECT COUNT(*) FROM ai_keys WHERE name LIKE 'Alt %' AND tool_groups IS NULL AND business_id IS NULL\")->fetchColumn();")=='2','Bestandsschlüssel ohne Umfang funktionieren unverändert')
+# Bestehenden Umfang aendern, ohne Geheimnis/Ablauf zu erneuern.
+kid=int(sql("""echo db()->query("SELECT id FROM ai_keys WHERE name='Nur Loeschen'")->fetchColumn();"""));edit='/ai/key/'+str(kid)
+before=sql("echo db()->query('SELECT key_hash||expires_at FROM ai_keys WHERE id=%d')->fetchColumn();"%kid)
+req('/ai/approval/'+pr['request_id'],{'csrf':csrf(own,'/ai/approval/'+pr['request_id']),'decision':'approve'},own)
+check(data(dk,'get_change_status',{'request_id':pr['request_id']})['status']=='approved','Scope-Test hat bereits freigegebene Anfrage')
+# A separate pending request and the approved request must both expire.
+pp2=data(dk,'delete_program',{'program_id':newp['program_id']})
+def update(c,scope='read',groups=['reports'],biz=2,token=True):
+ fields=[('scope',scope),('business_id',str(biz))]+[('groups[]',g) for g in groups]
+ if token:fields.append(('csrf',csrf(c,'/ai' if c is oth else edit)))
+ return req(edit,urllib.parse.urlencode(fields).encode(),c)
+check(req(edit,c=oth)[0]==404,'Fremder Owner sieht Schlüssel-Editor nicht')
+update(oth);check(sql("echo db()->query('SELECT scope FROM ai_keys WHERE id=%d')->fetchColumn();"%kid)=='write','Fremder Owner ändert Schlüssel nicht')
+update(own,token=False);check(sql("echo db()->query('SELECT scope FROM ai_keys WHERE id=%d')->fetchColumn();"%kid)=='write','Scope-Änderung ohne CSRF wirkungslos')
+update(own,groups=[]);check(sql("echo db()->query('SELECT scope FROM ai_keys WHERE id=%d')->fetchColumn();"%kid)=='write','Leere Werkzeuggruppen abgelehnt')
+update(own,biz=3);check(sql("echo db()->query('SELECT scope FROM ai_keys WHERE id=%d')->fetchColumn();"%kid)=='write','Fremdes Unternehmen beim Ändern abgelehnt')
+update(own)
+check(sql("echo db()->query('SELECT scope FROM ai_keys WHERE id=%d')->fetchColumn();"%kid)=='read' and before==sql("echo db()->query('SELECT key_hash||expires_at FROM ai_keys WHERE id=%d')->fetchColumn();"%kid),'Scope geändert, Geheimnis und Ablauf unverändert')
+check(all(sql("""echo db()->query("SELECT status FROM ai_requests WHERE id='%s'")->fetchColumn();"""%r)=='expired' for r in [pr['request_id'],pp2['request_id']]),'Offene und freigegebene Anfragen laufen beim Speichern ab')
+check('delete_member' not in tl(dk) and 'get_business_overview' in tl(dk),'Bestehender Bearer-Schlüssel sieht geänderte Werkzeuge')
+check([x['id'] for x in data(dk,'list_businesses')['businesses']]==[2],'Bestehender Schlüssel auf anderes eigenes Unternehmen begrenzt')
+check(sql("""echo db()->query("SELECT COUNT(*) FROM audit_logs WHERE action='ai.key.update'")->fetchColumn();""")=='1','Scope-Änderung im Audit')
+check(req('/ai/key/'+str(kid+9999),c=own)[0]==404,'Unbekannter Schlüssel nicht editierbar')
+sql("db()->prepare('UPDATE ai_keys SET revoked_at=? WHERE id=?')->execute(['2026-01-01',%d]);"%kid)
+check(req(edit,c=own)[0]==404,'Widerrufener Schlüssel nicht editierbar')
+check(req('/ai/key/'+sql("echo db()->query(\"SELECT id FROM ai_keys WHERE name='Lesen'\")->fetchColumn();"),c=own)[0]==404,'Abgelaufener Schlüssel nicht editierbar')
 # rate limit
 fk=mkkey(own,'Rate','read');codes=[rpc(fk,'ping')[0] for _ in range(70)]
 check(429 in codes and codes[0]==200,'rate limit applies per key')

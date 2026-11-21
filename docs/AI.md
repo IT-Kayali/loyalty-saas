@@ -54,3 +54,13 @@ Ein riskantes Werkzeug ändert nichts. Es liefert `request_id`, `nonce` und eine
 - HTTPS wird nicht vom Code erzwungen. Nur hinter HTTPS betreiben.
 - Gelesene Daten gehen an den KI-Anbieter des Clients, nach dessen Bedingungen.
 - Nicht produktiv abgenommen.
+
+## Umfang bestehender Schlüssel ändern
+
+Unter `/ai` führt bei aktiven eigenen Schlüsseln "Umfang ändern" zum Editor. Einstellbar sind Nur lesen/Lesen und ändern, alle eigenen Unternehmen oder ein einzelnes sowie die fünf bestehenden Werkzeuggruppen. Mindestens eine Gruppe ist nötig. Abgelaufene und widerrufene Schlüssel bleiben nicht editierbar.
+
+Speichern ändert den bestehenden Datensatz, nicht das Geheimnis oder Ablaufdatum. Derselbe Bearer-Schlüssel verwendet für neue Anfragen die neuen Rechte. Offene und bereits freigegebene, noch nicht ausgeführte Löschanfragen dieses Schlüssels werden in derselben Transaktion auf abgelaufen gesetzt, auch beim Speichern gleicher Werte. Dafür ist anschließend eine neue Anfrage und Freigabe nötig. Bereits begonnene API-Aufrufe werden nicht zurückgerufen. Der Editor nennt diese Wirkung ausdrücklich.
+
+Nur der Eigentümer, CSRF, Eigentumsprüfung der ausgewählten Firma und Audit `ai.key.update`. Keine Änderung über den MCP-Endpunkt selbst. Der Client sollte anschließend `tools/list` neu laden; keine automatische `list_changed`-Push-Nachricht oder Stream-Verbindung. Weiterhin keine Objekt-Scopes oder eigenen Mengenlimits je Schlüssel.
+
+Tests in `tests/ai-http.py` und `tests/ai-ui.cjs`: nachträgliche Einschränkung/Erweiterung und Gruppenwechsel mit demselben Schlüssel, Unternehmenswechsel, Hash/Ablauf unverändert, offene und freigegebene Anfragen verfallen, Fremd-Owner, CSRF, leere Gruppen und nicht editierbare alte Schlüssel. Desktop/Mobil; kein Test mit echten MCP-Clients.
