@@ -1,0 +1,32 @@
+const {chromium}=require('playwright'),fs=require('fs');
+(async()=>{let n=0;const yes=(v,s)=>{if(!v)throw Error(s);n++;console.log('PASS '+s)};
+const out=process.env.TEST_OUTPUT||'/tmp/loyalty-support';fs.mkdirSync(out,{recursive:true});
+const b=await chromium.launch({headless:true,args:['--no-sandbox']});const U='http://127.0.0.1:8099';
+async function login(ctx,email,pw){const p=await ctx.newPage();p.on('pageerror',e=>{throw e});await p.goto(U+'/login');await p.locator('[name=email]').fill(email);await p.locator('[name=password]').fill(pw);await p.locator('button').first().click();await p.waitForURL('**/dashboard');return p}
+const noScroll=async p=>await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1);
+for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:390,height:844}]]){
+ const pc=await b.newContext({viewport:vp}),ac=await b.newContext({viewport:vp});
+ const p=await login(pc,'demo@loyalty.local','demo1234'),a=await login(ac,'admin@test.local','adminpass1');
+ await p.goto(U+'/support');yes(await p.locator('h1').textContent()==='Hilfe & Support',label+': partner support page');
+ await p.locator('[name=subject]').fill('Rechnung falsch ('+label+')');await p.locator('[name=message]').fill('Meine Rechnung zeigt einen falschen Betrag.\nBitte prüfen.');await p.locator('form button.btn').last().click();await p.waitForURL(/\/support\/[A-F0-9]{16}$/);
+ yes((await p.content()).includes('falschen Betrag'),label+': ticket created in browser');
+ const ref=p.url().split('/').pop();
+ await p.screenshot({path:`${out}/support-partner-thread-${label}.png`,fullPage:true});yes(await noScroll(p),label+': partner thread has no horizontal overflow');
+ await a.goto(U+'/admin/support');yes((await a.content()).includes(ref),label+': admin inbox lists ticket');
+ await a.screenshot({path:`${out}/support-admin-inbox-${label}.png`,fullPage:true});yes(await noScroll(a),label+': admin inbox has no horizontal overflow');
+ await a.goto(U+'/admin/support/'+ref);
+ await a.locator('textarea[name=message]').fill('Interne Einschätzung: Konto prüfen.');await a.locator('input[name=internal]').check();await a.locator('form button.btn').first().click();await a.waitForLoadState();
+ await a.locator('textarea[name=message]').fill('Danke, wir prüfen das und melden uns.');await a.locator('form button.btn').first().click();await a.waitForLoadState();
+ await a.screenshot({path:`${out}/support-admin-thread-${label}.png`,fullPage:true});yes(await noScroll(a),label+': admin thread has no horizontal overflow');
+ yes((await a.content()).includes('INTERNE NOTIZ'),label+': admin sees labelled internal note');
+ await p.goto(U+'/support/'+ref);const html=await p.content();
+ yes(html.includes('wir prüfen das')&&!html.includes('Interne Einschätzung'),label+': partner sees public reply but not internal note');
+ yes(html.includes('Wartet auf Antwort'),label+': status awaiting partner after admin reply');
+ await p.screenshot({path:`${out}/support-partner-reply-${label}.png`,fullPage:true});
+ const c=await b.newContext({viewport:vp});const cp=await c.newPage();await cp.goto(U+'/contact');
+ await cp.locator('[name=name]').fill('Max Besucher');await cp.locator('[name=email]').fill('besucher@kunde.invalid');await cp.locator('[name=subject]').fill('Frage vor Registrierung');await cp.locator('[name=message]').fill('Hallo, gibt es eine Testphase?');await cp.locator('form button.btn').last().click();await cp.waitForLoadState();
+ yes((await cp.content()).includes('nicht verifiziert'),label+': contact confirms unverified address');yes(await noScroll(cp),label+': contact page has no horizontal overflow');
+ await cp.screenshot({path:`${out}/support-contact-${label}.png`,fullPage:true});
+ await pc.close();await ac.close();await c.close();
+}
+await b.close();console.log(n+' support browser assertions passed');})().catch(e=>{console.error(e);process.exit(1)});

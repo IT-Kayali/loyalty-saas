@@ -16,6 +16,8 @@ return [
     'default_lang' => 'de',
     // Nur für eine getrennte öffentliche Demo mit Seed-Daten. Kein Sicherheitsmodus.
     'demo_banner' => false,
+    // Betreiber-Support: leer = nur in der App, keine Support-Benachrichtigung.
+    'support_email' => '',
     'session_idle_seconds' => 7200,
 
     // Pfad zur SQLite-Datei. Standard: data/app.sqlite (AUSSERHALB von public/).

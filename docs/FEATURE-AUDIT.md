@@ -55,7 +55,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
 | Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. Neu: Passwortreset mit Einmaltoken und Sessionwiderruf. OTP, Geräteverwaltung und vollständiger Security-Audit fehlen. |
 | Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Getestetes Backup-/Restore-Werkzeug jetzt vorhanden. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker oder automatischer Updater. |
-| Support | Offen | Keine Tickets, Partner-Einladungen oder eingebauter Helpdesk. |
+| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Status/Priorität/Zuständigkeit/Suche, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Export/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
 
 ## Empfohlene weitere Baupakete
 
@@ -120,3 +120,7 @@ Eigenständiges WordPress-Adminmenü ohne WooCommerce-Abhängigkeit, Live-Kunden
 ## Nachtrag: Offline-PWA-Basis
 
 Installierbare Metadaten/Icons und generische öffentliche Offline-Hülle ergänzt. Mitglieder speichern bis zu 30 aktive einfache Karten ausdrücklich auf einem privaten Gerät, mit 24-Stunden-Anzeigefrist, Kundencode/QR, letztem Saldo, Suche/Filter und QR-Vergrößerung. Keine Namen/E-Mail im Snapshot, aber Codes/Salden bleiben sensible lokale Daten. Keine Session-/API-Seiten im Service-Worker-Cache und keine Offline-Schreibqueue. Logout/Kontowechsel/Löschung berücksichtigen die lokale Kopie; ein getrenntes Gerät lässt sich nicht fernlöschen. Separat verkaufte Passinstanzen und vollständige Referenz-/Geräteabnahme bleiben offen. [Details, Grenzen und Tests](PWA.md).
+
+## Nachtrag: Support-Tickets
+
+In-App-Helpdesk ergänzt (docs/SUPPORT.md): Partner-Threads auf jedem Plan, Admin-Inbox mit Filtern und Suche, unsichtbare interne Notizen, Status Offen/Wartet/Geschlossen mit Wiedereröffnung, Zuweisung, Priorität, bestätigtes Ausblenden, Audit ohne Nachrichtentexte, Vorgangs-Deduplizierung, Routenbindung, CSRF/Rate-Limits. Öffentlicher Kontakt bindet nie an ein Konto und löst keine Mail an die Absenderadresse aus. 23 Domänen-, 53 HTTP- und 22 Chromium-Prüfungen grün. Offen: Kontakt-Thread, E-Mail-Eingang, Anhänge, Export, Support-API, Teammitglieder-Zuweisung, Zeitzone/Sprache/Version-Snapshot, echte SMTP-/Geräteabnahme.

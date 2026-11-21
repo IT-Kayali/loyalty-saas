@@ -30,6 +30,7 @@ require_once ROOT_DIR . '/app/inc/recovery.php';
 require_once ROOT_DIR . '/app/inc/organization.php';
 require_once ROOT_DIR . '/app/inc/qr.php';
 require_once ROOT_DIR . '/app/inc/pwa.php';
+require_once ROOT_DIR . '/app/inc/support.php';
 
 /* ------------------------------------------------------------------ */
 /* Router                                                              */
@@ -71,6 +72,9 @@ try {
         $path === '/login' => route_login($method),
         $path === '/logout' => route_logout(),
         $path === '/dashboard' => route_dashboard(),
+        $path === '/contact' => route_support($method,false,true),
+        ($path==='/support' || preg_match('#^/support/([A-F0-9]{16})$#D',$path)) => route_support($method,false),
+        ($path==='/admin/support' || preg_match('#^/admin/support/([A-F0-9]{16})$#D',$path)) => route_support($method,true),
         $path === '/billing' => route_billing($method),
         $path === '/admin' => route_admin($method),
         $path === '/admin/export' => route_admin_export(),

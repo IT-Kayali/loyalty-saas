@@ -460,6 +460,10 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'members', 'birthday', 'TEXT');
     ensure_column($pdo, 'members', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+    $pdo->exec("CREATE TABLE IF NOT EXISTS support_tickets(id INTEGER PRIMARY KEY AUTOINCREMENT,reference TEXT NOT NULL UNIQUE,user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,channel TEXT NOT NULL CHECK(channel IN ('partner','contact')),requester_name TEXT NOT NULL,requester_email TEXT NOT NULL,topic TEXT NOT NULL,subject TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','awaiting','closed')),priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low','normal','high')),assignee INTEGER REFERENCES users(id) ON DELETE SET NULL,version INTEGER NOT NULL DEFAULT 1,deleted_at TEXT,created_at TEXT NOT NULL DEFAULT (datetime('now')),updated_at TEXT NOT NULL DEFAULT (datetime('now')))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS support_messages(id INTEGER PRIMARY KEY AUTOINCREMENT,ticket_id INTEGER NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,internal INTEGER NOT NULL DEFAULT 0 CHECK(internal IN (0,1)),body TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS support_operations(operation TEXT PRIMARY KEY,actor TEXT NOT NULL,request_hash TEXT NOT NULL,ticket_id INTEGER NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,created_at TEXT NOT NULL DEFAULT (datetime('now')))");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS support_owner ON support_tickets(user_id,updated_at)");
     $pdo->exec("CREATE TABLE IF NOT EXISTS merchant_operations(business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,member_id INTEGER REFERENCES members(id) ON DELETE SET NULL,operation TEXT NOT NULL,request_hash TEXT NOT NULL,response TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')),PRIMARY KEY(business_id,operation))");
     $pdo->exec("CREATE TRIGGER IF NOT EXISTS merchant_erase BEFORE DELETE ON members BEGIN UPDATE merchant_operations SET request_hash='erased',response='{\"ok\":true,\"deleted\":true}',member_id=NULL WHERE member_id=OLD.id; END");
     $pdo->exec("CREATE TABLE IF NOT EXISTS paypal_attempts(request_id TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,plan_key TEXT NOT NULL,plan_id TEXT NOT NULL,custom_id TEXT NOT NULL UNIQUE,subscription_id TEXT UNIQUE,finished INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (datetime('now')))");
@@ -757,6 +761,7 @@ function page(string $title, string $body, ?array $user = null, string $brand = 
             <a class="logo" href="/dashboard"><span class="logo-mark"></span>' . h(platform_setting('platform_name', 'Loyalty')) . '</a>
             <span class="nav-right">' . lang_switcher()
                 . '<a class="nav-link" href="/organization">Organisation</a>'
+                . '<a class="nav-link" href="/support">Support</a>'
                 . '<a class="nav-link" href="/billing">' . t('Abrechnung') . '</a>'
                 . (is_platform_admin($user) ? '<a class="nav-link" href="/admin">Admin</a>' : '')
                 . '<span class="nav-user">' . h($user['name']) . '</span>
