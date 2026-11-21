@@ -44,7 +44,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | REST API | Basis | Business-API-Key, Mitglieder/Karten/Bestellungen/Journal und OpenAPI. Kein gleichwertiges Session-Token-Frontend-API. |
 | Agent API | Offen | Keine granularen Scopes, Idempotency-/Approval-Workflows und separate Agent-Authentifizierung. Vorhandene REST API nicht als gleichwertig ausgeben. |
 | AI/MCP | Offen | Keine OAuth-AI-Verbindungen, Streamable-HTTP-MCP, Tool Discovery, Freigabewarteschlange oder AI-Schreibassistenz. |
-| Stripe | Neu/Setup | Checkout, Portal, signierte Webhooks, Zustände und neue-Unternehmen-Limit. Preise/Konto/Keys und echter Testkauf fehlen. Keine komplette Planfeature-Matrix oder harte Sperre aller Schreibkanäle. |
+| Stripe | Neu/Setup | Checkout, Portal, signierte Webhooks, Zustände und neue-Unternehmen-Limit. Preise/Konto/Keys und echter Testkauf fehlen. Zentrale Schreibprüfung und Limits jetzt vorhanden, noch keine editierbare vollständige Planfeature-Matrix. |
 | PayPal | Offen | Kein PayPal-Abo-Adapter. |
 | Pläne verwalten | Basis | Serverkonfiguration statt editierbarer Admin-Planverwaltung; keine Planmigrationen/Feature-Toggles pro Mandant. |
 | Branding/Homepages | Basis | Plattformname, Business-Farben/-Logo, Designer. Keine Smart/Showcase/Portal/Public-Listing-Homepages, eigenen Domains oder vollständigen E-Mail-Templates. |
@@ -52,15 +52,15 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | PWA | Offen | Kein Service Worker, Offline-Wallet, Web-Push oder installierbare Offline-App. |
 | Datenschutz | Basis | Datenexport/-löschung. Kein vollständiges Consent-/Cookie-Management, Aufbewahrungsjobs, Abmeldeverwaltung, Rechtstexte oder AVV. Keine DSGVO-Konformitätszusage. |
 | Aktivitätsprotokoll | Neu, Basis | Login und Admin-Einstellungen/Export protokolliert. Keine lückenlose Security-/Änderungshistorie für alle Module. |
-| System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Keine Scheduler-/Queue-/Backupkontrollen oder Security-Anomalieerkennung. |
-| Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, OTP, Password-Reset, Session-/Geräteverwaltung und vollständiger Security-Audit fehlen. |
-| Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker, automatischer Updater oder getesteter Backup-/Restore-Prozess. |
+| System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
+| Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. OTP, Password-Reset, Geräteverwaltung und vollständiger Security-Audit fehlen. |
+| Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Getestetes Backup-/Restore-Werkzeug jetzt vorhanden. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker oder automatischer Updater. |
 | Support | Offen | Keine Tickets, Partner-Einladungen oder eingebauter Helpdesk. |
 
 ## Empfohlene weitere Baupakete
 
 1. **Produktionsgrundlage:** Rate Limits, Konto-/Passwortwiederherstellung, SMTP-Provider mit Abmeldung/Queue, Tests für Geld-/Punkteoperationen, Backup/Restore, Deployment.
-2. **Mandanten und Berechtigungen:** Netzwerke, Clubs, Standorte, Manager, granulare Rollen, Plan-/Featureverwaltung und durchgängige Paywall-Prüfungen.
+2. **Mandanten und Berechtigungen:** Netzwerke, Clubs, Standorte, Manager, granulare Rollen, editierbare Plan-/Featureverwaltung. Zentrale Paywall-Prüfungen sind inzwischen umgesetzt.
 3. **Programm-Parität:** Voucher-Batches/Eligibility, Prepaid-Verkaufsledger/Zeit/Guthaben, Punkteverfall, programmbezogenes Design, erweiterte Achievements.
 4. **Kommunikation:** Lifecycle-Automationen, Geburtstags-/Winback-Flows, monatliche Reports und Zustellmonitoring.
 5. **Ökosystem:** vollständige Shopflows, Agent API/MCP mit Freigaben, PayPal, Offline-PWA, weitere Homepages und Sprachen.
@@ -87,3 +87,8 @@ Die Pakete sind offene Implementierung, keine Funktionen, die ein vorhandenes Ge
 - https://rewardloyalty.co/docs/5.x/ai-connections
 - https://rewardloyalty.co/docs/5.x/system-health-and-security
 - https://developers.google.com/wallet/reference/rest/v1/genericobject
+
+
+## Nachtrag Etappe Produktionsgrundlage
+
+Zentrale Planberechtigung über bestehende Schreibkanäle, atomare Mengenlimits, Rate Limits, sichere Sessions/Response-Header, Bestellbeleg-Deduplizierung, frisch gelesene Staff-/Owner-Kartenbuchungen und Backup-/Restore-CLI ergänzt. Tests und weiterhin offene Produktionspunkte: [OPERATIONS.md](OPERATIONS.md). Keine Aussage, dass damit alle Sicherheits-/Betriebsanforderungen oder Referenzfunktionen erledigt wären.

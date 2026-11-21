@@ -13,7 +13,17 @@ declare(strict_types=1);
 
 const ROOT_DIR = __DIR__ . '/..';
 
-session_start();
+require_once __DIR__ . '/inc/policy.php';
+require_once __DIR__ . '/inc/security.php';
+safe_session_start();
+if (PHP_SAPI!=='cli') {
+    if (!is_dir(ROOT_DIR.'/data')) mkdir(ROOT_DIR.'/data',0700,true);
+    $GLOBALS['maintenance_lock']=fopen(ROOT_DIR.'/data/.maintenance.lock','c');
+    if (!$GLOBALS['maintenance_lock'] || !flock($GLOBALS['maintenance_lock'], LOCK_SH)) {
+        http_response_code(503);exit('Maintenance in progress');
+    }
+}
+set_exception_handler('application_exception');
 
 /* ------------------------------------------------------------------ */
 /* Konfiguration                                                       */
@@ -120,6 +130,7 @@ function db(): PDO
         $pdo->exec('PRAGMA foreign_keys = ON');
         $pdo->exec('PRAGMA busy_timeout = 5000');
         init_schema($pdo);
+        install_plan_guards($pdo);
     }
     return $pdo;
 }
@@ -292,6 +303,15 @@ function init_schema(PDO $pdo): void
     SQL);
 
     $pdo->exec(<<<'SQL'
+    CREATE TABLE IF NOT EXISTS order_receipts (
+        business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+        reference TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        points INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (business_id,reference)
+    );
+    CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY,window_start INTEGER NOT NULL,hits INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS platform_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -336,7 +356,10 @@ function init_schema(PDO $pdo): void
             ->execute([bin2hex(random_bytes(24)), $row['id']]);
     }
     /* Lifetime-Punkte fuer Bestandsdaten nachziehen */
-    $pdo->exec("UPDATE cards SET points_lifetime = points WHERE points_lifetime = 0 AND points > 0");
+    if (!$pdo->query("SELECT 1 FROM platform_settings WHERE key='migration_lifetime_v1'")->fetchColumn()) {
+        $pdo->exec("UPDATE cards SET points_lifetime = points WHERE points_lifetime = 0 AND points > 0");
+        $pdo->exec("INSERT INTO platform_settings (key,value) VALUES ('migration_lifetime_v1','1')");
+    }
     $noCode = $pdo->query('SELECT id FROM businesses WHERE join_code IS NULL OR join_code = \'\'')->fetchAll();
     foreach ($noCode as $row) {
         $pdo->prepare('UPDATE businesses SET join_code = ? WHERE id = ?')
@@ -563,6 +586,7 @@ function page(string $title, string $body, ?array $user = null, string $brand = 
         </nav>';
     }
     header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: private, no-store');
     echo '<!DOCTYPE html><html lang="' . h(lang()) . '"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

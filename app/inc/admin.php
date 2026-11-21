@@ -50,6 +50,8 @@ function route_admin(string $method): never
     $body.='</tbody></table></div><p class="muted">Maximal 200 neueste Unternehmen.</p><h2>'.t('Systemzustand').'</h2><div class="grid">';
     $checks=[
         'SQLite-Verbindung'=>true,
+        'Planprüfung aktiviert'=>(bool)config('stripe.enforce_limits',false),
+        'Session-Cookies geschützt'=>(bool)ini_get('session.cookie_httponly'),
         'GD / Bildverarbeitung'=>extension_loaded('gd'),
         'cURL / HTTPS'=>extension_loaded('curl'),
         'Stripe eingerichtet'=>billing_ready(),

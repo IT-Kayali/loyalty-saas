@@ -9,3 +9,8 @@ node_modules/
 package-lock.json
 package.json
 test-results/
+
+data/.maintenance.lock
+data/restored-config.php
+data/restore-rollback-*/
+*.zip

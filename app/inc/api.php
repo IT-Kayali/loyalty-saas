@@ -70,6 +70,8 @@ function webhook_url_error(string $url): ?string
 /** Feuert ein Event an alle aktiven Webhooks des Business. */
 function fire_webhook(int $businessId, string $event, array $payload): void
 {
+    $owner=db()->prepare('SELECT user_id FROM businesses WHERE id=?');$owner->execute([$businessId]);
+    if(plan_policy((int)$owner->fetchColumn(),'webhooks')!==null)return;
     $stmt = db()->prepare("SELECT * FROM webhooks WHERE business_id = ? AND active = 1
         AND (',' || events || ',') LIKE ?");
     $stmt->execute([$businessId, '%,' . $event . ',%']);
@@ -341,24 +343,25 @@ function api_member_upsert(int $bid, string $email, string $name): array
 /** Punkte aus einem Umsatz gutschreiben (Shop/POS). Liefert gutgeschriebene Punkte. */
 function api_credit_order_points(array $b, int $memberId, int $totalCents, string $reference): int
 {
-    $ppc = (int)($b['points_per_cent'] ?? 0);
-    if ($ppc <= 0 || $totalCents <= 0) {
-        return 0;
-    }
-    $bid = (int)$b['id'];
-    $stmt = db()->prepare("SELECT c.*, p.name AS program_name FROM cards c JOIN programs p ON p.id = c.program_id
-        WHERE c.member_id = ? AND p.business_id = ? AND p.type = 'points' AND p.active = 1 LIMIT 1");
-    $stmt->execute([$memberId, $bid]);
-    $card = $stmt->fetch();
-    if (!$card) {
-        return 0;
-    }
-    $amount = $totalCents * $ppc;
-    db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
-        ->execute([$amount, $amount, $card['id']]);
-    txn((int)$card['id'], 'points_add', $amount, '+' . $amount . ' Punkte (Bestellung ' . $reference . ')');
-    check_achievements($memberId, $bid);
-    fire_webhook($bid, 'card.points', ['card_id' => (int)$card['id'], 'member_id' => $memberId, 'amount' => $amount, 'source' => 'order', 'reference' => $reference]);
+    $ppc=(int)($b['points_per_cent'] ?? 0);
+    if($ppc<=0 || $totalCents<=0)return 0;
+    if($reference==='' || strlen($reference)>80)throw new InvalidArgumentException('Stable order reference required');
+    if($totalCents>100000000 || $ppc>1000)throw new InvalidArgumentException('Order amount exceeds safety limit');
+    $bid=(int)$b['id'];$db=db();$db->exec('BEGIN IMMEDIATE');
+    try {
+        $q=$db->prepare("SELECT c.* FROM cards c JOIN programs p ON p.id=c.program_id WHERE c.member_id=? AND p.business_id=? AND p.type='points' AND p.active=1 LIMIT 1");
+        $q->execute([$memberId,$bid]);$card=$q->fetch();
+        if(!$card){$db->exec('COMMIT');return 0;}
+        $amount=$totalCents*$ppc;
+        $q=$db->prepare('INSERT OR IGNORE INTO order_receipts (business_id,reference,amount_cents,points)VALUES(?,?,?,?)');
+        $q->execute([$bid,$reference,$totalCents,$amount]);
+        if($q->rowCount()===0){$db->exec('COMMIT');return 0;}
+        $db->prepare('UPDATE cards SET points=points+?,points_lifetime=points_lifetime+? WHERE id=?')->execute([$amount,$amount,$card['id']]);
+        txn((int)$card['id'],'points_add',$amount,'Bestellung '.$reference);
+        $db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+    check_achievements($memberId,$bid);
+    fire_webhook($bid,'card.points',['card_id'=>(int)$card['id'],'member_id'=>$memberId,'amount'=>$amount,'source'=>'order','reference'=>$reference]);
     wallet_pass_update_for_card((int)$card['id']);
     return $amount;
 }
@@ -367,6 +370,8 @@ function route_api(string $path, string $method): never
 {
     $b = api_auth();
     $bid = (int)$b['id'];
+    if(!rate_limit_take('api', (string)$b['api_key'], 120, 60)) rate_limit_stop();
+    if(!in_array($method,['GET','HEAD','OPTIONS'],true)) require_plan_write((int)$b['user_id'],'api');
     $input = json_decode((string)file_get_contents('php://input'), true) ?: [];
 
     /* GET /api/v1/business */
@@ -480,6 +485,7 @@ function route_api(string $path, string $method): never
         $total = (float)($input['total'] ?? 0);           // z.B. 24.90
         $currency = strtoupper(substr((string)($input['currency'] ?? 'EUR'), 0, 3));
         $reference = mb_substr((string)($input['reference'] ?? ''), 0, 80);
+        if ((int)($b['points_per_cent'] ?? 0)>0 && $total>0 && $reference==='') api_json(['error'=>'reference ist bei Bestellpunkten erforderlich'],422);
         if ($email === '') {
             api_json(['error' => 'email ist erforderlich (Mitglied wird sonst nicht gefunden/angelegt)'], 422);
         }
@@ -555,6 +561,7 @@ function route_shopify_webhook(int $businessId): never
         echo json_encode(['error' => 'Ungültige Signatur']);
         exit;
     }
+    require_plan_write((int)$biz['user_id'],'integrations');
     $order = json_decode($raw, true) ?: [];
     $topic = (string)($_SERVER['HTTP_X_SHOPIFY_TOPIC'] ?? '');
     if (!in_array($topic, ['orders/paid', 'orders/create'], true)) {
@@ -564,7 +571,8 @@ function route_shopify_webhook(int $businessId): never
     $email = strtolower(trim((string)($order['email'] ?? $order['contact_email'] ?? '')));
     $name = trim((string)($order['customer']['first_name'] ?? '') . ' ' . (string)($order['customer']['last_name'] ?? ''));
     $total = (float)($order['total_price'] ?? 0);
-    $reference = 'shopify-' . (string)($order['id'] ?? '');
+    if(empty($order['id'])){http_response_code(422);echo json_encode(['error'=>'Bestell-ID fehlt']);exit;}
+    $reference = 'shopify-' . (string)$order['id'];
     if ($email === '') {
         echo json_encode(['ignored' => true, 'reason' => 'keine E-Mail in der Bestellung']);
         exit;

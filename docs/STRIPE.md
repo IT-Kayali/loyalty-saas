@@ -9,7 +9,7 @@
 - `/stripe/webhook`: Prüfung der Signatur über den unveränderten Request-Body, 5-Minuten-Zeitfenster, mehrere v1-Signaturen für Schlüsselrotation, Event-Deduplizierung und transaktionale Verarbeitung.
 - Der aktuelle Subscription-Zustand wird bei Stripe abgefragt. Die Reihenfolge eintreffender Events entscheidet nicht über den aktuellen Status. Ein altes Abo kann kein neues aktives Abo überschreiben.
 - `active` und `trialing` gelten als berechtigt. `past_due`, `unpaid`, `incomplete`, `paused` und `canceled` nicht. Ohne aktivierte Limits dient der Status nur der Anzeige.
-- Optionales Limit für die Anzahl neuer Unternehmen. Bestehende Unternehmen/Karten bleiben bei Ablauf lesbar und nutzbar. Dies ist **noch keine vollständige Bezahl-Schranke für jede Schreiboperation**.
+- Zentrale Planprüfung für alle bestehenden betrieblichen Schreibkanäle, Mengenlimits für Unternehmen/Programme/Mitglieder/Team und getestete Feature-Schalter. Bestehende Daten bleiben bei Ablauf lesbar, Änderungen werden bei aktivierter Prüfung gesperrt. Details: [OPERATIONS.md](OPERATIONS.md).
 
 Abrechnung erfolgt pro Betreiberkonto, nicht pro Endkunde und nicht automatisch pro Unternehmen. Beispiel-Plannamen und Mengen sind Konfigurationsvorschläge, keine freigegebenen Verkaufspreise.
 
@@ -40,7 +40,7 @@ Abrechnung erfolgt pro Betreiberkonto, nicht pro Endkunde und nicht automatisch 
 7. Im Stripe Customer Portal Rechnungen, Zahlungsmittel, Kündigung und Subscription-Wechsel einschalten. Die für Wechsel erlaubten Produkte/Preise müssen auch in `stripe.plans` stehen. Unbekannte Preise führen bewusst zu einem wiederholbaren Webhook-Fehler statt zu einer geratenen Berechtigung.
 8. `base_url` auf die HTTPS-Adresse setzen. App-Aufrufe pinnen die Stripe-API-Version `2024-06-20`. Für Events werden Subscription-IDs aus älteren und neueren Invoice-Payloads akzeptiert, der Abozustand wird anschließend separat gelesen.
 9. Erst nach erfolgreichen Testkäufen und geklärten Verkaufskonditionen Live-Keys, Live-Prices und Live-Webhook-Secret einsetzen. Keine echten Abbuchungen waren Bestandteil der Entwicklung.
-10. Optional `stripe.enforce_limits=true` setzen. Aktuell durchgesetzt: die konfigurierte Anzahl Unternehmen bei `/business/create`. Für einen harten Paywall-Betrieb muss die Freigabeprüfung auf alle Schreibkanäle, Staff, Join, API und Integrationen ausgedehnt werden.
+10. Optional `stripe.enforce_limits=true` setzen. Die Prüfung gilt für Betreiber, Staff, Join, API und Shopify; Login, Abrechnung und Datenschutz bleiben erreichbar. Fehlende/0-Mengenlimits bedeuten unbegrenzt. Details und Grenzen in docs/OPERATIONS.md.
 
 Fehlen Secret Key **oder** Webhook Secret, bleibt Checkout deaktiviert, Webhooks antworten 503. Fehlende Price-IDs deaktivieren den jeweiligen Plan. Eine Success-URL oder ein Queryparameter aktiviert nie ein Abo.
 

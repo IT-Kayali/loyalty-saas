@@ -135,17 +135,18 @@ function route_billing(string $method): never
             flash($e->getMessage(), 'err'); redirect('/billing');
         }
     }
-    $body='<h1>' . t('Pläne & Abrechnung') . '</h1><p class="muted">' . t('Ein Abo pro Betreiberkonto, einschließlich seiner Unternehmen. Kundenkarten bleiben bei Kündigung lesbar.') . '</p>';
+    $body='<h1>' . t('Pläne & Abrechnung') . '</h1><p class="muted">' . t('Ein Abo pro Betreiberkonto, einschließlich seiner Unternehmen. Kundenkarten bleiben bei Kündigung lesbar. Bei aktivierter Planprüfung sind Änderungen ohne aktives Abo gesperrt.') . '</p>';
     if (!billing_ready()) $body.='<div class="notice">' . t('Stripe ist noch nicht eingerichtet. Es werden keine Zahlungen ausgelöst. Setup: docs/STRIPE.md') . '</div>';
     if (isset($_GET['checkout'])) $body.='<p class="notice">' . t('Der Rücksprung von Stripe bestätigt keine Zahlung. Der Abo-Status wird ausschließlich über signierte Webhooks aktualisiert.') . '</p>';
     $body.='<section class="panel"><h2>' . t('Dein Abo') . '</h2><p>' . t('Plan') . ': <strong>' . h($s['plan_key'] ?: 'Keiner') . '</strong> · Status: <strong>' . h($s['status']) . '</strong></p>';
     if ($s['cancel_at_period_end']) $body.='<p>' . t('Kündigung zum Ende des Abrechnungszeitraums vorgemerkt.') . '</p>';
     if ($s['current_period_end']) $body.='<p>' . t('Aktueller Zeitraum bis') . ': ' . h(gmdate('Y-m-d H:i', (int)$s['current_period_end'])) . ' UTC</p>';
     if ($s['stripe_customer_id'] && billing_ready()) $body.='<form method="post">' . csrf_field() . '<button class="btn" name="action" value="portal">' . t('Abo verwalten, wechseln oder kündigen') . '</button></form>';
-    $body.='</section><div class="grid">';
+    $body.='<p class="notice">' . (config('stripe.enforce_limits',false) ? t('Planprüfung aktiv: alle betrieblichen Schreibkanäle werden serverseitig geprüft. Login, Abrechnung und Datenschutz bleiben erreichbar.') : t('Planprüfung ausgeschaltet: Test-/Entwicklungsmodus, keine Bezahlschranke.')) . '</p></section><div class="grid">';
     foreach (billing_plans() as $key=>$p) {
         $body.='<section class="panel"><h2>' . h($p['name'] ?? $key) . '</h2><p>' . h($p['description'] ?? '') . '</p><p>' . t('Verbindliche Preise, Steuern und Laufzeit werden bei Stripe vor dem Kauf angezeigt.') . '</p><ul>';
-        foreach (($p['limits'] ?? []) as $kind=>$limit) $body.='<li>' . h(['businesses'=>'Unternehmen','members'=>'Mitglieder','programs'=>'Programme'][$kind] ?? (string)$kind) . ': ' . ((int)$limit > 0 ? (int)$limit : t('unbegrenzt')) . '</li>';
+        foreach (($p['limits'] ?? []) as $kind=>$limit) $body.='<li>' . h(['businesses'=>'Unternehmen','members'=>'Mitglieder','programs'=>'Programme','staff'=>'Teammitglieder'][$kind] ?? (string)$kind) . ': ' . ((int)$limit > 0 ? (int)$limit : t('unbegrenzt')) . '</li>';
+        foreach (($p['features'] ?? []) as $feature=>$enabled) $body.='<li>'.h(['api'=>'REST API','integrations'=>'Shop-Anbindungen','campaigns'=>'Kampagnen','webhooks'=>'Webhooks'][$feature] ?? $feature).': '.($enabled ? t('enthalten') : t('nicht enthalten')).'</li>';
         $body.='</ul><form method="post">' . csrf_field() . '<input type="hidden" name="plan" value="' . h($key) . '"><button class="btn" name="action" value="checkout"' . (!billing_ready() || empty($p['price_id']) ? ' disabled' : '') . '>' . t('Plan wählen') . '</button></form></section>';
     }
     page(t('Pläne & Abrechnung'),$body.'</div>',$u);exit;

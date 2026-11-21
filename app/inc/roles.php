@@ -99,6 +99,7 @@ function route_staff_login(string $method): never
         flash(t('Zugangsdaten stimmen nicht.'), 'err');
         redirect('/staff/login');
     }
+    session_regenerate_id(true);
     $_SESSION['staff_id'] = (int)$s['id'];
     redirect('/staff');
 }
@@ -223,6 +224,7 @@ function route_member_login(string $method): never
         flash(t('E-Mail oder Passwort falsch.'), 'err');
         redirect('/member/login');
     }
+    session_regenerate_id(true);
     $_SESSION['member_email'] = $email;
     redirect('/wallet');
 }
@@ -398,6 +400,7 @@ function route_member_export(): never
 function route_member_delete(): never
 {
     $email = require_member();
+    $GLOBALS['privacy_delete_authorized']=true;
     $stmt = db()->prepare('DELETE FROM members WHERE lower(email) = lower(?)');
     $stmt->execute([$email]);
     unset($_SESSION['member_email']);
@@ -462,7 +465,8 @@ function route_join(string $joinCode, string $method): never
 
     $code = db()->query("SELECT code FROM members WHERE id = $memberId")->fetchColumn();
     if ($email !== '') {
-        $_SESSION['member_email'] = $email;
+        session_regenerate_id(true);
+    $_SESSION['member_email'] = $email;
         flash(t('Willkommen bei {business}! Deine Karten sind bereit.', ['business' => $b['name']]));
         redirect('/wallet');
     }

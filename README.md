@@ -4,6 +4,10 @@ Digitale Stempelkarten, Punkte, Gutscheine und Mehrfachkarten für lokale Gesch�
 
 Reines PHP + SQLite, keine Composer-Abhängigkeiten, keine Build-Tools. Ein Binary reicht.
 
+## Produktionsgrundlage und Planberechtigungen
+
+Die nächste Etappe ergänzt zentrale Planprüfungen über Betreiber, Staff, Join, REST-API und Shopify, Mengenlimits, sichere Sessions, Rate Limits sowie Backup/Restore. Aktivierung, geprüfte Grenzen und alle Betriebsbefehle: [docs/OPERATIONS.md](docs/OPERATIONS.md). Prüfung ist im Beispiel für lokale Demos weiterhin bewusst ausgeschaltet, `stripe.enforce_limits=true` schaltet sie ein.
+
 ## Aktueller Umfang
 
 **Noch keine vollständige Funktionsgleichheit mit Reward Loyalty 5.x und noch kein produktionsfertiger SaaS-Launch.** Der erneute Abgleich mit der aktuellen Doku steht in [docs/FEATURE-AUDIT.md](docs/FEATURE-AUDIT.md), einschließlich der offenen Baupakete. Externe Stripe-/Wallet-/Shop-Zugänge müssen eingerichtet und Ende-zu-Ende getestet werden.
@@ -112,6 +116,8 @@ php tests/billing.php
 npm install --no-save playwright
 npx playwright install chromium
 python3 tests/run-browser.py
+python3 tests/run-policy.py
+python3 tests/run-backup.py
 ```
 
 Browser-Tests benötigen Port 8099 und erzeugen nur lokale Testdaten. Ausgaben standardmäßig unter dem temporären Verzeichnis `loyalty-browser-results`; mit `TEST_OUTPUT` änderbar, PHP-Binary mit `PHP_BIN`. Das sind lokale Tests, kein echter Stripe-Testkauf oder Geräte-Wallet-Test.

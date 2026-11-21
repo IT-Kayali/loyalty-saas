@@ -97,12 +97,15 @@ function route_staff_find(): never
 function undo_transaction(array $card, int $txnId): bool
 {
     $db = db();
-    $db->beginTransaction();
+    $db->exec('BEGIN IMMEDIATE');
+    $fresh=$db->prepare('SELECT c.*,p.stamps_required FROM cards c JOIN programs p ON p.id=c.program_id WHERE c.id=?');
+    $fresh->execute([$card['id']]);$card=$fresh->fetch();
+    if(!$card){$db->exec('ROLLBACK');return false;}
     $stmt = $db->prepare('SELECT * FROM transactions WHERE id = ? AND card_id = ? AND reversed_at IS NULL');
     $stmt->execute([$txnId, $card['id']]);
     $t = $stmt->fetch();
     if (!$t) {
-        $db->rollBack();
+        $db->exec('ROLLBACK');
         return false;
     }
 
@@ -138,13 +141,13 @@ function undo_transaction(array $card, int $txnId): bool
             $db->prepare('UPDATE cards SET visits_left = visits_left + 1 WHERE id = ?')->execute([$cid]);
             break;
         default:
-            $db->rollBack();
+            $db->exec('ROLLBACK');
             return false; /* reward_earned und reversal selbst sind nicht direkt stornierbar */
     }
 
     $db->prepare("UPDATE transactions SET reversed_at = datetime('now') WHERE id = ?")->execute([$txnId]);
     txn($cid, 'reversal', (int)$t['amount'], t('Storniert:') . ' ' . $t['note']);
-    $db->commit();
+    $db->exec('COMMIT');
     return true;
 }
 

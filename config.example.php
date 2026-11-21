@@ -14,6 +14,7 @@ return [
     // Standardsprache der Oberfläche: 'de' oder 'en'.
     // Besucher können per ?lang= umschalten (wird in der Session gemerkt).
     'default_lang' => 'de',
+    'session_idle_seconds' => 7200,
 
     // Pfad zur SQLite-Datei. Standard: data/app.sqlite (AUSSERHALB von public/).
     'db_path' => __DIR__ . '/data/app.sqlite',
@@ -32,13 +33,15 @@ return [
     'stripe' => [
         'secret_key' => getenv('STRIPE_SECRET_KEY') ?: '',
         'webhook_secret' => getenv('STRIPE_WEBHOOK_SECRET') ?: '',
-        // Off by default: enabling affects creation of new businesses. Existing cards stay accessible.
+        // Off by default. True enforces active plans, caps and feature flags across tenant writes.
         'enforce_limits' => false,
         'plans' => [
             'starter' => ['name' => 'Starter', 'price_id' => getenv('STRIPE_PRICE_STARTER') ?: '',
-                'description' => 'Für ein einzelnes Unternehmen.', 'limits' => ['businesses' => 1]],
+                'description' => 'Für ein einzelnes Unternehmen.', 'limits' => ['businesses' => 1, 'programs' => 5, 'members' => 500, 'staff' => 3],
+                'features' => ['api' => false, 'integrations' => false, 'campaigns' => false, 'webhooks' => false]],
             'pro' => ['name' => 'Pro', 'price_id' => getenv('STRIPE_PRICE_PRO') ?: '',
-                'description' => 'Für mehrere Unternehmen.', 'limits' => ['businesses' => 10]],
+                'description' => 'Für mehrere Unternehmen.', 'limits' => ['businesses' => 10, 'programs' => 0, 'members' => 0, 'staff' => 0],
+                'features' => []],
         ],
     ],
 

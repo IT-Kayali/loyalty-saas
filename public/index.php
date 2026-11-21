@@ -50,6 +50,8 @@ if ($path === '/stripe/webhook') route_stripe_webhook($method);
 
 /* Alle übrigen POST-Requests: CSRF-Token Pflicht */
 csrf_check();
+auth_rate_guard($path,$method);
+policy_browser_guard($path,$method);
 
 try {
     match (true) {
@@ -114,8 +116,7 @@ try {
         default => not_found(),
     };
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo '<pre>Interner Fehler: ' . h($e->getMessage()) . '</pre>';
+    application_exception($e);
 }
 }
 
@@ -190,6 +191,7 @@ function route_register(string $method): never
     }
     db()->prepare('INSERT INTO users (name, email, password_hash) VALUES (?,?,?)')
         ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT)]);
+    session_regenerate_id(true);
     $_SESSION['user_id'] = (int)db()->lastInsertId();
     flash(t('Willkommen! Lege jetzt dein erstes Unternehmen an.'));
     redirect('/dashboard');
@@ -284,7 +286,6 @@ function route_dashboard(): never
 function route_business_create(): never
 {
     $u = require_login();
-    billing_require_capacity((int)$u['id'], 'businesses');
     $name = trim($_POST['name'] ?? '');
     $color = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['brand_color'] ?? '') ? $_POST['brand_color'] : '#E4572E';
     if ($name === '') {
@@ -775,7 +776,10 @@ function do_card_action(array $card, string $action): void
 {
     $cardId = (int)$card['id'];
     $db = db();
-    $db->beginTransaction();
+    $db->exec('BEGIN IMMEDIATE');
+    $fresh=$db->prepare('SELECT c.*, p.type AS program_type,p.stamps_required,p.name AS program_name FROM cards c JOIN programs p ON p.id=c.program_id WHERE c.id=?');
+    $fresh->execute([$cardId]);$card=$fresh->fetch();
+    if(!$card){$db->exec('ROLLBACK');return;}
 
     switch (true) {
         case $action === 'stamp' && $card['program_type'] === 'stamps':
@@ -845,7 +849,7 @@ function do_card_action(array $card, string $action): void
             flash(t('Aktion nicht möglich.'), 'err');
     }
 
-    $db->commit();
+    $db->exec('COMMIT');
 
     /* Meilensteine pruefen (nach dem Commit) */
     $biz = $db->prepare('SELECT business_id FROM programs WHERE id = ?');
