@@ -44,6 +44,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | REST API | Basis | Business-API-Key, Mitglieder/Karten/Bestellungen/Journal und OpenAPI. Kein gleichwertiges Session-Token-Frontend-API. |
 | Agent API | Offen | Keine granularen Scopes, Idempotency-/Approval-Workflows und separate Agent-Authentifizierung. Vorhandene REST API nicht als gleichwertig ausgeben. |
 | AI/MCP | Neu, Basis | MCP über HTTPS (JSON-RPC) mit Bearer-Schlüsseln, 12 Werkzeuge plus 2 freigabepflichtige, Freigabe in der App, Idempotenz, Audit. Kein OAuth/Browser-Login, keine Tool-Discovery-REST, keine Admin-/Mitglieder-Werkzeuge, nicht mit echten Clients getestet. Siehe AI.md. |
+| Branchen-Vorlagen | Neu, Basis | 21 Vorlagen (Stempel, Punkte, Mehrfachkarte) mit Prämien, Stufen, Bonus-Zeiten und Design, Übernahme per Klick (docs/TEMPLATES.md). Beträge sind Vorschläge, nur Deutsch, kein eigener Vorlagen-Editor, nicht im MCP. |
 | Stripe | Neu/Setup | Checkout, Portal, signierte Webhooks, Zustände und neue-Unternehmen-Limit. Preise/Konto/Keys und echter Testkauf fehlen. Zentrale Schreibprüfung und Limits jetzt vorhanden, noch keine editierbare vollständige Planfeature-Matrix. |
 | PayPal | Neu/Setup | SDK-v6-SaaS-Abos, verifizierte Webhooks, Statusabgleich und explizite Kündigung. Keine echte Sandbox-/Live-Abnahme, Proration oder vollständiger Planwechsel-/Reconciliation-Workflow. |
 | Pläne verwalten | Basis | Serverkonfiguration statt editierbarer Admin-Planverwaltung; keine Planmigrationen/Feature-Toggles pro Mandant. |

@@ -32,6 +32,7 @@ require_once ROOT_DIR . '/app/inc/qr.php';
 require_once ROOT_DIR . '/app/inc/pwa.php';
 require_once ROOT_DIR . '/app/inc/support.php';
 require_once ROOT_DIR . '/app/inc/ai.php';
+require_once ROOT_DIR . '/app/inc/templates.php';
 
 /* ------------------------------------------------------------------ */
 /* Router                                                              */
@@ -87,6 +88,7 @@ try {
         $path === '/business/create' && $method === 'POST' => route_business_create(),
         preg_match('#^/business/(\d+)$#', $path, $m) === 1 => route_business((int)$m[1]),
         $path === '/program/create' && $method === 'POST' => route_program_create(),
+        $path === '/program/template' && $method === 'POST' => route_program_template(),
         preg_match('#^/program/(\d+)$#', $path, $m) === 1 => route_program((int)$m[1]),
         $path === '/reward/create' && $method === 'POST' => route_reward_create(),
         $path === '/tier/create' && $method === 'POST' => route_tier_create(),
@@ -401,7 +403,7 @@ function route_business(int $id): never
           <td><a class="btn small ghost" href="/c/' . h($m['code']) . '" target="_blank">' . t('Kundenkarte') . '</a></td></tr>';
     }
     $mlist = $mlist
-        ? '<table class="table"><thead><tr><th>' . t('Name') . '</th><th>' . t('E-Mail') . '</th><th>Code</th><th></th></tr></thead><tbody>' . $mlist . '</tbody></table>'
+        ? '<div class="table-scroll"><table class="table"><thead><tr><th>' . t('Name') . '</th><th>' . t('E-Mail') . '</th><th>Code</th><th></th></tr></thead><tbody>' . $mlist . '</tbody></table></div>'
         : '<p class="muted">' . t('Noch keine Mitglieder.') . '</p>';
 
     page($b['name'], '
@@ -414,7 +416,7 @@ function route_business(int $id): never
       </p>
 
       <h2>' . t('Treueprogramme') . '</h2>
-      ' . $plist . '
+      ' . $plist . templates_panel_html((int)$b['id']) . '
       <details class="panel">
         <summary>' . t('Neues Programm anlegen') . '</summary>
         <form method="post" action="/program/create" class="form" id="program-form">' . csrf_field() . '

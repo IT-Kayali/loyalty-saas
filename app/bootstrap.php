@@ -684,6 +684,9 @@ function type_label(string $type): string
 /* Karten-Design (pro Business, JSON in businesses.card_design)        */
 /* ------------------------------------------------------------------ */
 
+/** Erlaubte Stempel-Icons (Programmdesign und Vorlagen). */
+function stamp_icons(): array { return ['','⭐','☕','🍕','🎁','✂️','💎','🏆','🌿','🍗','🥙','🍞','🍦','🧼','💅','🍝','🍺']; }
+
 function design_defaults(): array
 {
     return [
@@ -722,7 +725,7 @@ function business_design(array $b): array
         }
     }
     $d['overlay_opacity']=max(0,min(100,(int)$d['overlay_opacity']));
-    if(!in_array($d['stamp_icon'],['','⭐','☕','🍕','🎁','✂️','💎','🏆','🌿'],true))$d['stamp_icon']='';
+    if(!in_array($d['stamp_icon'],stamp_icons(),true))$d['stamp_icon']='';
     return $d;
 }
 

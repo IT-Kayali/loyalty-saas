@@ -427,3 +427,13 @@ label.check input[type="checkbox"] { flex: 0 0 16px; width: 16px; height: 16px; 
 
 /* Seeded public demo only, rendered when DEMO_MODE=1. */
 .demo-hint{border:1px solid #dca54c;border-radius:12px;background:#fff8eb;color:#342608;padding:16px;margin:20px 0;text-align:left;overflow-wrap:anywhere}.demo-hint h2{font-size:1.1rem;margin:0 0 8px}.demo-hint p{font-size:.9rem}.demo-hint dt{font-weight:700;margin-top:10px}.demo-hint dd{margin:4px 0 12px}.demo-hint code{color:inherit;font-size:.9rem}.demo-hint a{color:#704511}
+
+/* Programm-Vorlagen */
+.template-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 12px; margin-bottom: 8px; }
+.template-card { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--line, #e3ded6); border-radius: 12px; background: var(--card, #fff); }
+.template-card { min-width: 0; overflow-wrap: anywhere; }
+.template-card .muted { font-size: .85rem; line-height: 1.35; }
+.template-card .btn { margin-top: auto; align-self: flex-start; }
+.table-scroll { overflow-x: auto; max-width: 100%; }
+main code { overflow-wrap: anywhere; word-break: break-all; }
+.panel h3 { font-family: inherit; font-size: 1rem; margin: 14px 0 8px; }

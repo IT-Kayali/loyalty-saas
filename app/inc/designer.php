@@ -33,7 +33,7 @@ function route_design(int $id, string $method, int $programId=0): never
 
         $d['overlay_opacity']=max(0,min(100,(int)($_POST['overlay_opacity'] ?? 75)));
         $icon=(string)($_POST['stamp_icon'] ?? '');
-        $d['stamp_icon']=in_array($icon,['','⭐','☕','🍕','🎁','✂️','💎','🏆','🌿'],true)?$icon:'';
+        $d['stamp_icon']=in_array($icon,stamp_icons(),true)?$icon:'';
         foreach (['logo', 'stamp_image','background_image'] as $kind) {
             if (isset($_POST[$kind . '_remove'])) $d[$kind] = '';
             if (isset($_FILES[$kind]) && ($_FILES[$kind]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
@@ -84,7 +84,7 @@ function route_design(int $id, string $method, int $programId=0): never
         <label>' . t('Hintergrundbild') . '<input type="file" name="background_image" accept="image/png,image/jpeg,image/webp"></label>
         ' . ($d['background_image']!==''?'<label class="check"><input type="checkbox" name="background_image_remove"> Hintergrund entfernen</label>':'') . '
         <label>' . t('Farbüberlagerung') . ' <input type="range" name="overlay_opacity" min="0" max="100" value="'.(int)$d['overlay_opacity'].'"></label>
-        <label>' . t('Stempel-Icon (Bild hat Vorrang)') . '<select name="stamp_icon">'.implode('',array_map(fn($v)=>'<option value="'.h($v).'"'.($d['stamp_icon']===$v?' selected':'').'>'.h($v ?: 'Kreis').'</option>',['','⭐','☕','🍕','🎁','✂️','💎','🏆','🌿'])).'</select></label>
+        <label>' . t('Stempel-Icon (Bild hat Vorrang)') . '<select name="stamp_icon">'.implode('',array_map(fn($v)=>'<option value="'.h($v).'"'.($d['stamp_icon']===$v?' selected':'').'>'.h($v ?: 'Kreis').'</option>',stamp_icons())).'</select></label>
 
         <h2>' . t('Texte & Felder') . '</h2>
         <label>' . t('Kopfzeile (leer = Firmenname)') . ' <input name="header" maxlength="60" value="' . h($d['header']) . '"></label>

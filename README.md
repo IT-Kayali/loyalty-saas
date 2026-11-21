@@ -16,6 +16,8 @@ Partner-Tickets auf jedem Plan, Admin-Inbox mit Status/Priorität/Zuständigkeit
 
 Optionaler MCP-Endpunkt `/mcp` mit Bearer-Schlüsseln (Lesen oder Lesen und ändern), Idempotenz, Audit und Freigabe in der App für Löschungen. Standardmäßig aus. [Funktionen und Grenzen](docs/AI.md).
 
+Fertige Programm-Vorlagen für Restaurant, Café, Imbisswagen, Grillhähnchen, Friseur und weitere Branchen. [Übersicht](docs/TEMPLATES.md).
+
 ## WordPress-Händlerdashboard
 
 Eigener WordPress-Adminbereich für Mitglieder, aktuelle Salden, Punkte/Stempel und bestätigte Prämieneinlösung, auch ohne WooCommerce. Admin-only-Verbindung, geschützter API-Schlüssel und transaktionaler Wiederholschutz. Eine Site verbindet genau ein Unternehmen. Einrichtung, echte lokale WordPress-Tests und Grenzen: [Plugin-README](integrations/woocommerce/README.md).
