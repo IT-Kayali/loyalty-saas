@@ -162,3 +162,7 @@ Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Pari
 `python3 tests/run-business-settings.py`: Name des eigenen Unternehmens, Konfliktschutz, keine Nebenänderungen, bestehende Designertexte, Rechte/Plan und responsive Browserfälle. [BUSINESS-SETTINGS.md](BUSINESS-SETTINGS.md).
 
 Die Segment-Suite prüft zusätzlich die ungespeicherte Anzahl-Vorschau ohne Änderungen an Segmenten, Kampagnen, Versand und Audit; Konfliktschutz bleibt auch nach Vorschau erhalten.
+
+## Kampagnen-Vorbereitung
+
+`python3 tests/run-campaign-dispatch.py`: atomare lokale Vorbereitung, Rollback durch injizierten Fehler, konkurrierende Prozesse, sichere Wiederholung und blockierte historische Teilversände, ohne SMTP. [CAMPAIGN-DISPATCH.md](CAMPAIGN-DISPATCH.md).

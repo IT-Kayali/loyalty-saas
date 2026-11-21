@@ -126,40 +126,44 @@ function route_campaign_create(): never
     redirect('/business/' . (int)$b['id']);
 }
 
-/**
- * "Sendet" eine Kampagne: ohne SMTP-Server wird lokal zugestellt -
- * jeder Empfaenger bekommt die Nachricht in seine Wallet-Inbox,
- * der Versand wird pro Mitglied protokolliert (campaign_sends).
- */
+/** Bereitet einen Kampagnenversand atomar vor. Keine SMTP-Verbindung. */
+function campaign_dispatch(int $uid,int $bid,int $cid): array
+{
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try {
+        if(!own_business($uid,$bid))throw new InvalidArgumentException('Kampagne nicht verfügbar.');
+        if(($err=plan_policy($uid,'campaigns'))!==null)throw new InvalidArgumentException($err);
+        $q=$db->prepare('SELECT * FROM campaigns WHERE id=? AND business_id=?');$q->execute([$cid,$bid]);$c=$q->fetch();
+        if(!$c)throw new InvalidArgumentException('Kampagne nicht verfügbar.');
+        if($c['status']==='sent'){$db->exec('COMMIT');return ['already'=>true,'members'=>0,'email'=>0];}
+        if($c['status']!=='draft')throw new InvalidArgumentException('Kampagnenstatus unterstützt keinen neuen Versand.');
+        $q=$db->prepare('SELECT COUNT(*) FROM campaign_sends WHERE campaign_id=?');$q->execute([$cid]);
+        $q2=$db->prepare('SELECT COUNT(*) FROM mail_outbox WHERE dedup_key LIKE ?');$q2->execute(['campaign:'.$cid.':%']);
+        if((int)$q->fetchColumn()>0 || (int)$q2->fetchColumn()>0)throw new InvalidArgumentException('Ungeklärter früherer Teilversand. Vor erneutem Versand Protokoll und Outbox mit dem Administrator abgleichen. Nicht einfach löschen oder neu senden.');
+        $q=$db->prepare('SELECT * FROM segments WHERE id=? AND business_id=?');$q->execute([$c['segment_id'],$bid]);$segment=$q->fetch();
+        if(!$segment)throw new InvalidArgumentException('Segment gehört nicht zu diesem Unternehmen.');
+        $ids=segment_members($segment);$sent=0;$queued=0;
+        $send=$db->prepare('INSERT INTO campaign_sends(campaign_id,member_id)VALUES(?,?)');
+        foreach($ids as $mid) {
+            $send->execute([$cid,$mid]);
+            member_message($mid,'campaign','✉️ '.$c['subject'].' - '.mb_strimwidth($c['body'],0,120,'…'));
+            $q=$db->prepare('SELECT email FROM members WHERE id=? AND business_id=?');$q->execute([$mid,$bid]);
+            $queued+=(int)queue_mail($bid,$mid,(string)$q->fetchColumn(),$c['subject'],$c['body'],'marketing','campaign:'.$cid.':'.$mid);$sent++;
+        }
+        $db->prepare("UPDATE campaigns SET status='sent',sent_at=datetime('now') WHERE id=?")->execute([$cid]);
+        audit_log($uid,'campaign.dispatch',['campaign_id'=>$cid,'business_id'=>$bid,'members'=>$sent,'email_queued'=>$queued]);
+        $db->exec('COMMIT');return ['already'=>false,'members'=>$sent,'email'=>$queued];
+    } catch(Throwable $e) {try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+}
 function route_campaign_send(): never
 {
-    $u = require_login();
-    $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
-    $c = db()->prepare('SELECT * FROM campaigns WHERE id = ? AND business_id = ?');
-    $c->execute([(int)$_POST['campaign_id'], $b ? $b['id'] : 0]);
-    $campaign = $c->fetch();
-    if (!$b || !$campaign || $campaign['status'] === 'sent') {
-        flash(t('Kampagne nicht gefunden oder bereits gesendet.'), 'err');
-        redirect($b ? '/business/' . (int)$b['id'] : '/dashboard');
-    }
-    $seg = db()->prepare('SELECT * FROM segments WHERE id = ?');
-    $seg->execute([$campaign['segment_id']]);
-    $segment = $seg->fetch();
-    $memberIds = $segment ? segment_members($segment) : [];
-
-    $send = db()->prepare('INSERT INTO campaign_sends (campaign_id, member_id) VALUES (?,?)');
-    $sent = 0;$emailQueued=0;
-    foreach ($memberIds as $mid) {
-        $send->execute([$campaign['id'], $mid]);
-        member_message($mid, 'campaign', '✉️ ' . $campaign['subject'] . ' - ' . mb_strimwidth($campaign['body'], 0, 120, '…'));
-        $mq=db()->prepare('SELECT email FROM members WHERE id=?');$mq->execute([$mid]);
-        $emailQueued+=(int)queue_mail((int)$b['id'],$mid,(string)$mq->fetchColumn(),$campaign['subject'],$campaign['body'],'marketing','campaign:'.$campaign['id'].':'.$mid);
-        $sent++;
-    }
-    db()->prepare("UPDATE campaigns SET status = 'sent', sent_at = datetime('now') WHERE id = ?")
-        ->execute([$campaign['id']]);
-    flash(t('Kampagne an {n} Mitglieder in die Wallet-Inbox gelegt.', ['n'=>$sent]).' '.$emailQueued.' E-Mails in der Warteschlange, noch nicht zugestellt.');
-    redirect('/business/' . (int)$b['id']);
+    $u=require_login();$bid=(int)($_POST['business_id'] ?? 0);$b=own_business((int)$u['id'],$bid);if(!$b)not_found();
+    try {
+        $r=campaign_dispatch((int)$u['id'],$bid,(int)($_POST['campaign_id'] ?? 0));
+        flash($r['already']?'Kampagne bereits vorbereitet. Keine erneute Zustellung.':t('Kampagne an {n} Mitglieder in die Wallet-Inbox gelegt.',['n'=>$r['members']]).' '.$r['email'].' E-Mails in der Warteschlange, noch nicht zugestellt.');
+    } catch(InvalidArgumentException $e) {flash($e->getMessage(),'err');}
+    catch(Throwable $e) {error_log('Campaign dispatch failed: '.get_class($e));flash('Versandvorbereitung abgebrochen. Neue Änderungen wurden zurückgenommen. Kampagnenstatus und Protokoll vor einem neuen Versuch prüfen.','err');}
+    redirect('/business/'.$bid);
 }
 
 function route_campaign_delete(): never
@@ -222,7 +226,7 @@ function campaigns_html(int $businessId): string
     $list = '';
     foreach ($stmt->fetchAll() as $c) {
         $status = $c['status'] === 'sent'
-            ? '<span class="badge">' . t('gesendet an {n}', ['n' => (int)$c['sent_count']]) . '</span>'
+            ? '<span class="badge">' . h('Inbox vorbereitet: '.(int)$c['sent_count']) . '</span>'
             : '<span class="badge badge-draft">' . t('Entwurf') . '</span>';
         $list .= '<li>' . $status . ' <strong>' . h($c['name']) . '</strong> - ' . h($c['subject'])
             . ' <span class="muted">' . t('Segment:') . ' ' . h($c['segment_name']) . '</span>'

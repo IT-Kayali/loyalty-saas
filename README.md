@@ -187,3 +187,5 @@ Analytics-Einlösungszahlen und mobile Programm-Performance: [ANALYTICS.md](docs
 Gespeicherte Einzelregel-Segmente bearbeiten und Anzahl ohne Speichern prüfen: [SEGMENTS.md](docs/SEGMENTS.md), Tests `python3 tests/run-segments.py`.
 
 Unternehmens-Anzeigenamen ändern: [BUSINESS-SETTINGS.md](docs/BUSINESS-SETTINGS.md), Tests `python3 tests/run-business-settings.py`.
+
+Kampagnen-Inbox, Versandbelege und Mail-Outbox atomar vorbereiten: [CAMPAIGN-DISPATCH.md](docs/CAMPAIGN-DISPATCH.md), Tests `python3 tests/run-campaign-dispatch.py`.
