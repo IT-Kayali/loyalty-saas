@@ -508,3 +508,13 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 .voucher-wallet-item .qr-box { flex:0 0 160px; }
 .voucher-wallet-item code { overflow-wrap:anywhere; }
 @media(max-width:600px) { .voucher-wallet-item { flex-direction:column; align-items:flex-start; gap:12px; } }
+
+@media(max-width:700px) {
+ .voucher-report-table table,.voucher-report-table tbody,.voucher-report-table tr,.voucher-report-table td {display:block;width:100%;}
+ .voucher-report-table thead {display:none;}
+ .voucher-report-table tr {padding:12px 0;border-bottom:1px solid var(--border,#ddd);}
+ .voucher-report-table td {display:flex;justify-content:space-between;gap:12px;white-space:normal;overflow-wrap:anywhere;border:0;padding:8px 0;}
+ .voucher-report-table td::before {content:attr(data-label);font-weight:600;flex:0 0 48%;}
+}
+.voucher-report-table table {table-layout:fixed;}
+.voucher-report-table th,.voucher-report-table td {white-space:normal;overflow-wrap:anywhere;}

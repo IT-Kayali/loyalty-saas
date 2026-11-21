@@ -179,3 +179,5 @@ Eigene Namen pro Mitgliedseintrag in der Wallet: [docs/MEMBER-PROFILE.md](docs/M
 Eigenes Betreiber-Passwort ohne SMTP ändern: [docs/OWNER-PASSWORD.md](docs/OWNER-PASSWORD.md).
 
 Persönliche Gutschein-QRs: [Ablauf und Grenzen](docs/VOUCHER-QR.md), Tests `python3 tests/run-voucher-qr.py`.
+
+Code-Gutschein-Auswertung pro Programm: [Umfang und Zahlengrenzen](docs/VOUCHER-REPORT.md), Tests `python3 tests/run-voucher-report.py`.

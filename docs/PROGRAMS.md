@@ -22,7 +22,7 @@ Zusätzlich zu den bisherigen einfachen Gutscheinkarten:
 - Gratisprodukt bestätigt die Ausgabe eines benannten Artikels, Bonuspunkte brauchen eine bereits bestehende aktive Punktekarte.
 - Keine Zahlung oder automatische POS-Rabattierung. Externen Kaufbetrag und Gutscheinwährung an der Kasse prüfen.
 
-Noch offen: Gutschein-Claimseite/QR, gezielter Versand von Codes, rückgängig machen einer Einlösung, verschachtelte Eligibility-Regeln, Geburtstags-/Winback-Automation, eigene Gutscheine je Mitglied und vollständige Berichte. Bestehende einfache Gutscheinkarten verwenden weiterhin ihre eigenen Regeln, sie sind nicht nachträglich an die Code-Regeln gebunden.
+Ergänzt: persönliche Gutscheine aus Lifecycle-Automationen (LIFECYCLE-VOUCHERS.md), QR in der Wallet mit Team-Scanner (VOUCHER-QR.md), Batchstorno und eine Code-Gutschein-Auswertung je Programm (VOUCHER-REPORT.md). Noch offen: öffentliche Claimseite, vollständiger gezielter Versand, Rücknahme einer Einlösung, verschachtelte Eligibility und vollständige Unternehmens-/Conversionberichte. Bestehende einfache Gutscheinkarten verwenden weiterhin ihre eigenen Regeln, sie sind nicht nachträglich an die Code-Regeln gebunden.
 
 ## Prepaid-Besuchspässe
 

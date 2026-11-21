@@ -128,6 +128,7 @@ try {
         preg_match('#^/pass/google/([A-F0-9]{10})$#', $path, $m) === 1 => route_pass_google($m[1]),
         preg_match('#^/pass/stamps/([A-F0-9]{10})/([a-f0-9]{64})\.png$#', $path, $m) === 1 => route_stamp_strip($m[1], $m[2]),
         preg_match('#^/program/(\d+)/vouchers$#',$path,$m)===1 && $method==='POST' => route_voucher_program((int)$m[1]),
+        preg_match('#^/program/(\d+)/voucher-report$#',$path,$m)===1 && $method==='GET' => route_voucher_report((int)$m[1]),
         preg_match('#^/program/(\d+)/voucher-export$#',$path,$m)===1 => route_voucher_export((int)$m[1]),
         preg_match('#^/(?:staff/)?business/(\d+)/voucher-counter$#',$path,$m)===1 => route_voucher_counter((int)$m[1],$method),
         preg_match('#^/program/(\d+)/prepaid-settings$#',$path,$m)===1 && $method==='POST' => route_prepaid_settings((int)$m[1]),

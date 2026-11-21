@@ -86,7 +86,7 @@ function voucher_form_html(array $p): string
     foreach(['min_spend'=>'Mindestkaufbetrag','max_discount'=>'Maximalrabatt (0 = kein Cap)'] as $k=>$n)$html.='<label>'.$n.'<input name="'.$k.'" value="'.number_format($r[$k]/100,2,'.','').'"></label>';
     foreach(['max_total'=>'Gesamteinlösungen (0 = unbegrenzt)','per_member'=>'Einlösungen pro Mitglied','min_lifetime'=>'Mindestens Lifetime-Punkte'] as $k=>$n)$html.='<label>'.$n.'<input type="number" min="0" name="'.$k.'" value="'.(int)$r[$k].'"></label>';
     foreach(['starts'=>'Gültig ab (UTC)','ends'=>'Gültig bis (UTC)'] as $k=>$n)$html.='<label>'.$n.'<input type="date" name="'.$k.'" value="'.h($r[$k]).'"></label>';
-    $html.='<button class="btn">Regeln speichern</button></form></section><section class="panel"><h2>Codes erzeugen</h2><form method="post" action="/program/'.$id.'/vouchers" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="batch"><label>Batchname<input name="name" maxlength="80" required></label><label>Anzahl<input type="number" name="count" min="1" max="500" value="25"></label><button class="btn">Batch erzeugen</button></form><p><a href="/program/'.$id.'/voucher-export">Alle Codes als CSV exportieren</a> · <a href="/business/'.$p['business_id'].'/voucher-counter">Code an der Kasse einlösen</a></p><p class="muted">Offene Codes können auch abgelaufen sein. Storno sperrt weitere Einlösungen, erstattet aber keine früheren Nutzungen. Wiederherstellen ändert weder Laufzeit noch Zähler.</p><div class="table-wrap voucher-batches"><table><tr><th>Batch</th><th>Codes</th><th>Einlösungen</th><th>Offene Codes</th><th>Storniert</th><th></th></tr>';
+    $html.='<button class="btn">Regeln speichern</button></form></section><section class="panel"><h2>Codes erzeugen</h2><form method="post" action="/program/'.$id.'/vouchers" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="batch"><label>Batchname<input name="name" maxlength="80" required></label><label>Anzahl<input type="number" name="count" min="1" max="500" value="25"></label><button class="btn">Batch erzeugen</button></form><p><a href="/program/'.$id.'/voucher-export">Alle Codes als CSV exportieren</a> · <a href="/program/'.$id.'/voucher-report">Code-Gutschein-Auswertung</a> · <a href="/business/'.$p['business_id'].'/voucher-counter">Code an der Kasse einlösen</a></p><p class="muted">Offene Codes können auch abgelaufen sein. Storno sperrt weitere Einlösungen, erstattet aber keine früheren Nutzungen. Wiederherstellen ändert weder Laufzeit noch Zähler.</p><div class="table-wrap voucher-batches"><table><tr><th>Batch</th><th>Codes</th><th>Einlösungen</th><th>Offene Codes</th><th>Storniert</th><th></th></tr>';
     $q=db()->prepare("SELECT batch,COUNT(*) AS codes,SUM(used) AS used,SUM(CASE WHEN status='active' AND used<max_uses THEN 1 ELSE 0 END) AS open,SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) AS cancelled FROM voucher_codes WHERE program_id=? GROUP BY batch ORDER BY MAX(id) DESC LIMIT 20");$q->execute([$id]);
     foreach($q->fetchAll() as $row) {
         $act='';
@@ -196,4 +196,47 @@ function member_vouchers_html(array $memberIds): string
         $h.='<li class="voucher-wallet-item"><div class="qr-box" data-qr="V-'.h($v['code']).'" data-qr-size="160"></div><div><strong>'.h($v['name']).'</strong> · '.h($v['business']).'<br><code>'.h($v['code']).'</code> · '.h(voucher_value_label($r)).(!empty($r['ends'])?' · gültig bis '.h(date('d.m.Y',strtotime($r['ends']))):'').'</div></li>';
     }
     return $h===''?'':'<section class="panel member-vouchers" style="text-align:left;margin-bottom:16px"><h2>Deine Gutscheine</h2><ul>'.$h.'</ul><p class="muted">QR an der Kasse scannen lassen oder Code nennen. Erst das Team bestätigt die Einlösung. Nicht weitergeben: Der QR enthält deinen Gutscheincode.</p></section>';
+}
+
+/** Code-Gutschein-Auswertung, keine Umsatz- oder Zahlungsabrechnung. */
+function voucher_report_data(int $pid,string $from,string $to): array
+{
+    if(!preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/D',$from) || !preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/D',$to) || date_or_null($from)===null || date_or_null($to)===null || $from>$to)throw new InvalidArgumentException('Gültigen Zeitraum angeben.');
+    $start=new DateTimeImmutable($from,new DateTimeZone('UTC'));$end=new DateTimeImmutable($to,new DateTimeZone('UTC'));
+    if((int)$start->diff($end)->days>365)throw new InvalidArgumentException('Höchstens 366 Kalendertage je Auswertung.');
+    $params=[$pid,$from.' 00:00:00',$end->modify('+1 day')->format('Y-m-d').' 00:00:00'];
+    $q=db()->prepare('SELECT member_id,created_at,spend_cents,discount_cents,snapshot,reversed_at FROM voucher_redemptions WHERE program_id=? AND created_at>=? AND created_at<? ORDER BY created_at,id LIMIT 10001');$q->execute($params);$rows=$q->fetchAll();
+    if(count($rows)>10000)throw new InvalidArgumentException('Mehr als 10.000 Einlösungen im Zeitraum. Bitte einen kürzeren Zeitraum wählen.');
+    $out=['count'=>0,'reversed'=>0,'members'=>0,'unknown'=>0,'groups'=>[],'days'=>[]];$members=[];
+    foreach($rows as $row) {
+        if($row['reversed_at']!==null){$out['reversed']++;continue;}
+        $out['count']++;$members[(int)$row['member_id']]=true;$day=substr($row['created_at'],0,10);$out['days'][$day]=($out['days'][$day] ?? 0)+1;
+        $snapshot=json_decode((string)$row['snapshot'],true);$r=is_array($snapshot) && is_array($snapshot['rules'] ?? null)?$snapshot['rules']:[]; $type=$r['type'] ?? ''; $currency=$r['currency'] ?? '';
+        if(!in_array($type,['fixed','percent','product','points'],true) || !in_array($currency,['EUR','USD','GBP','CHF'],true)){ $out['unknown']++;continue; }
+        $key=$currency.':'.$type;
+        $out['groups'][$key] ??= ['currency'=>$currency,'type'=>$type,'count'=>0,'spend'=>0,'discount'=>0,'points'=>0];
+        $g=&$out['groups'][$key];$g['count']++;$g['spend']+=(int)$row['spend_cents'];
+        if(in_array($type,['fixed','percent'],true))$g['discount']+=(int)$row['discount_cents'];
+        if($type==='points')$g['points']+=(int)($r['value'] ?? 0);unset($g);
+    }
+    $out['members']=count($members);ksort($out['groups']);ksort($out['days']);return $out;
+}
+function route_voucher_report(int $pid): never
+{
+    $u=require_login();$p=own_program((int)$u['id'],$pid);if(!$p || $p['type']!=='voucher')not_found();
+    header('Cache-Control: private, no-store');
+    $from=(string)($_GET['from'] ?? gmdate('Y-m-d',time()-29*86400));$to=(string)($_GET['to'] ?? gmdate('Y-m-d'));
+    $body='<p><a href="/program/'.$pid.'">← '.h($p['name']).'</a></p><h1>Code-Gutschein-Auswertung</h1><p class="muted">Nur dokumentierte Code-Einlösungen dieses Programms, nicht einfache Gutscheinkarten. Alle Daten und Tagesgrenzen in UTC. Kein Zahlungsnachweis, Umsatz oder Gewinn. Wiederholte Käufe können mehrfach enthalten sein.</p><form method="get" class="form inline-form panel"><label>Von (UTC)<input type="date" name="from" value="'.h($from).'" required></label><label>Bis einschließlich (UTC)<input type="date" name="to" value="'.h($to).'" required></label><button class="btn">Auswerten</button></form>';
+    try {
+        $d=voucher_report_data($pid,$from,$to);
+        $body.='<section class="panel voucher-report-summary"><h2>Im gewählten Zeitraum</h2><p><strong>'.$d['count'].'</strong> Einlösungen · <strong>'.$d['members'].'</strong> unterschiedliche Mitglieder</p><p class="muted">'.$d['reversed'].' als rückgängig markierte Einlösungen ausgeschlossen. Bei späteren Mitglieder-/Datenlöschungen kann sich die Auswertung ändern.</p></section>';
+        if($d['unknown'])$body.='<p class="alert">'.$d['unknown'].' Einlösungen ohne auswertbaren Regel-Snapshot sind in Anzahl und Tagesverlauf enthalten, nicht in Wertgruppen.</p>';
+        $types=['fixed'=>'Festbetrag','percent'=>'Prozent','product'=>'Gratisprodukt','points'=>'Bonuspunkte'];
+        $body.='<section class="panel"><h2>Wertgruppen</h2><p class="muted">Keine Währungsumrechnung. Erfasste Kaufbeträge sind Kasseneingaben, kein bestätigter Umsatz. Produkte werden nur gezählt; Punkte nicht in Geld umgerechnet.</p><div class="table-wrap voucher-report-table"><table><thead><tr><th>Art / Währung</th><th>Einlösungen</th><th>Erfasste Kaufbeträge</th><th>Geldrabatt</th><th>Bonuspunkte</th></tr></thead><tbody>';
+        foreach($d['groups'] as $g)$body.='<tr><td data-label="Art / Währung">'.h($types[$g['type']].' / '.$g['currency']).'</td><td data-label="Einlösungen">'.$g['count'].'</td><td data-label="Erfasste Kaufbeträge">'.h(money_label($g['spend'],$g['currency'])).'</td><td data-label="Geldrabatt">'.(in_array($g['type'],['fixed','percent'],true)?h(money_label($g['discount'],$g['currency'])):'Nicht bewertet').'</td><td data-label="Bonuspunkte">'.($g['type']==='points'?$g['points']:'Nicht zutreffend').'</td></tr>';
+        $body.='</tbody></table></div>'.(!$d['groups']?'<p>Keine auswertbaren Wertgruppen im Zeitraum.</p>':'').'</section><section class="panel"><h2>Einlösungen pro UTC-Tag</h2><ul>';
+        foreach($d['days'] as $day=>$count)$body.='<li>'.h($day).': '.$count.'</li>';
+        $body.='</ul>'.(!$d['days']?'<p>Noch keine Einlösungen im Zeitraum.</p>':'').'</section>';
+    } catch(InvalidArgumentException $e) {http_response_code(422);$body.='<p class="alert">'.h($e->getMessage()).'</p>';}
+    page('Code-Gutschein-Auswertung',$body,$u);exit;
 }

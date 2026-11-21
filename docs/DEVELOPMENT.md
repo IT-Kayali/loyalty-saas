@@ -144,3 +144,7 @@ Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Pari
 ## Gutschein-QR
 
 `python3 tests/run-voucher-qr.py`: persönliche QR-Codes, striktes Scanformat, Mandant/Rechte, keine GET-Buchung, Bestätigung, CSRF, Storno und Desktop/Mobil. Details: [VOUCHER-QR.md](VOUCHER-QR.md).
+
+## Code-Gutschein-Auswertung
+
+`python3 tests/run-voucher-report.py`: reine Eigentümer-Leseansicht, UTC-Zeitraum, Währungs-/Typtrennung, Snapshot- und Datensatzgrenzen sowie responsive Browserprüfungen. [VOUCHER-REPORT.md](VOUCHER-REPORT.md).
