@@ -170,3 +170,5 @@ Die Segment-Suite prüft zusätzlich die ungespeicherte Anzahl-Vorschau ohne Än
 ## Kampagnenentwurf
 
 `python3 tests/run-campaign-edit.py`: 35 Domänen-/HTTP-/Parallelprüfungen und 12 Browserprüfungen für Editieren ohne Versand, vollständige Textansicht, Konflikte und unveränderbare vorbereitete Inhalte. [CAMPAIGN-EDIT.md](CAMPAIGN-EDIT.md).
+
+Die Gutschein-Auswertung prüft jetzt auch den aggregierten CSV-Download: 40 Domänen-/HTTP- und 16 Browserprüfungen. Schema, Datumsfilter, Centwerte ohne Währungsaddition, Rechte und harter Abbruch bei zu vielen Datensätzen.

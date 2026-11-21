@@ -14,6 +14,10 @@ for(const [label,viewport] of [['desktop',{width:1280,height:900}],['mobile',{wi
  await p.locator('[name=from]').fill('2026-01-01');await p.locator('[name=to]').fill('2026-01-02');await p.getByRole('button',{name:'Auswerten',exact:true}).click();await p.waitForLoadState();
  yes((await p.content()).includes('12,00 EUR'),label+': Zeitraumfilter zeigt historische Summe');
  yes(await p.locator('.voucher-report-table tbody tr').first().isVisible(),label+': Ergebnisse nach Filter sichtbar');
+ const dl=await Promise.all([p.waitForEvent('download'),p.getByRole('link',{name:'Auswertung als CSV',exact:true}).click()]);
+ yes(dl[0].suggestedFilename()==='voucher-report-2026-01-01-2026-01-02.csv',label+': CSV übernimmt aktuelle Datumsfilter');
+ const dest=out+'/voucher-report-'+label+'.csv';await dl[0].saveAs(dest);const text=fs.readFileSync(dest,'utf8');
+ yes(text.includes('EUR,2,,,,5000,1200') && !text.includes('aylin@example.com'),label+': heruntergeladene Werte ohne Mitgliedsidentität');
  await p.screenshot({path:out+'/voucher-report-filter-'+label+'.png',fullPage:true});await c.close();
 }
 await b.close();console.log(n+' Gutschein-Auswertungs-Browserprüfungen bestanden');})().catch(e=>{console.error(e);process.exit(1)});

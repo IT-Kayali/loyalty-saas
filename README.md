@@ -191,3 +191,5 @@ Unternehmens-Anzeigenamen ändern: [BUSINESS-SETTINGS.md](docs/BUSINESS-SETTINGS
 Kampagnen-Inbox, Versandbelege und Mail-Outbox atomar vorbereiten: [CAMPAIGN-DISPATCH.md](docs/CAMPAIGN-DISPATCH.md), Tests `python3 tests/run-campaign-dispatch.py`.
 
 Eigene Kampagnenentwürfe bearbeiten und vollständigen Text prüfen: [CAMPAIGN-EDIT.md](docs/CAMPAIGN-EDIT.md), Tests `python3 tests/run-campaign-edit.py`.
+
+Die Code-Gutschein-Auswertung bietet einen aggregierten CSV-Download für denselben UTC-Zeitraum, ohne Mitgliedsdaten/Codes: [VOUCHER-REPORT.md](docs/VOUCHER-REPORT.md).

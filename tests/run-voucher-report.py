@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Code-Gutschein-Auswertung: Summen, Währungen, Daten-/Zeitraumgrenzen, Rechte, Desktop/Mobil. Wegwerf-Server."""
-import tempfile,pathlib,subprocess,shutil,os,time,urllib.request,urllib.parse,urllib.error,http.cookiejar,re,json,uuid
+import tempfile,pathlib,subprocess,shutil,os,time,urllib.request,urllib.parse,urllib.error,http.cookiejar,re,json,uuid,csv,io
 R=pathlib.Path(__file__).resolve().parents[1];PHP=os.environ.get('PHP_BIN','php');n=0
 def check(v,s):
  global n
@@ -57,16 +57,41 @@ with tempfile.TemporaryDirectory(prefix='loyalty-vb-') as temp:
   P='/program/%d/voucher-report'%pid
   st,html,_=req(P+'?from=2026-01-01&to=2026-01-02',c=o)
   check(st==200 and '12,00 EUR' in html and '10,00 USD' in html and 'ohne auswertbaren' in html,'Betreiberbericht zeigt Werte und Warnung')
+  C=P+'?from=2026-01-01&to=2026-01-02&format=csv'
+  def export(path=C,client=o):
+   with client.open('http://127.0.0.1:8099'+path,timeout=15) as x:return x.status,x.read().decode(),x.headers
+  snapshot=lambda:sql("echo json_encode([db()->query('SELECT * FROM voucher_redemptions')->fetchAll(),db()->query('SELECT * FROM voucher_codes')->fetchAll(),db()->query('SELECT * FROM audit_logs')->fetchAll()]);")
+  before=snapshot();status,body,headers=export();rows=list(csv.DictReader(io.StringIO(body)))
+  check(status==200 and headers.get_content_type()=='text/csv' and headers['Content-Disposition']=='attachment; filename="voucher-report-2026-01-01-2026-01-02.csv"','CSV als Download mit geprüftem Datumsnamen')
+  check(headers['Cache-Control']=='private, no-store','CSV nicht im geteilten Cache')
+  total=rows[0];groups={(r['Waehrung'],r['Rabattart']):r for r in rows if r['Zeilentyp']=='wertgruppe'}
+  check(total['Einloesungen']=='6' and total['Mitglieder']=='2' and total['Stornos_ausgeschlossen']=='1' and total['Unbekannte_Snapshots']=='1','CSV Gesamtwerte entsprechen Ansicht')
+  check(groups['EUR','fixed']['Kaufbetrag_Cent']=='5000' and groups['EUR','fixed']['Geldrabatt_Cent']=='1200' and groups['USD','percent']['Geldrabatt_Cent']=='1000','CSV Centwerte getrennt nach Währung und Typ')
+  check(groups['EUR','points']['Bonuspunkte']=='75' and groups['EUR','points']['Geldrabatt_Cent']=='' and groups['EUR','product']['Geldrabatt_Cent']=='','Punkte und unbewertete Produkte nicht als Geld')
+  check({r['Tag_UTC']:r['Einloesungen'] for r in rows if r['Zeilentyp']=='tag'}=={'2026-01-01':'2','2026-01-02':'4'},'CSV Tageszeilen in UTC')
+  check(all(len(r)==14 and None not in r for r in rows) and 'Kein Umsatz/Zahlungsnachweis' in total['Hinweis'],'Stabiles CSV-Schema und Grenzen im Download')
+  check('aylin@example.com' not in body and '0123456789ABCDEF12345678' not in body and 'Aylin' not in body,'CSV ohne Mitgliedsdaten oder Codes')
+  check(snapshot()==before,'Export ändert weder Einlösungen, Codes noch Audit')
+  check(not any(v.lstrip().startswith(('=','+','@','-')) for r in rows for v in r.values()),'CSV enthält keine ausführbaren Formelfelder')
+  status,body,_=export(P+'?from=2027-01-01&to=2027-01-02&format=csv');empty=list(csv.DictReader(io.StringIO(body)))
+  check(status==200 and len(empty)==1 and empty[0]['Einloesungen']=='0','Leerer Export enthält vollständige Null-Gesamtzeile')
+  (A/'config.php').write_text("<?php $c=require __DIR__.'/config.example.php';$c['stripe']['enforce_limits']=true;return $c;")
+  check(export()[0]==200,'CSV als Lesezugriff ohne aktives Abo')
+  (A/'config.php').write_text("<?php return require __DIR__.'/config.example.php';")
   check('aylin@example.com' not in html and '0123456789ABCDEF12345678' not in html,'Bericht ohne persönliche Codes oder Mitgliedsidentitäten')
   check(req(P,c=M)[0]==404 or '/login' in req(P,c=M)[2],'Mitglied hat keinen Zugriff')
   check('/login' in req(P,c=mk())[2],'Bericht benötigt Login')
   sql("$q=db()->prepare('INSERT INTO users(name,email,password_hash)VALUES(?,?,?)');$q->execute(['Fremd','foreign@example.com',password_hash('test123456',PASSWORD_DEFAULT)]);")
   outsider=mk();req('/login',{'csrf':csrf(outsider,'/login'),'email':'foreign@example.com','password':'test123456'},outsider)
   check(req(P,c=outsider)[0]==404,'Fremder Owner bekommt 404')
+  check(req(C,c=outsider)[0]==404 and '/login' in req(C,c=mk())[2] and '/login' in req(C,c=M)[2],'CSV verlangt Eigentümerlogin')
   nonvoucher=sql("echo db()->query(\"SELECT id FROM programs WHERE type!='voucher' LIMIT 1\")->fetchColumn();")
   check(req('/program/'+nonvoucher+'/voucher-report',c=o)[0]==404,'Kein Bericht für andere Programmtypen')
   for f,t in [('2026-02-30','2026-03-01'),('2026-01-02','2026-01-01'),('2025-01-01','2026-01-02'),('','2026-01-01'),('<script>','2026-01-01'),('2026-01-01\x00','2026-01-02')]:
    st,h,_=req(P+'?'+urllib.parse.urlencode({'from':f,'to':t}),c=o);check(st==422 and '<script>' not in h,'Ungültiger Zeitraum abgewiesen und sicher dargestellt')
+  check(req(P+'?from=2026-01-01&to=2026-01-02&format=xml',c=o)[0]==422,'Unbekanntes Exportformat abgewiesen')
+  for suffix in ['from=2026-02-30&to=2026-03-01','from=2025-01-01&to=2026-01-02','from=2026-01-02&to=2026-01-01']:
+   st,h,_=req(P+'?'+suffix+'&format=csv',c=o);check(st==422 and 'Zeilentyp' not in h,'CSV-Fehler ohne unvollständigen Download')
   check(req(P+'?from=2025-01-01&to=2026-01-01',c=o)[0]==200,'366 Kalendertage erlaubt')
   st,h,_=req(P+'?from=2027-01-01&to=2027-01-02',c=o);check(st==200 and 'Noch keine Einlösungen' in h,'Leerer Bericht')
   # Populate today for default browser view, while preserving all fixed-date assertions.
@@ -79,5 +104,7 @@ with tempfile.TemporaryDirectory(prefix='loyalty-vb-') as temp:
   sql("db()->exec(\"WITH RECURSIVE n(x) AS(SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<10001) INSERT INTO voucher_redemptions(business_id,program_id,code_id,member_id,operation,spend_cents,discount_cents,actor_kind,actor_id,snapshot,created_at)SELECT 1,%d,%d,%d,'bulk-'||x,100,10,'owner',1,'{}','2026-02-01 12:00:00' FROM n\");"%(pid,cid,mid))
   st,h,_=req(P+'?from=2026-02-01&to=2026-02-01',c=o)
   check(st==422 and '10.000' in h and 'voucher-report-summary' not in h,'Über 10.000 Datensätze: keine unvollständigen Summen')
+  st,h,_=req(P+'?from=2026-02-01&to=2026-02-01&format=csv',c=o)
+  check(st==422 and '10.000' in h and 'Zeilentyp' not in h,'Zeilenlimit auch im CSV, keine Teilsummen')
  finally:s.terminate();s.wait();log.close()
  print(n,'Gutschein-Auswertungsprüfungen bestanden')

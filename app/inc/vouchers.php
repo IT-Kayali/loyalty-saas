@@ -221,6 +221,18 @@ function voucher_report_data(int $pid,string $from,string $to): array
     }
     $out['members']=count($members);ksort($out['groups']);ksort($out['days']);return $out;
 }
+/** Aggregierter Export: keine Codes, Namen, Adressen oder frei eingegebenen Texte. */
+function voucher_report_csv(array $d,string $from,string $to): never
+{
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="voucher-report-'.$from.'-'.$to.'.csv"');
+    $f=fopen('php://output','w');
+    fputcsv($f,['Zeilentyp','Von_UTC','Bis_UTC','Tag_UTC','Rabattart','Waehrung','Einloesungen','Mitglieder','Stornos_ausgeschlossen','Unbekannte_Snapshots','Kaufbetrag_Cent','Geldrabatt_Cent','Bonuspunkte','Hinweis'],',','"','');
+    fputcsv($f,['gesamt',$from,$to,'','','',$d['count'],$d['members'],$d['reversed'],$d['unknown'],'','','','Kein Umsatz/Zahlungsnachweis. Kaufbetraege sind Kasseneingaben; keine Waehrungsumrechnung. Unbekannte Snapshots nur in Gesamt/Tag. Datenloeschungen koennen Zahlen aendern.'],',','"','');
+    foreach($d['groups'] as $g)fputcsv($f,['wertgruppe',$from,$to,'',$g['type'],$g['currency'],$g['count'],'','','',$g['spend'],in_array($g['type'],['fixed','percent'],true)?$g['discount']:'',$g['type']==='points'?$g['points']:'','Geldwerte in Cent der genannten Waehrung. Produkte nicht bewertet.'],',','"','');
+    foreach($d['days'] as $day=>$count)fputcsv($f,['tag',$from,$to,$day,'','',$count,'','','','','','','UTC; nur Tage mit Einloesungen.'],',','"','');
+    fclose($f);exit;
+}
 function route_voucher_report(int $pid): never
 {
     $u=require_login();$p=own_program((int)$u['id'],$pid);if(!$p || $p['type']!=='voucher')not_found();
@@ -228,7 +240,11 @@ function route_voucher_report(int $pid): never
     $from=(string)($_GET['from'] ?? gmdate('Y-m-d',time()-29*86400));$to=(string)($_GET['to'] ?? gmdate('Y-m-d'));
     $body='<p><a href="/program/'.$pid.'">← '.h($p['name']).'</a></p><h1>Code-Gutschein-Auswertung</h1><p class="muted">Nur dokumentierte Code-Einlösungen dieses Programms, nicht einfache Gutscheinkarten. Alle Daten und Tagesgrenzen in UTC. Kein Zahlungsnachweis, Umsatz oder Gewinn. Wiederholte Käufe können mehrfach enthalten sein.</p><form method="get" class="form inline-form panel"><label>Von (UTC)<input type="date" name="from" value="'.h($from).'" required></label><label>Bis einschließlich (UTC)<input type="date" name="to" value="'.h($to).'" required></label><button class="btn">Auswerten</button></form>';
     try {
+        $format=(string)($_GET['format'] ?? 'html');
+        if(!in_array($format,['html','csv'],true))throw new InvalidArgumentException('Unbekanntes Berichtsformat.');
         $d=voucher_report_data($pid,$from,$to);
+        if($format==='csv')voucher_report_csv($d,$from,$to);
+        $body.='<p><a class="btn ghost" href="/program/'.$pid.'/voucher-report?'.h(http_build_query(['from'=>$from,'to'=>$to,'format'=>'csv'])).'">Auswertung als CSV</a></p><p class="muted">CSV enthält aggregierte Gesamt-, Wertgruppen- und Tageszeilen. Keine Namen, E-Mails oder Gutscheincodes. Geldwerte in Cent, kein Umsatznachweis.</p>';
         $body.='<section class="panel voucher-report-summary"><h2>Im gewählten Zeitraum</h2><p><strong>'.$d['count'].'</strong> Einlösungen · <strong>'.$d['members'].'</strong> unterschiedliche Mitglieder</p><p class="muted">'.$d['reversed'].' als rückgängig markierte Einlösungen ausgeschlossen. Bei späteren Mitglieder-/Datenlöschungen kann sich die Auswertung ändern.</p></section>';
         if($d['unknown'])$body.='<p class="alert">'.$d['unknown'].' Einlösungen ohne auswertbaren Regel-Snapshot sind in Anzahl und Tagesverlauf enthalten, nicht in Wertgruppen.</p>';
         $types=['fixed'=>'Festbetrag','percent'=>'Prozent','product'=>'Gratisprodukt','points'=>'Bonuspunkte'];
