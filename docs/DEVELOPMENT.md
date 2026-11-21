@@ -95,6 +95,7 @@ python tests/run-cardlayout.py
 python tests/run-voucher-batches.py
 python tests/run-member-password.py
 python tests/run-member-profile.py
+python tests/run-owner-password.py
 python tests/run-webhooks.py
 python tests/run-backup.py
 python tests/run-browser.py
@@ -137,3 +138,5 @@ Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Pari
 - [Mitglieder-Passwort ändern](MEMBER-PASSWORD.md)
 
 - [Eigene Mitgliedsnamen](MEMBER-PROFILE.md)
+
+- [Eigenes Betreiber-Passwort](OWNER-PASSWORD.md)

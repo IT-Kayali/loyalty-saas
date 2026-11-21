@@ -81,6 +81,7 @@ try {
         $path === '/register' => route_register($method),
         $path === '/login' => route_login($method),
         $path === '/logout' => route_logout(),
+        $path === '/account/password' => route_owner_password($method),
         $path === '/dashboard' => route_dashboard(),
         $path === '/contact' => route_support($method,false,true),
         ($path==='/support' || preg_match('#^/support/([A-F0-9]{16})$#D',$path)) => route_support($method,false),

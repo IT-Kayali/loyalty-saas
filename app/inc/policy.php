@@ -105,7 +105,7 @@ function policy_browser_guard(string $path,string $method): void
 {
     if($method!=='POST')return;
     // Auth, billing and privacy are not paid features. The admin allowlist is separate.
-    if($path==='/ai' || str_starts_with($path,'/ai/approval/') || $path==='/contact' || $path==='/support' || str_starts_with($path,'/support/'))return;
+    if($path==='/account/password' || $path==='/ai' || str_starts_with($path,'/ai/approval/') || $path==='/contact' || $path==='/support' || str_starts_with($path,'/support/'))return;
     if(str_starts_with($path,'/unsubscribe/') || in_array($path,['/member/preferences','/member/password','/member/profile'],true))return;
     if(in_array($path,['/login','/register','/staff/login','/member/login','/billing','/billing/paypal','/member/delete','/forgot-password','/reset-password'],true) || str_starts_with($path,'/admin'))return;
     if(preg_match('#^/join/([A-F0-9]{8})$#',$path,$m)) {

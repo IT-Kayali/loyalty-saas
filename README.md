@@ -175,3 +175,5 @@ Optionales SaaS-Abo zusätzlich zur Stripe-Anbindung: SDK v6, serverseitiges Cre
 Mitglieder können ihr eigenes Shared-Wallet-Passwort ändern und alle Wallet-Sitzungen abmelden: [docs/MEMBER-PASSWORD.md](docs/MEMBER-PASSWORD.md).
 
 Eigene Namen pro Mitgliedseintrag in der Wallet: [docs/MEMBER-PROFILE.md](docs/MEMBER-PROFILE.md).
+
+Eigenes Betreiber-Passwort ohne SMTP ändern: [docs/OWNER-PASSWORD.md](docs/OWNER-PASSWORD.md).

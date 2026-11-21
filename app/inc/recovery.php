@@ -72,5 +72,36 @@ function route_member_password(string $method): never
         unset($_SESSION['member_email'],$_SESSION['member_session_version']);session_regenerate_id(true);
         flash('Passwort geändert. Alle Wallet-Sitzungen sind abgemeldet. Bitte neu anmelden.');redirect('/member/login');
     }
-    page('Passwort ändern','<div class="auth-box"><p><a href="/wallet">← Meine Karten</a></p><h1>Passwort ändern</h1><p class="muted">Gilt für deine gemeinsame Wallet mit '.h($email).', über alle Unternehmen hinweg. Nach dem Speichern werden alle Wallet-Sitzungen abgemeldet. Bereits gespeicherte Offline-Karten auf anderen Geräten bleiben bis zu ihrem Ablauf sichtbar (höchstens 24 Stunden).</p><form method="post" class="form">'.csrf_field().'<label>Bisheriges Passwort<input type="password" name="current_password" autocomplete="current-password" maxlength="200" required></label><label>Neues Passwort (12 bis 72 Byte (Umlaute zählen mehrfach))<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="72" required></label><label>Neues Passwort wiederholen<input type="password" name="password_confirm" autocomplete="new-password" minlength="12" maxlength="72" required></label><button class="btn">Passwort ändern und abmelden</button></form><p><a href="/forgot-password">Passwort vergessen?</a></p></div>');exit;
+    page('Passwort ändern','<div class="auth-box"><p><a href="/wallet">← Meine Karten</a></p><h1>Passwort ändern</h1><p class="muted">Gilt für deine gemeinsame Wallet mit '.h($email).', über alle Unternehmen hinweg. Nach dem Speichern werden alle Wallet-Sitzungen abgemeldet. Bereits gespeicherte Offline-Karten auf anderen Geräten bleiben bis zu ihrem Ablauf sichtbar (höchstens 24 Stunden).</p><form method="post" class="form">'.csrf_field().'<label>Bisheriges Passwort<input type="password" name="current_password" autocomplete="current-password" maxlength="200" required></label><label>Neues Passwort (12 bis 72 Byte, Umlaute zählen mehrfach)<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="72" required></label><label>Neues Passwort wiederholen<input type="password" name="password_confirm" autocomplete="new-password" minlength="12" maxlength="72" required></label><button class="btn">Passwort ändern und abmelden</button></form><p><a href="/forgot-password">Passwort vergessen?</a></p></div>');exit;
+}
+
+/** Eigenes Betreiber-Passwort aendern, keine API-Schluesselrotation. */
+function route_owner_password(string $method): never
+{
+    $u=require_login(); $uid=(int)$u['id'];
+    header('Cache-Control: no-store');
+    if ($method==='POST') {
+        if (!rate_limit_take('owner-password',(string)$uid,10,900)) rate_limit_stop();
+        $old=(string)($_POST['current_password'] ?? ''); $pw=(string)($_POST['password'] ?? '');
+        if (strlen($old)>200 || strlen($pw)<12 || strlen($pw)>72 || str_contains($pw,"\0") || !hash_equals($pw,(string)($_POST['password_confirm'] ?? ''))) {
+            flash('Neues Passwort mit 12 bis 72 Byte wählen und identisch wiederholen. Umlaute zählen mehrfach.','err');redirect('/account/password');
+        }
+        db()->exec('BEGIN IMMEDIATE');
+        try {
+            $q=db()->prepare('SELECT password_hash,session_version,email FROM users WHERE id=?');$q->execute([$uid]);$fresh=$q->fetch();
+            if (!$fresh || (int)$fresh['session_version']!==(int)($_SESSION['user_session_version'] ?? -1) || !password_verify($old,$fresh['password_hash'])) throw new InvalidArgumentException('Bisheriges Passwort stimmt nicht oder die Sitzung ist abgelaufen.');
+            if (hash_equals($old,$pw)) throw new InvalidArgumentException('Bitte ein anderes neues Passwort wählen.');
+            db()->prepare('UPDATE users SET password_hash=?,session_version=session_version+1 WHERE id=?')->execute([password_hash($pw,PASSWORD_DEFAULT),$uid]);
+            db()->prepare("UPDATE password_resets SET used_at=datetime('now') WHERE lower(email)=lower(?) AND kind='owner' AND used_at IS NULL")->execute([$fresh['email']]);
+            audit_log($uid,'account.password_change');
+            db()->exec('COMMIT');
+        } catch (Throwable $e) {
+            db()->exec('ROLLBACK');
+            if ($e instanceof InvalidArgumentException) {flash($e->getMessage(),'err');redirect('/account/password');}
+            throw $e;
+        }
+        unset($_SESSION['user_id'],$_SESSION['user_session_version']);session_regenerate_id(true);
+        flash('Passwort geändert. Alle Betreiber-Websitzungen sind abgemeldet. Bitte neu anmelden.');redirect('/login');
+    }
+    page('Betreiber-Passwort ändern','<p><a href="/dashboard">← Dashboard</a></p><section class="panel"><h1>Betreiber-Passwort ändern</h1><p class="muted">Für dein Konto '.h($u['email']).'. Nach dem Speichern werden alle Betreiber-Websitzungen abgemeldet. Mitglieder- und Personalzugänge bleiben unverändert. API-, Shop- und Agent-Schlüssel sowie offene Agent-Freigaben werden nicht widerrufen. Falls ein Schlüssel kompromittiert ist, widerrufe ihn separat.</p><form method="post" class="form">'.csrf_field().'<label>Bisheriges Passwort<input type="password" name="current_password" autocomplete="current-password" maxlength="200" required></label><label>Neues Passwort (12 bis 72 Byte, Umlaute zählen mehrfach)<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="72" required></label><label>Neues Passwort wiederholen<input type="password" name="password_confirm" autocomplete="new-password" minlength="12" maxlength="72" required></label><button class="btn">Passwort ändern und abmelden</button></form><p><a href="/forgot-password">Passwort vergessen?</a></p></section>',$u);exit;
 }

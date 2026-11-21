@@ -798,7 +798,7 @@ function page(string $title, string $body, ?array $user = null, string $brand = 
                 . '<a class="nav-link" href="/billing">' . t('Abrechnung') . '</a>'
                 . (is_platform_admin($user) ? '<a class="nav-link" href="/admin">Admin</a>' : '')
                 . '<span class="nav-user">' . h($user['name']) . '</span>
-                <a class="nav-link" href="/logout">' . t('Abmelden') . '</a></span>
+                <a class="nav-link" href="/account/password">' . t('Passwort') . '</a><a class="nav-link" href="/logout">' . t('Abmelden') . '</a></span>
         </nav>';
     }
     header('Content-Type: text/html; charset=utf-8');
