@@ -184,6 +184,6 @@ Code-Gutschein-Auswertung pro Programm: [Umfang und Zahlengrenzen](docs/VOUCHER-
 
 Analytics-Einlösungszahlen und mobile Programm-Performance: [ANALYTICS.md](docs/ANALYTICS.md), Tests `python3 tests/run-analytics.py`.
 
-Gespeicherte Einzelregel-Segmente bearbeiten: [SEGMENTS.md](docs/SEGMENTS.md), Tests `python3 tests/run-segments.py`.
+Gespeicherte Einzelregel-Segmente bearbeiten und Anzahl ohne Speichern prüfen: [SEGMENTS.md](docs/SEGMENTS.md), Tests `python3 tests/run-segments.py`.
 
 Unternehmens-Anzeigenamen ändern: [BUSINESS-SETTINGS.md](docs/BUSINESS-SETTINGS.md), Tests `python3 tests/run-business-settings.py`.

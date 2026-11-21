@@ -35,19 +35,30 @@ with tempfile.TemporaryDirectory(prefix='loyalty-vb-') as temp:
   P='/segment/%d/edit'%sid
   state=lambda:json.loads(sql("echo json_encode(db()->query('SELECT * FROM segments WHERE id=%d')->fetch(PDO::FETCH_ASSOC));"%sid))
   revision=lambda:re.search(r'name="revision" value="([a-f0-9]+)"',req(P,c=o)[1]).group(1)
-  def edit(name='Neu',rule='min_points',param='100',rev=None,c=o,token=True):
-   data={'name':name,'rule':rule,'param':param,'revision':rev if rev is not None else revision()}
+  def edit(name='Neu',rule='min_points',param='100',rev=None,c=o,token=True,action='save'):
+   data={'name':name,'rule':rule,'param':param,'action':action,'revision':rev if rev is not None else revision()}
    if token:data['csrf']=csrf(c,P if c==o else '/login')
    return req(P,data,c)
   old=state();check(req(P,c=o)[0]==200 and '1 noch nicht gesendete' in req(P,c=o)[1],'Editor mit aktueller Anzahl und Entwurfswarnung')
   check(edit(token=False)[0]==403 and state()==old,'Speichern ohne CSRF wirkungslos')
   for name,rule,param in [('', 'all','0'),('x'*81,'all','0'),('Test','unknown','1'),('Test','all','-1'),('Test','all','1.5'),('Test','all','100001'),('Test','all','abc')]:
    edit(name,rule,param);check(state()==old,'Ungültiger Name/Regel/Wert abgewiesen')
+  def effects():return sql("echo json_encode([db()->query('SELECT * FROM campaigns')->fetchAll(PDO::FETCH_ASSOC),db()->query('SELECT * FROM campaign_sends')->fetchAll(PDO::FETCH_ASSOC),db()->query('SELECT * FROM member_messages')->fetchAll(PDO::FETCH_ASSOC),db()->query('SELECT * FROM mail_outbox')->fetchAll(PDO::FETCH_ASSOC),db()->query('SELECT * FROM audit_logs')->fetchAll(PDO::FETCH_ASSOC)]);")
+  baseline=effects();rev=revision()
+  for rule in ['all','new_days','active_days','inactive_days','min_points','min_stamps']:
+   st,h,_=edit('Vorschau '+rule,rule,'100000',action='preview')
+   check(st==200 and 'Ungespeicherte Vorschau' in h and state()==old and effects()==baseline,'Vorschau ohne Speichern/Versand/Audit: '+rule)
+   check(re.search(r'name="revision" value="([a-f0-9]+)"',h).group(1)==rev,'Vorschau behält Revision des gespeicherten Stands')
+  h=edit('Niemand','min_points','100000',action='preview')[1]
+  check('>0</strong> Mitglieder bei der letzten Prüfung' in h and '>3</strong> Mitglieder passen zur aktuell gespeicherten' in h,'Ungespeicherte und gespeicherte Anzahl getrennt korrekt')
+  check(edit(action='preview',token=False)[0]==403 and state()==old,'Vorschau braucht CSRF')
+  check(edit(action='unknown')[0]==422 and state()==old,'Unbekannte Aktion schreibt nicht')
   for rule in ['all','new_days','active_days','inactive_days','min_points','min_stamps']:
    r=edit('Zielgruppe '+rule,rule,'1');check(state()['rule']==rule and state()['param']==1,'Vorhandene Einzelregel editierbar: '+rule)
   beforecounts=sql("echo json_encode([db()->query('SELECT COUNT(*) FROM campaign_sends')->fetchColumn(),db()->query('SELECT COUNT(*) FROM member_messages')->fetchColumn(),db()->query('SELECT COUNT(*) FROM mail_outbox')->fetchColumn()]);")
   rev=revision();edit('Erster Tab','all','0',rev=rev);saved=state()
   check('inzwischen geändert' in edit('Veralteter Tab','min_stamps','12',rev=rev)[1] and state()==saved,'Veraltetes Formular überschreibt keine neuere Änderung')
+  check('inzwischen geändert' in edit('Alte Vorschau','min_stamps','12',rev=rev,action='preview')[1] and state()==saved,'Veraltete Vorschau erbt keine neue Revision')
   check(beforecounts==sql("echo json_encode([db()->query('SELECT COUNT(*) FROM campaign_sends')->fetchColumn(),db()->query('SELECT COUNT(*) FROM member_messages')->fetchColumn(),db()->query('SELECT COUNT(*) FROM mail_outbox')->fetchColumn()]);"),'Editieren erzeugt keine Versand-/Inbox-/Outbox-Einträge')
   check(history()==sentbefore,'Bereits gesendete Kampagne und Versandprotokoll unverändert')
   check(sql("echo db()->query('SELECT segment_id FROM campaigns WHERE id=%d')->fetchColumn();"%cid)==str(sid),'Kampagnenverknüpfung bleibt erhalten')

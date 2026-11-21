@@ -10,12 +10,17 @@ for(const [label,viewport] of [['desktop',{width:1280,height:900}],['mobile',{wi
  yes((await p.content()).includes('Speichern sendet keine Nachrichten'),label+': Folgen für Kampagnen sichtbar');
  yes(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),label+': Editor ohne horizontalen Überlauf');
  await p.locator('[name=name]').fill('Treue Gäste '+label);await p.locator('[name=rule]').selectOption('min_stamps');await p.locator('[name=param]').fill('5');
+ await p.getByRole('button',{name:'Vorschau prüfen',exact:true}).click();await p.waitForLoadState();
+ yes(await p.locator('.segment-preview').isVisible(),label+': ungespeicherte Vorschau getrennt sichtbar');
+ yes((await p.locator('.segment-preview').textContent()).includes('keine Nachrichten versendet'),label+': Vorschau sagt kein Versand');
+ yes(await p.locator('[name=param]').inputValue()==='5' && await p.locator('[name=rule]').inputValue()==='min_stamps',label+': Vorschau erhält Formulareingaben');
+ await p.screenshot({path:out+'/segment-preview-'+label+'.png',fullPage:true});
  await p.getByRole('button',{name:'Segment speichern',exact:true}).click();await p.waitForLoadState();
  yes((await p.content()).includes('keine Nachrichten versendet'),label+': Speicherergebnis ohne Versand');
  yes(await p.locator('[name=name]').inputValue()==='Treue Gäste '+label && await p.locator('[name=param]').inputValue()==='5',label+': Name und Wert gespeichert');
  await p.screenshot({path:out+'/segment-edit-'+label+'.png',fullPage:true});
  // Stale tab cannot overwrite later changes.
- const old=await c.newPage();await old.goto(U+'/segment/'+sid+'/edit');
+ const old=await c.newPage();await old.goto(U+'/segment/'+sid+'/edit');await old.getByRole('button',{name:'Vorschau prüfen',exact:true}).click();await old.waitForLoadState();
  await p.locator('[name=name]').fill('Neuester Stand '+label);await p.getByRole('button',{name:'Segment speichern',exact:true}).click();await p.waitForLoadState();
  await old.locator('[name=name]').fill('Alter Stand');await old.getByRole('button',{name:'Segment speichern',exact:true}).click();await old.waitForLoadState();
  yes((await old.content()).includes('inzwischen geändert') && await old.locator('[name=name]').inputValue()==='Neuester Stand '+label,label+': Konflikt erklärt und aktueller Stand geladen');

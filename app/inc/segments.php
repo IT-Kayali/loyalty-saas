@@ -270,11 +270,20 @@ function route_segment_edit(int $id,string $method): never
     $u=require_login();
     $q=db()->prepare('SELECT s.* FROM segments s JOIN businesses b ON b.id=s.business_id WHERE s.id=? AND b.user_id=?');$q->execute([$id,$u['id']]);$s=$q->fetch();if(!$s)not_found();
     header('Cache-Control: private, no-store');
+    $saved=$s;$revision=segment_revision($s);$preview=null;
     if($method==='POST') {
+        $action=(string)($_POST['action'] ?? 'save');
+        if(!in_array($action,['save','preview'],true)){http_response_code(422);exit('Ungültige Aktion.');}
         $name=trim((string)($_POST['name'] ?? ''));$rule=(string)($_POST['rule'] ?? '');$param=(string)($_POST['param'] ?? '');
         if($name==='' || mb_strlen($name)>80 || !isset(segment_rules()[$rule]) || !preg_match('/^[0-9]{1,6}$/D',$param) || (int)$param>100000) {
             flash('Name mit 1 bis 80 Zeichen, gültige Regel und ganzen Wert von 0 bis 100000 angeben.','err');redirect('/segment/'.$id.'/edit');
         }
+        if($action==='preview') {
+            $revision=(string)($_POST['revision'] ?? '');
+            if(!hash_equals(segment_revision($saved),$revision)){flash('Segment wurde inzwischen geändert. Aktuellen Stand prüfen und erneut bearbeiten.','err');redirect('/segment/'.$id.'/edit');}
+            $s=array_merge($s,['name'=>$name,'rule'=>$rule,'param'=>(int)$param]);
+            $preview=count(segment_members($s));
+        } else {
         db()->exec('BEGIN IMMEDIATE');
         try {
             $q=db()->prepare('SELECT * FROM segments WHERE id=? AND business_id=?');$q->execute([$id,$s['business_id']]);$fresh=$q->fetch();
@@ -285,8 +294,9 @@ function route_segment_edit(int $id,string $method): never
             db()->exec('ROLLBACK');if($e instanceof InvalidArgumentException){flash($e->getMessage(),'err');redirect('/segment/'.$id.'/edit');}throw $e;
         }
         flash('Segment gespeichert. Es wurden keine Nachrichten versendet.');redirect('/segment/'.$id.'/edit');
+        }
     }
     $opts='';foreach(segment_rules() as $key=>$label)$opts.='<option value="'.h($key).'"'.($s['rule']===$key?' selected':'').'>'.h($label).'</option>';
     $q=db()->prepare("SELECT COUNT(*) FROM campaigns WHERE segment_id=? AND status!='sent'");$q->execute([$id]);$drafts=(int)$q->fetchColumn();
-    page('Segment bearbeiten','<p><a href="/business/'.(int)$s['business_id'].'">← Unternehmen</a></p><h1>Segment bearbeiten</h1><section class="panel"><p><strong>'.count(segment_members($s)).'</strong> Mitglieder passen zur aktuell gespeicherten Regel. Die Zielgruppe ist dynamisch, kein fester Empfängerbestand.</p><p class="muted">'.$drafts.' noch nicht gesendete Kampagnen sind verknüpft. Sie nutzen beim späteren Senden die dann gültige Regel. Bereits versendete Nachrichten und Versandprotokolle bleiben unverändert. Speichern sendet keine Nachrichten.</p><form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.segment_revision($s).'"><label>Name<input name="name" maxlength="80" value="'.h($s['name']).'" required></label><label>Regel<select name="rule">'.$opts.'</select></label><label>Wert (X)<input type="number" name="param" min="0" max="100000" step="1" value="'.(int)$s['param'].'" required></label><p class="muted">Bei „Alle Mitglieder“ wird der Wert ignoriert. Tagesregeln verwenden UTC. Die neue Anzahl siehst du nach dem Speichern.</p><button class="btn">Segment speichern</button></form></section>',$u);exit;
+    page('Segment bearbeiten','<p><a href="/business/'.(int)$s['business_id'].'">← Unternehmen</a></p><h1>Segment bearbeiten</h1><section class="panel"><p><strong>'.count(segment_members($saved)).'</strong> Mitglieder passen zur aktuell gespeicherten Regel. Die Zielgruppe ist dynamisch, kein fester Empfängerbestand.</p><p class="muted">'.$drafts.' noch nicht gesendete Kampagnen sind verknüpft. Sie nutzen beim späteren Senden die dann gültige Regel. Bereits versendete Nachrichten und Versandprotokolle bleiben unverändert. Speichern sendet keine Nachrichten.</p>'.($preview!==null?'<div class="notice segment-preview"><h2>Ungespeicherte Vorschau</h2><p><strong>'.$preview.'</strong> Mitglieder bei der letzten Prüfung für '.h(segment_label($s)).'. Nach weiteren Eingaben erneut prüfen. Segment und Kampagnen bleiben unverändert. Es wurden keine Nachrichten versendet. Erst „Segment speichern“ übernimmt diese Regel.</p></div>':'').'<form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.h($revision).'"><label>Name<input name="name" maxlength="80" value="'.h($s['name']).'" required></label><label>Regel<select name="rule">'.$opts.'</select></label><label>Wert (X)<input type="number" name="param" min="0" max="100000" step="1" value="'.(int)$s['param'].'" required></label><p class="muted">Bei „Alle Mitglieder“ wird der Wert ignoriert. Tagesregeln verwenden UTC. Prüfe die neue Anzahl ohne Speichern über „Vorschau prüfen“. Die Zahl kann sich bis zu einem späteren Versand ändern.</p><div class="btn-row"><button class="btn ghost" name="action" value="preview">Vorschau prüfen</button><button class="btn" name="action" value="save">Segment speichern</button></div></form></section>',$u);exit;
 }

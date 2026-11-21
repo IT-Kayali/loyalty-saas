@@ -160,3 +160,5 @@ Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Pari
 ## Unternehmensname
 
 `python3 tests/run-business-settings.py`: Name des eigenen Unternehmens, Konfliktschutz, keine Nebenänderungen, bestehende Designertexte, Rechte/Plan und responsive Browserfälle. [BUSINESS-SETTINGS.md](BUSINESS-SETTINGS.md).
+
+Die Segment-Suite prüft zusätzlich die ungespeicherte Anzahl-Vorschau ohne Änderungen an Segmenten, Kampagnen, Versand und Audit; Konfliktschutz bleibt auch nach Vorschau erhalten.
