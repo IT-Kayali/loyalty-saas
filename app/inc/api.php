@@ -119,7 +119,7 @@ function webhook_attempt(int $deliveryId, bool $first = false, bool $dueOnly = f
     }
     $attempts = $first ? 1 : (int)$d['attempts'] + 1;
     if (!(int)$d['active']) {
-        db()->prepare("UPDATE webhook_deliveries SET status='dead', response=?, next_attempt_at=NULL, lock_until=NULL, dead_ack=0, delivered_at=datetime('now') WHERE id=?")
+        db()->prepare("UPDATE webhook_deliveries SET status='dead', response=?, next_attempt_at=NULL, lock_until=NULL, dead_ack=0, owner_ack=0, delivered_at=datetime('now') WHERE id=?")
             ->execute(['Webhook ist deaktiviert', $deliveryId]);
         webhook_notify_dead($deliveryId);
         return 'dead';
@@ -138,7 +138,7 @@ function webhook_attempt(int $deliveryId, bool $first = false, bool $dueOnly = f
             $next = gmdate('Y-m-d H:i:s', time() + $wait * 60);
         }
     }
-    db()->prepare("UPDATE webhook_deliveries SET status=?, response=?, attempts=?, next_attempt_at=?, lock_until=NULL, dead_ack=0, delivered_at=datetime('now') WHERE id=?")
+    db()->prepare("UPDATE webhook_deliveries SET status=?, response=?, attempts=?, next_attempt_at=?, lock_until=NULL, dead_ack=0, owner_ack=0, delivered_at=datetime('now') WHERE id=?")
         ->execute([$status, mb_strimwidth((string)$response, 0, 500, ''), $attempts, $next, $deliveryId]);
     if ($status === 'dead') {
         webhook_notify_dead($deliveryId);
@@ -146,22 +146,37 @@ function webhook_attempt(int $deliveryId, bool $first = false, bool $dueOnly = f
     return $status;
 }
 
-/** Hinweis an den Plattformbetreiber (support_email) bei endgueltig fehlgeschlagener Zustellung. Ohne Payload, URL und Secret. Eine Mail je Zustellung. */
+/**
+ * Hinweise bei endgueltig fehlgeschlagener Zustellung:
+ * 1) Plattformbetreiber (support_email): eine Mail je Zustellung, ohne URL, Payload, Secret.
+ * 2) Owner des Unternehmens: eine Mail je Webhook und Tag mit Ziel-URL des eigenen Webhooks, ohne Payload und Secret.
+ * Beides ueber die Mail-Queue (nur mit SMTP, Mail-Worker). Der In-App-Hinweis im Admin und auf der Business-Seite braucht keine Mail.
+ */
 function webhook_notify_dead(int $deliveryId): void
 {
-    $to = (string)config('support_email', '');
-    if (!filter_var($to, FILTER_VALIDATE_EMAIL) || preg_match('/@(example\.(com|org|net)|.*\.test|.*\.local)$/i', $to) || !function_exists('queue_mail')) {
+    if (!function_exists('queue_mail')) {
         return;
     }
-    $st = db()->prepare('SELECT d.event, b.name FROM webhook_deliveries d JOIN webhooks w ON w.id=d.webhook_id JOIN businesses b ON b.id=w.business_id WHERE d.id=?');
+    $st = db()->prepare('SELECT d.event, d.attempts, d.webhook_id, w.url, b.id AS bid, b.name, u.email FROM webhook_deliveries d JOIN webhooks w ON w.id=d.webhook_id JOIN businesses b ON b.id=w.business_id JOIN users u ON u.id=b.user_id WHERE d.id=?');
     $st->execute([$deliveryId]);
     $r = $st->fetch();
+    $st->closeCursor();
     if (!$r) {
         return;
     }
-    queue_mail(null, null, $to, 'Loyalty: Webhook-Zustellung endgültig fehlgeschlagen',
-        'Eine Webhook-Zustellung (Nr. ' . $deliveryId . ', Event ' . $r['event'] . ', Unternehmen ' . $r['name'] . ') ist nach allen Versuchen fehlgeschlagen. Bitte im Admin-Dashboard prüfen: ' . base_url() . '/admin',
-        'transactional', 'webhook-dead-' . $deliveryId . '-' . (int)db()->query('SELECT attempts FROM webhook_deliveries WHERE id=' . $deliveryId)->fetchColumn());
+    $skip = static fn(string $to): bool => !filter_var($to, FILTER_VALIDATE_EMAIL) || preg_match('/@(example\.(com|org|net)|.*\.test|.*\.local)$/i', $to);
+    $op = (string)config('support_email', '');
+    if (!$skip($op)) {
+        queue_mail(null, null, $op, 'Loyalty: Webhook-Zustellung endgültig fehlgeschlagen',
+            'Eine Webhook-Zustellung (Nr. ' . $deliveryId . ', Event ' . $r['event'] . ', Unternehmen ' . $r['name'] . ') ist nach allen Versuchen fehlgeschlagen. Bitte im Admin-Dashboard prüfen: ' . base_url() . '/admin',
+            'transactional', 'webhook-dead-' . $deliveryId . '-' . (int)$r['attempts']);
+    }
+    $owner = (string)$r['email'];
+    if (!$skip($owner)) {
+        queue_mail((int)$r['bid'], null, $owner, 'Dein Webhook für ' . $r['name'] . ' konnte nicht zustellen',
+            'Eine Webhook-Zustellung (Event ' . $r['event'] . ') an ' . $r['url'] . ' ist nach ' . (int)$r['attempts'] . ' Versuchen fehlgeschlagen. Prüfe, ob dein Server erreichbar ist und 2xx antwortet. Du kannst die Zustellung in der App unter ' . base_url() . '/business/' . (int)$r['bid'] . ' erneut senden. Diese Mail kommt höchstens einmal pro Webhook und Tag.',
+            'transactional', 'webhook-dead-owner-' . (int)$r['webhook_id'] . '-' . gmdate('Y-m-d'));
+    }
 }
 
 /** Wiederholt alle faelligen fehlgeschlagenen Zustellungen (Cron: tools/webhook-retry.php). Liefert [versucht, geliefert]. */
@@ -294,6 +309,19 @@ function route_webhook_retry(): never
     redirect('/business/' . (int)$b['id']);
 }
 
+/** Owner: Hinweis auf tote Zustellungen als gesehen markieren. */
+function route_webhook_ack(): never
+{
+    $u = require_login();
+    $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
+    if (!$b) {
+        redirect('/dashboard');
+    }
+    db()->prepare("UPDATE webhook_deliveries SET owner_ack=1 WHERE status='dead' AND owner_ack=0 AND webhook_id IN (SELECT id FROM webhooks WHERE business_id=?)")->execute([$b['id']]);
+    flash(t('Hinweis als gesehen markiert.'));
+    redirect('/business/' . (int)$b['id']);
+}
+
 /** Speichert die Shop/POS-Integrationseinstellungen (Shopify-Secret, Auto-Punkte). */
 function route_integration_save(): never
 {
@@ -336,7 +364,11 @@ function api_html(array $b): string
             . '<input type="hidden" name="webhook_id" value="' . (int)$hook['id'] . '">'
             . '<button class="btn ghost small">' . t('Löschen') . '</button></form>' . $log . '</li>';
     }
-    $list = $list ? '<ul>' . $list . '</ul>' : '<p class="muted">' . t('Noch keine Webhooks.') . '</p>';
+    $dead = db()->prepare("SELECT COUNT(*) FROM webhook_deliveries d JOIN webhooks w ON w.id=d.webhook_id WHERE w.business_id=? AND d.status='dead' AND d.owner_ack=0");
+    $dead->execute([$b['id']]);
+    $deadN = (int)$dead->fetchColumn();
+    $alert = $deadN ? '<div class="panel" role="alert" style="border-color:var(--err)"><strong>' . sprintf(t('%d Webhook-Zustellung(en) endgültig fehlgeschlagen'), $deadN) . '</strong><p class="muted">' . t('Alle Versuche sind verbraucht. Prüfe dein Ziel und sende sie unten erneut.') . '</p><form method="post" action="/webhook/ack">' . csrf_field() . '<input type="hidden" name="business_id" value="' . (int)$b['id'] . '"><button class="btn ghost small">' . t('Als gesehen markieren') . '</button></form></div>' : '';
+    $list = $alert . ($list ? '<ul>' . $list . '</ul>' : '<p class="muted">' . t('Noch keine Webhooks.') . '</p>');
 
     $eventBoxes = '';
     foreach (WEBHOOK_EVENTS as $key => $label) {

@@ -9,6 +9,7 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
   await p.goto(U+path);
   yes((await p.content()).includes(marker),`${label} ${who}: Wiederholen-Button sichtbar`);
   yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),`${label} ${who}: kein horizontaler Überlauf`);
+  if(who==='owner'){yes((await p.content()).includes('endgültig fehlgeschlagen'),`${label}: Owner-Banner sichtbar`);await p.locator('[role=alert]').first().scrollIntoViewIfNeeded();await p.screenshot({path:`${out}/webhooks-owner-banner-${label}.png`});}
   if(who==='admin'){yes((await p.content()).includes('endgültig fehlgeschlagen'),`${label}: Banner sichtbar`);await p.evaluate(()=>window.scrollTo(0,0));await p.screenshot({path:`${out}/webhooks-banner-${label}.png`});}
   await p.getByRole('button',{name:marker}).first().scrollIntoViewIfNeeded();await p.screenshot({path:`${out}/webhooks-${who}-${label}.png`});
   await p.getByRole('button',{name:marker}).first().click();await p.waitForLoadState();

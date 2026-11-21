@@ -38,14 +38,19 @@ Ohne Cron passiert nichts automatisch. Der Admin kann dann im Admin-Dashboard "F
 - Im Admin-Dashboard erscheint oben ein roter Hinweis mit der Anzahl endgültig fehlgeschlagener Zustellungen, "Als gesehen markieren" blendet ihn aus (Aktivitätsprotokoll `webhook.ack`). Eine neue dead-Zustellung zeigt ihn wieder.
 - Ist SMTP aktiv und `support_email` gesetzt, geht außerdem eine Mail an diese Adresse (eine je Zustellung, ohne URL, Payload und Secret, nur Nummer, Event, Unternehmen und Link zum Admin). Sie läuft über die normale Mail-Queue, also braucht es den Mail-Worker.
 
+## Hinweis an den Owner
+
+- Business-Seite, Bereich Webhooks: roter Hinweis mit der Anzahl endgültig fehlgeschlagener Zustellungen, "Als gesehen markieren" (nur dieses Unternehmen, CSRF). Eine neue dead-Zustellung zeigt ihn wieder. Unabhängig vom Admin-Hinweis.
+- Mit SMTP zusätzlich eine Mail an die Konto-Adresse des Owners (transaktional, höchstens eine je Webhook und Tag) mit Event, eigener Ziel-URL, Versuchszahl und Link zur Business-Seite. Kein Secret, keine Payload. Läuft über die Mail-Queue, braucht den Mail-Worker. Adressen auf example.*, *.test und *.local werden nicht angeschrieben.
+
 ## Grenzen
 
 - Die Sperre ist ein Lease in SQLite, keine Garantie über mehrere Datenbanken oder Hosts.
 - Versand läuft synchron im Request (Timeout 5 s je Ziel), keine echte Queue.
-- Keine automatische Deaktivierung dauerhaft toter Ziele, keine Mail an den Owner des Webhooks (nur an den Plattformbetreiber).
+- Keine automatische Deaktivierung dauerhaft toter Ziele. Kein Opt-out für die Owner-Mail, keine andere Empfängeradresse als die Konto-Adresse.
 - Alte Zustellungen vor dieser Version haben keinen Termin und werden nur manuell wiederholt.
 - Tests nutzen die Testnaht `webhook_transport` in `config.php` statt echtem Netzwerk. Echte Zielserver wurden nicht angesprochen.
 
 ## Tests
 
-`python tests/run-webhooks.py`: Backoff, Header, dead, Sperre (parallele Prozesse), Banner und Hinweismail, Owner- und Admin-Wiederholung, Mandantentrennung, CSRF, Cron-CLI, Browser Desktop und Mobil.
+`python tests/run-webhooks.py`: Backoff, Header, dead, Sperre (parallele Prozesse), Banner und Hinweismails für Betreiber und Owner, Owner- und Admin-Wiederholung, Mandantentrennung, CSRF, Cron-CLI, Browser Desktop und Mobil.
