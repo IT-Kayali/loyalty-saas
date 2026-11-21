@@ -57,7 +57,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
 | Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. Neu: Passwortreset mit Einmaltoken und Sessionwiderruf; eigenes Betreiberpasswort mit bisherigem Passwort ändern (OWNER-PASSWORD.md), beendet Websitzungen, nicht API-/Agent-Schlüssel. OTP, Geräteverwaltung und vollständiger Security-Audit fehlen. |
 | Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Getestetes Backup-/Restore-Werkzeug jetzt vorhanden. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker oder automatischer Updater. |
-| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Thema/Status/Priorität/Kanal/Namens-Zuständigkeit/Suche, filtertreuer Paginierung und mobiler Volldatenliste, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Neu: eigener sichtbarer Partner-Thread als privater JSON-Download, ohne interne Notizen. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
+| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Thema/Status/Priorität/Kanal/Namens-Zuständigkeit/Suche, filtertreuer Paginierung und mobiler Volldatenliste, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Neu: eigener sichtbarer Partner-Thread als privater JSON-Download, ohne interne Notizen; eigenes Ticket ohne Nachricht schließen/wieder öffnen mit Konflikt-/Wiederholungsschutz. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
 
 ## Empfohlene weitere Baupakete
 
@@ -142,3 +142,7 @@ Bereits gespeicherte Themen sind in Thread und Listen sichtbar, Betreiber und Ad
 ## Nachtrag: Meilenstein-Anlagegrenzen
 
 Anlage und Editor verwenden dieselbe serverseitige Prüfung für Namen/Messgröße/Schwelle/Bonus. Keine still gekürzten Dezimalwerte oder übergroßen Boni. Eigentümer/Plan unter Schreiblock, Regel und ID-Audit atomar. Keine Vergabe bei Anlage; neue Regel weiterhin aktiv, keine neue Deduplizierung. Lange Namen umbrechen mobil. 83 Domänen-/HTTP-/Parallel- und 24 Browserprüfungen. [Details und Grenzen](ACHIEVEMENTS.md).
+
+## Nachtrag: Eigener Supportstatus
+
+Betreiber können ein eigenes aktives Partner-Ticket schließen/wieder öffnen, auch ohne aktiven Bezahlplan. Keine Mail, Antwort, Löschung oder Änderung von Adminfeldern. Bestehende Versions-/CSRF-/Vorgangsprüfungen, atomarer Referenz-Audit, kein Kontakt-/Ausblendungszugriff. Kein Ersatz für vollständige Statushistorie oder Support-Parität. 23 Domänen-, 113 HTTP- und 58 Browserprüfungen. [Details und Grenzen](SUPPORT.md).

@@ -213,3 +213,7 @@ Supportlisten für Betreiber und Admin zeigen das Ticketthema und lassen sich da
 ## Meilenstein-Anlage prüfen
 
 Neue Meilensteine und Bearbeitungen verwenden dieselben Grenzen für Namen, Schwelle und Bonus. Ungültige Zahlen werden abgelehnt statt still gekürzt. Anlage vergibt keine Punkte; die nächste unterstützte Kartenaktion prüft die aktive Regel. [Regeln und verbleibende Grenzen](docs/ACHIEVEMENTS.md).
+
+## Eigener Supportstatus
+
+Betreiber können eigene Tickets ohne neue Nachricht schließen und wieder öffnen. Thread bleibt erhalten, keine Mail und kein neues Kontaktrecht. Alte Formulare überschreiben keinen neueren Stand. [Supportstatus und Grenzen](docs/SUPPORT.md).

@@ -27,7 +27,7 @@ Eingebauter Helpdesk zwischen Betreibern (Partnern) und Plattform-Admins. Alles 
 
 ## Tests
 
-`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/support-images python tests/run-support.py` führt 23 Domänenprüfungen, 91 HTTP-Prüfungen (Zugriff, Mandantentrennung, CSRF, Routenbindung, interne Notizen, Filter, Planablauf, Kontakt, Rate-Limit, Ausblenden) und 48 Chromium-Prüfungen mit Screenshots (Desktop und Mobil) aus. Benachrichtigungen werden nur in die Outbox geschrieben. Es läuft kein Mail-Worker und keine SMTP-Verbindung. Chromium über `NODE_PATH` mit Playwright.
+`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/support-images python tests/run-support.py` führt 23 Domänenprüfungen, 113 HTTP-Prüfungen (Zugriff, Mandantentrennung, CSRF, Routenbindung, interne Notizen, Filter, Planablauf, Kontakt, Rate-Limit, Ausblenden) und 58 Chromium-Prüfungen mit Screenshots (Desktop und Mobil) aus. Benachrichtigungen werden nur in die Outbox geschrieben. Es läuft kein Mail-Worker und keine SMTP-Verbindung. Chromium über `NODE_PATH` mit Playwright.
 
 ## Grenzen (ehrlich)
 
@@ -68,3 +68,13 @@ Das bei der Anlage gewählte Thema erscheint übersetzt im Threadkopf und in jed
 Die Auswahl ist eine reine Leseaktion, kein Umkategorisieren. Kein Themeneditor, keine automatische Klassifizierung, keine Themenstatistik. Betreiber sehen weiterhin nur ihre eigenen aktiven Partner-Tickets; ein Themenfilter verknüpft keine Kontaktadresse mit einem Konto. Interne Notizen bleiben unsichtbar. Thema und Suche stehen in der Browseradresse. Keine neuen Benachrichtigungen oder Audit-/Statusänderungen.
 
 Zusätzlich 12 HTTP-Prüfungen für sichtbare Bezeichnungen, beide Rollen, Filterkombinationen, fremde/ausgeblendete Tickets, Kontakttrennung, sichere Fehler, vollständige filtertreue Paginierung und reine Lesewirkung. Weitere 12 Browserprüfungen für Themenwechsel, Admin-/Betreiberliste, kombinierte Kanalauswahl und Desktop-/Mobilansichten.
+
+## Eigenes Ticket schließen und wieder öffnen
+
+Im eigenen aktiven Partner-Thread steht unter der Antwort ein getrennter Statusschalter. „Eigenes Ticket schließen“ setzt auf Geschlossen; dort bietet „Eigenes Ticket wieder öffnen“ Offen an. Auch bei ausgelaufenem Plan verfügbar. Eine Nachricht ist dafür nicht nötig. Bereits vorhandene Nachrichten und internen Notizen bleiben unverändert und behalten ihre Sichtbarkeit. Der eigene sichtbare JSON-Export bleibt auch geschlossen verfügbar.
+
+Der Schalter ändert nur Status, Änderungszeit und Version dieses Tickets. Keine Antwort, Mail oder Benachrichtigung, kein Löschen. Priorität und Zuständigkeit bleiben auch bei manipulierten Zusatzfeldern unverändert. „Wartet auf Antwort“ ist nicht als Partnerziel erlaubt. Die bisherige Regel bleibt: Eine spätere Partnerantwort öffnet ein geschlossenes Ticket ebenfalls wieder; Admins können weiter ihren eigenen Bearbeitungsstand setzen. Geschlossen sperrt Antworten nicht dauerhaft und ist keine Zusage, dass das Anliegen gelöst ist.
+
+Eigentümer/Partnerkanal, CSRF, URL-Zielbindung, Rate-Limit, Versionsprüfung und Vorgangskennung gelten auch hier. Ein altes Formular überschreibt keine neuere Antwort oder Statusänderung. Dasselbe Formular erneut senden führt denselben Vorgang nicht doppelt aus. Status, Referenz-Audit `support.partner_state` und Vorgangsbeleg werden in einer Transaktion gespeichert; ein Fehler rollt alles zurück. Keine neue vollständige Statushistorie im Thread oder Export. Kontaktanfragen bleiben unbestätigt und haben keinen Schalter. Ausgeblendete Tickets können hier nicht wieder geöffnet werden. Admins nutzen weiter ihre vorhandene Statusverwaltung.
+
+Zusätzlich 22 HTTP-Prüfungen für Schließen/Öffnen, Planablauf, private Exporte, unveränderte Nachrichten/Mails/Adminfelder, exakte Wiederholung, alte Formulare, CSRF, fremde/ausgeblendete/Kontakt-Tickets, Routenbindung, erlaubte Zustände, Audit und Rollback. Zehn zusätzliche Browserprüfungen für Desktop/Mobil und echten Zwei-Tab-Konflikt. Geschlossenansichten visuell geprüft. Kein echter E-Mail-/Provideraufruf.

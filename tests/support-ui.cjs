@@ -43,6 +43,12 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await a.locator('[name=topic]').selectOption('technical');await a.getByRole('button',{name:'Suchen',exact:true}).click();await a.waitForLoadState();yes(!(await a.content()).includes(ref),label+': anderes Thema schliesst Ticket aus');
  await p.goto(U+'/support');await p.locator('form[method=get] [name=topic]').selectOption('billing');await p.getByRole('button',{name:'Suchen',exact:true}).click();await p.waitForLoadState();yes((await p.content()).includes(ref),label+': Betreiberfilter findet eigenes Ticket');
  await p.screenshot({path:`${out}/support-topic-partner-${label}.png`,fullPage:true});yes(await noScroll(p),label+': Betreiber-Themenliste ohne Überlauf');
+ await p.goto(U+'/support/'+ref);const stale=await pc.newPage();await stale.goto(U+'/support/'+ref);
+ await p.getByRole('button',{name:'Eigenes Ticket schließen',exact:true}).click();await p.waitForLoadState();yes((await p.content()).includes('Geschlossen') && await p.getByRole('button',{name:'Eigenes Ticket wieder öffnen',exact:true}).count()===1,label+': Betreiber schliesst eigenes Ticket');
+ yes((await p.content()).includes('wir prüfen das') && !(await p.content()).includes('Interne Einschätzung'),label+': Zustand behält sichtbaren Thread ohne Notiz');
+ await p.screenshot({path:`${out}/support-partner-closed-${label}.png`,fullPage:true});yes(await noScroll(p),label+': Geschlossenansicht ohne Überlauf');
+ await stale.getByRole('button',{name:'Eigenes Ticket schließen',exact:true}).click();await stale.waitForLoadState();yes((await stale.content()).includes('inzwischen geändert'),label+': veralteter Schalter abgewiesen');await stale.close();
+ await p.getByRole('button',{name:'Eigenes Ticket wieder öffnen',exact:true}).click();await p.waitForLoadState();yes((await p.content()).includes('Offen') && await p.getByRole('button',{name:'Eigenes Ticket schließen',exact:true}).count()===1,label+': Betreiber öffnet eigenes Ticket erneut');
  await pc.close();await ac.close();await c.close();
 }
 await b.close();console.log(n+' support browser assertions passed');})().catch(e=>{console.error(e);process.exit(1)});
