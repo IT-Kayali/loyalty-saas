@@ -25,7 +25,7 @@ Optional je Prämie (Programmseite, Abschnitt "Zeitfenster für Prämien"): Star
 
 ## Grenzen
 - Keine Punktereservierung: Punkte werden erst beim Einlösen abgezogen. Fällt das Guthaben dazwischen, schlägt das Einlösen fehl.
-- Der Kassen-Scanner im Personalbereich liest die Codes nicht automatisch. Es zählt die Handykamera oder die Eingabe.
+- Der Personal-Scanner liest jetzt Kundenkarten und Prämien-QRs. Scannen öffnet nur die Vorschau, die Abbuchung braucht weiterhin die Bestätigung. Der Scanner ist weiterhin nur für angemeldetes Personal, nicht für Owner-Konten.
 - Abgelaufene Codes bleiben mit Status active in der Tabelle und werden nur als abgelaufen angezeigt.
 - Keine Plan-Guard-Trigger für die neue Tabelle `reward_claims`.
 - Nicht mit echten Geräten oder QR-Scannern getestet, nur mit Browser-Tests (Desktop und Mobil).
@@ -33,3 +33,13 @@ Optional je Prämie (Programmseite, Abschnitt "Zeitfenster für Prämien"): Star
 - Kein Serientermin (z. B. jeden Freitag), nur ein einzelnes Fenster je Prämie.
 
 Tests: `python tests/run-claims.py` (66 Prüfungen, davon 26 im Browser).
+
+## Prämien-QR im Personal-Scanner
+
+Unter `/staff/scan` kann das Team Kunden- und Prämien-QRs scannen. Ein Link aus der Prämien-Kasse führt ebenfalls dorthin. Bei verweigerter/fehlender Kamera bleibt die manuelle Eingabe offen: Kunden-Code (10 Hex-Zeichen) oder Prämien-Code (8 Zeichen, mit/ohne Bindestrich).
+
+Die Kamera übergibt das Ergebnis an die lokale Prüfung. Sie öffnet keine QR-Zieladresse direkt. Erlaubt sind exakte Codeformate und eigene Links `/c/CODE` bzw. `/claim/CODE` mit demselben Ursprung wie `base_url` (Schema, Host, Port). Fremde Links, eingebettete Teiltreffer, Query-/Fragment-Zusätze und unbekannte Formate werden verworfen. Alte Links mit anderer Domain benötigen manuelle Codeeingabe.
+
+Prämien öffnen immer die Team-Kasse des aktuell angemeldeten Unternehmens. Die Kasse prüft erneut Einlöse-Recht, Unternehmen, Codezustand, Punkte und Zeitfenster. Ein Scan selbst bucht nichts. Viewer dürfen keine Prämienvorschau öffnen, vorhandene Kundenkarten-Suche bleibt erhalten.
+
+Testgrenze: Browser automatisiert mit simulierten Kameraframes und vorgegebenem Decoder-Ergebnis, um Weiterleitung, Vorschau und Kameraablehnung reproduzierbar zu prüfen. Keine echte Kamera-, Beleuchtungs- oder QR-Decoder-Abnahme auf Geräten. Der vorhandene jsQR-Decoder ist unverändert.

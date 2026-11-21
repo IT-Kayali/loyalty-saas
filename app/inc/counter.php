@@ -12,7 +12,7 @@ function route_staff_scan(): never
     $s = require_staff();
     page(t('QR scannen'), '
       <p><a href="/staff" class="muted">← ' . t('Theke') . '</a></p>
-      <h1>' . t('Kunden-QR scannen') . '</h1>
+      <h1>' . t('Kunden- oder Prämien-QR scannen') . '</h1>
       <div class="scan-wrap">
         <video id="cam" playsinline muted></video>
         <canvas id="scan-canvas" hidden></canvas>
@@ -21,8 +21,8 @@ function route_staff_scan(): never
       <details class="panel" style="margin-top:1rem">
         <summary>' . t('Kein QR? Code manuell eingeben') . '</summary>
         <form method="get" action="/staff/find" class="form inline-form">
-          <label>' . t('Kunden-Code') . ' <input name="code" required placeholder="B074818F74" style="text-transform:uppercase"></label>
-          <button class="btn">' . t('Kunde öffnen') . '</button>
+          <label>' . t('Kunden- oder Prämien-Code') . ' <input name="code" maxlength="2048" required placeholder="B074818F74 oder ABCD-2345" style="text-transform:uppercase"></label>
+          <button class="btn">' . t('Code prüfen') . '</button>
         </form>
       </details>
       <script src="/assets/jsQR.js"></script>
@@ -54,12 +54,11 @@ function route_staff_scan(): never
             var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
             var code = jsQR(img.data, img.width, img.height);
             if (code && code.data) {
-              var match = code.data.match(/([A-F0-9]{10})/i);
-              if (match) {
+              if (code.data.length <= 2048) {
                 done = true;
-                status.textContent = "Gefunden! Öffne Kunde...";
+                status.textContent = "Gefunden! Prüfe Code...";
                 if (video.srcObject) video.srcObject.getTracks().forEach(function(t){ t.stop(); });
-                window.location.href = "/staff/find?code=" + match[1].toUpperCase();
+                window.location.href = "/staff/find?code=" + encodeURIComponent(code.data);
                 return;
               }
             }
@@ -71,11 +70,35 @@ function route_staff_scan(): never
     exit;
 }
 
+/** Nur exakte Codes bzw. eigene QR-Links, keine beliebigen Zeichenfolgen/externen Links. */
+function staff_scan_code(string $raw): ?array
+{
+    $raw = trim($raw);
+    if (strlen($raw) > 2048) return null;
+    if (str_contains($raw, '://')) {
+        $u = parse_url($raw); $base = parse_url(base_url());
+        if (!$u || isset($u['user']) || isset($u['pass']) || isset($u['query']) || isset($u['fragment'])
+            || strtolower($u['scheme'] ?? '') !== strtolower($base['scheme'] ?? '')
+            || strtolower($u['host'] ?? '') !== strtolower($base['host'] ?? '')
+            || ($u['port'] ?? null) !== ($base['port'] ?? null)) return null;
+        $raw = (string)($u['path'] ?? '');
+    }
+    if (preg_match('#^(?:/c/)?([A-F0-9]{10})$#iD', $raw, $m)) return ['member', strtoupper($m[1])];
+    if (preg_match('#^(?:/claim/)?([ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4})-?([ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4})$#iD', $raw, $m)) return ['claim', strtoupper($m[1] . $m[2])];
+    return null;
+}
+
 /** Direkt-Redirect per Kunden-Code (Scan-Ergebnis oder manuelle Eingabe). */
 function route_staff_find(): never
 {
     $s = require_staff();
-    $code = strtoupper(trim($_GET['code'] ?? ''));
+    $scan = staff_scan_code((string)($_GET['code'] ?? ''));
+    if (!$scan) { flash(t('Kein gültiger Kunden- oder Prämien-Code. Bitte erneut scannen oder eingeben.'), 'err'); redirect('/staff/scan'); }
+    [$kind, $code] = $scan;
+    if ($kind === 'claim') {
+        require_staff_permission('redeem', $s);
+        redirect('/staff/business/' . (int)$s['business_id'] . '/claim-counter?code=' . $code);
+    }
     $stmt = db()->prepare('SELECT id FROM members WHERE business_id = ? AND code = ?');
     $stmt->execute([$s['business_id'], $code]);
     $m = $stmt->fetch();

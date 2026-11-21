@@ -13,6 +13,30 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Wallet ohne horizontalen Überlauf');
  await p.locator('.claim-box').first().scrollIntoViewIfNeeded();await p.screenshot({path:`${out}/claims-wallet-${label}.png`});
  const code=(await p.locator('.claim-code').first().textContent()).trim();
+ // Exercise camera control flow with a decoded claim payload and fake camera frames.
+ const staff=await b.newContext({viewport:vp});const scan=await staff.newPage();
+ await scan.addInitScript(()=>{
+   Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:{getUserMedia:()=>location.search.includes('denied')?Promise.reject(new Error('denied')):Promise.resolve({getTracks:()=>[{stop:()=>{}}]})}});
+   Object.defineProperty(HTMLMediaElement.prototype,'srcObject',{set(){}});
+   Object.defineProperty(HTMLMediaElement.prototype,'readyState',{get:()=>4});
+   Object.defineProperty(HTMLVideoElement.prototype,'videoWidth',{get:()=>100});Object.defineProperty(HTMLVideoElement.prototype,'videoHeight',{get:()=>100});
+   HTMLMediaElement.prototype.play=()=>Promise.resolve();
+   CanvasRenderingContext2D.prototype.drawImage=function(){};
+ });
+ await scan.goto(U+'/staff/login');await scan.locator('[name=business_id]').fill('1');await scan.locator('[name=name]').fill('Kasse');await scan.locator('[name=pin]').fill('1234');await scan.locator('button').first().click();await scan.waitForURL('**/staff');
+ await scan.route('**/assets/jsQR.js',route=>route.fulfill({contentType:'application/javascript',body:'window.jsQR=function(){return {data:'+JSON.stringify(U+'/claim/'+code.replace('-',''))+'}};'}));
+ await scan.goto(U+'/staff/scan');await scan.waitForURL('**/staff/business/1/claim-counter?code=*');
+ yes((await scan.content()).includes('Einlösen und 50 Punkte'),label+': erkannter Prämien-QR öffnet Team-Vorschau');
+ await scan.screenshot({path:`${out}/claims-scan-preview-${label}.png`,fullPage:true});
+ await p.reload();yes(await p.locator('.claim-code').count()===1,label+': Scan bucht noch keine Punkte, Code bleibt aktiv');
+ // Fallback entry and denied camera must remain usable.
+ await scan.unroute('**/assets/jsQR.js');
+ await scan.goto(U+'/staff/scan?denied=1');await scan.waitForFunction(()=>document.getElementById('scan-status').textContent.includes('verweigert'));
+ await scan.locator('summary').click();await scan.locator('[name=code]').fill(code);
+ await scan.screenshot({path:`${out}/claims-scan-fallback-${label}.png`,fullPage:true});
+ await scan.getByRole('button',{name:'Code prüfen'}).click();await scan.waitForURL('**/staff/business/1/claim-counter?code=*');
+ yes((await scan.content()).includes('Einlösen und 50 Punkte'),label+': manueller Prämien-Code nach Kameraablehnung');
+ await staff.close();
  const o=await b.newContext({viewport:vp});const q=await o.newPage();q.on('pageerror',e=>{throw e});
  await q.goto(U+'/login');await q.locator('[name=email]').fill('demo@loyalty.local');await q.locator('[name=password]').fill('demo1234');await q.locator('button').first().click();await q.waitForURL('**/dashboard');
  await q.goto(U+'/business/1/claim-counter');await q.locator('[name=code]').fill(code);await q.getByRole('button',{name:'Prüfen'}).click();await q.waitForLoadState();

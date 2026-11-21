@@ -109,7 +109,17 @@ with tempfile.TemporaryDirectory(prefix='loyalty-claims-') as temp:
   st,b2,_=req('/staff/business/1/claim-counter',{'csrf':csrf(S,'/staff/business/1/claim-counter'),'action':'redeem','code':'QRTEST22'},S)
   check(pts(cb)==250 and sql("echo db()->query(\"SELECT used_by FROM reward_claims WHERE code='QRTEST22'\")->fetchColumn();")[:6]=='staff:','Team löst ein, Mitarbeiter wird festgehalten')
   check(sql("echo db()->query(\"SELECT staff_id IS NOT NULL FROM transactions WHERE card_id=%d AND kind='points_redeem'\")->fetchColumn();"%cb)=='1','Buchung trägt die Mitarbeiter-ID')
-  V=staff('Nur Sehen');check(req('/staff/business/1/claim-counter',c=V)[0]==403,'Team ohne Einlöse-Recht: 403')
+  # Scanner: exakte eigene Links/Codeformate, keine externen Ziele oder Teiltreffer.
+  mc=sql("""echo db()->query("SELECT code FROM members WHERE business_id=1 AND email='aylin@example.com'")->fetchColumn();""")
+  for raw in ['QRTE-ST22','http://127.0.0.1:8099/claim/QRTEST22']:
+   st,pg,url=req('/staff/find?'+urllib.parse.urlencode({'code':raw}),c=S)
+   check('/staff/business/1/claim-counter?code=QRTEST22' in url and 'Eingelöst' in pg,'Scanner öffnet Prämien-Vorschau, keine automatische Einlösung')
+  st,pg,url=req('/staff/find?'+urllib.parse.urlencode({'code':'http://127.0.0.1:8099/c/'+mc}),c=S)
+  check('/staff/member/' in url,'Kundenkarten-QR öffnet weiterhin Mitglied')
+  for raw in ['https://evil.invalid/c/'+mc,'prefix'+mc+'suffix','javascript:alert(1)','http://127.0.0.1:8099/claim/QRTEST22?next=external']:
+   st,pg,url=req('/staff/find?'+urllib.parse.urlencode({'code':raw}),c=S)
+   check(url.endswith('/staff/scan') and 'Kein gültiger' in pg,'Scanner verwirft fremde oder ungenaue QR-Daten')
+  V=staff('Nur Sehen');check(req('/staff/find?code=QRTE-ST22',c=V)[0]==403,'Scanner: Viewer darf Prämien nicht öffnen');check(req('/staff/business/1/claim-counter',c=V)[0]==403,'Team ohne Einlöse-Recht: 403')
   check(req('/staff/business/1/claim-counter',c=mk())[0] in (404,302,403),'Ohne Anmeldung kein Zugriff')
   check(req('/business/1/claim-counter',c=M)[0]==404,'Mitglied hat keinen Zugriff auf die Kasse')
   check(req('/staff/business/2/claim-counter',c=S)[0]==404,'Team nicht in fremdem Unternehmen')

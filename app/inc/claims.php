@@ -183,6 +183,7 @@ function route_claim_counter(int $bid, string $method): never
         }
     }
     $body = '<p><a href="' . ($a['kind'] === 'owner' ? '/business/' . $bid : '/staff') . '">← Zurück</a></p><h1>Prämien-Code einlösen</h1><p class="muted">Unternehmen: ' . h($b['name']) . '. Der Code kommt aus der Wallet des Mitglieds (Anzeige oder QR). Erst die Bestätigung bucht die Punkte ab.</p>';
+    if ($a['kind'] === 'staff') $body .= '<p><a class="btn ghost small" href="/staff/scan">Kunden- oder Prämien-QR scannen</a></p>';
     $body .= '<form method="post" action="' . $base . '" class="form inline-form">' . csrf_field() . '<input type="hidden" name="action" value="preview"><label>Code<input name="code" value="' . h(claim_format(claim_normalize((string)($_GET['code'] ?? '')))) . '" maxlength="12" autocomplete="off" autocapitalize="characters" required></label><button class="btn">Prüfen</button></form>';
     $want = claim_normalize((string)($_GET['code'] ?? ''));
     if ($want !== '') {
