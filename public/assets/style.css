@@ -437,3 +437,6 @@ label.check input[type="checkbox"] { flex: 0 0 16px; width: 16px; height: 16px; 
 .table-scroll { overflow-x: auto; max-width: 100%; }
 main code { overflow-wrap: anywhere; word-break: break-all; }
 .panel h3 { font-family: inherit; font-size: 1rem; margin: 14px 0 8px; }
+
+.scope-box { border: 1px solid var(--line, #e3ddd0); border-radius: 12px; padding: 12px 16px; margin: 0; display: grid; gap: 8px; min-width: 0; }
+.scope-box legend { font-weight: 600; padding: 0 6px; }

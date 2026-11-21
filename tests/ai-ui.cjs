@@ -20,6 +20,17 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await p.getByRole('button',{name:'Freigeben'}).click();await p.waitForLoadState();yes((await p.content()).includes('Freigegeben'),label+': approval confirmed in browser');
  const done=await call('run_approved_change',{request_id:prep.request_id,nonce:prep.nonce});yes(done.deleted===true,label+': approved change runs');
  await p.goto(prep.review_url);yes((await p.content()).includes('Ausgeführt'),label+': page shows done');
+ await p.goto(U+'/ai');yes(await p.locator('input[name="groups[]"]').count()===5,label+': fünf Werkzeuggruppen im Formular');
+ await p.locator('[name=name]').fill('Nur Lesen Kasse '+label);await p.locator('[name=business_id]').selectOption('1');
+ for(const g of ['members','points','programs','delete'])await p.locator(`input[name="groups[]"][value=${g}]`).uncheck();
+ await p.locator('form .btn').last().scrollIntoViewIfNeeded();await p.screenshot({path:`${out}/ai-scope-form-${label}.png`});
+ await p.locator('form .btn').last().click();await p.waitForLoadState();
+ const scoped=(await p.locator('code').filter({hasText:'rl_ai_'}).first().textContent()).trim();
+ await p.goto(U+'/ai');yes((await p.content()).includes('Auswertungen')&&!(await p.content()).includes(scoped),label+': Schlüsselliste zeigt Umfang');
+ yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Schlüsselseite ohne horizontalen Überlauf');
+ await p.screenshot({path:`${out}/ai-scope-list-${label}.png`,fullPage:true});
+ const tools=(await (await fetch(U+'/mcp',{method:'POST',headers:{'Authorization':'Bearer '+scoped,'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})})).json()).result.tools.map(t=>t.name);
+ yes(tools.includes('get_business_overview')&&!tools.includes('list_members'),label+': Client sieht nur erlaubte Werkzeuge');
  await p.goto(U+'/ai');await p.getByRole('button',{name:'Widerrufen'}).first().click();await p.waitForLoadState();yes((await p.content()).includes('inaktiv'),label+': key revoked in browser');
  await ctx.close();}
 await b.close();console.log(n+' AI browser assertions passed');})().catch(e=>{console.error(e);process.exit(1)});

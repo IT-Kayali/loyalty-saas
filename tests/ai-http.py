@@ -144,6 +144,48 @@ check(sql("echo var_export(db()->query(\"SELECT revoked_at FROM ai_keys WHERE na
 aud=sql("echo implode('|',db()->query(\"SELECT details FROM audit_logs WHERE action LIKE 'ai.%'\")->fetchAll(PDO::FETCH_COLUMN));")
 check('Zu Loeschen' not in aud and 'del@kunde' not in aud and not re.search(r'rl_ai_[a-f0-9]{48}',aud),'audit has no member data or key secrets')
 check(int(sql("echo db()->query(\"SELECT COUNT(*) FROM audit_logs WHERE action IN ('ai.change.done','ai.change.approved','ai.key.create','ai.tool')\")->fetchColumn();"))>=5,'actions are audited')
+# --- feinere Scopes: Unternehmen und Werkzeuggruppen
+def mkscoped(c,name,scope,groups,biz=0,expect_ok=True):
+ d=[('csrf',csrf(c,'/ai')),('action','create'),('name',name),('scope',scope),('days','30'),('scoped','1'),('business_id',str(biz))]+[('groups[]',g) for g in groups]
+ st,b,_=req('/ai',urllib.parse.urlencode(d).encode(),c)
+ m=re.search(r'rl_ai_[a-f0-9]{48}',b)
+ if expect_ok:assert m,b[:300]
+ return m.group(0) if m else None
+sk=mkscoped(own,'Nur Unternehmen 1','read',['reports','members','points','programs','delete'],1)
+check([b['id'] for b in data(sk,'list_businesses')['businesses']]==[1],'Unternehmens-Schlüssel sieht nur sein Unternehmen')
+check(len(data(sk,'list_programs')['programs'])>=2,'Unternehmens-Schlüssel braucht keine business_id')
+check(err(sk,'list_programs',{'business_id':2})=='Unternehmen nicht gefunden.','anderes eigenes Unternehmen nicht erreichbar')
+check(data(sk,'get_business_overview',{'business_id':1})['members']>=1,'eigenes Unternehmen erreichbar')
+check(sql("echo db()->query(\"SELECT tool_groups IS NULL FROM ai_keys WHERE name='Nur Unternehmen 1'\")->fetchColumn();")=='1','alle Gruppen gewählt wird als NULL gespeichert')
+rp=mkscoped(own,'Nur Auswertungen','read',['reports'])
+nm=tl(rp)
+check({'get_business_overview','list_transactions','list_businesses'}<=set(nm) and not ({'list_members','get_member','list_programs'}&set(nm)),'Gruppenschlüssel sieht nur seine Werkzeuge')
+check(rpc(rp,'tools/call',{'name':'list_members','arguments':{'business_id':1}})[1]['error']['code']==-32602,'Werkzeug außerhalb der Gruppe abgelehnt')
+check(int(sql("echo db()->query(\"SELECT COUNT(*) FROM audit_logs WHERE action='ai.scope.denied'\")->fetchColumn();"))>=1,'Ablehnung wird protokolliert')
+check(data(rp,'get_business_overview',{'business_id':1})['members']>=1,'Werkzeug in der Gruppe funktioniert')
+check(rpc(rp,'prompts/list')[1]['result']['prompts']==[],'Prompts folgen den Gruppen (keine passenden)')
+pk=mkscoped(own,'Nur Punkte','write',['points'],1)
+pt=tl(pk)
+check({'award_points','give_stamp','run_approved_change'}<=set(pt) and not ({'create_program','delete_member','delete_program','list_members','create_member'}&set(pt)),'Schreibschlüssel mit Gruppe points')
+check(rpc(pk,'tools/call',{'name':'create_program','arguments':{'type':'stamps','name':'X','stamps_required':3,'reward_text':'R'}})[1]['error']['code']==-32602,'create_program ohne Gruppe abgelehnt')
+check(rpc(pk,'tools/call',{'name':'delete_member','arguments':{'member_code':code}})[1]['error']['code']==-32602,'delete_member ohne Gruppe abgelehnt')
+r=call(pk,'award_points',{'member_code':pcode,'amount':1});check('result' in r and not r['result']['isError'],'Punkte buchen mit Gruppe points')
+check(err(pk,'award_points',{'member_code':pcode,'amount':1,'business_id':2})=='Unternehmen nicht gefunden.','Schreibzugriff nur im eigenen Unternehmen')
+dk=mkscoped(own,'Nur Loeschen','write',['delete'],1)
+pr=data(dk,'delete_member',{'member_code':code});check(pr.get('approval_required') is True,'Löschgruppe bereitet Freigabe vor')
+check(err(dk,'delete_member',{'member_code':code,'business_id':2})=='Unternehmen nicht gefunden.','Freigabe-Vorbereitung nur im eigenen Unternehmen')
+check(rpc(dk,'tools/call',{'name':'award_points','arguments':{'member_code':code,'amount':1}})[1]['error']['code']==-32602,'Löschschlüssel kann nicht buchen')
+check(data(dk,'get_change_status',{'request_id':pr['request_id']})['status']=='pending','get_change_status bleibt als Meta-Werkzeug erlaubt')
+wp=mkscoped(own,'Programme','write',['programs','reports'])
+check(set(rpc(wp,'prompts/list')[1]['result']['prompts'][i]['name'] for i in range(2))=={'weekly_report','launch_stamp_card'},'Prompts folgen Gruppen und Stufe')
+# Formularpruefung
+n0=sql("echo db()->query('SELECT COUNT(*) FROM ai_keys')->fetchColumn();")
+mkscoped(own,'Leer','read',[],0,False);check(sql("echo db()->query('SELECT COUNT(*) FROM ai_keys')->fetchColumn();")==n0,'Ohne Gruppe kein Schlüssel')
+mkscoped(own,'Fremd','read',['reports'],3,False);check(sql("echo db()->query('SELECT COUNT(*) FROM ai_keys')->fetchColumn();")==n0,'Fremdes Unternehmen im Formular abgelehnt')
+mkscoped(own,'Unbekannt','read',['nope','admin'],0,False);check(sql("echo db()->query('SELECT COUNT(*) FROM ai_keys')->fetchColumn();")==n0,'Unbekannte Gruppen ignoriert, dann abgelehnt')
+check('Nur Auswertungen' in req('/ai',c=own)[1] and 'Auswertungen' in req('/ai',c=own)[1],'Schlüsselliste zeigt Umfang')
+lk1=mkkey(own,'Alt Lesen','read');lk2=mkkey(own,'Alt Schreiben','write')
+check(len(tl(lk1))>=5 and len(tl(lk2))>=11 and sql("echo db()->query(\"SELECT COUNT(*) FROM ai_keys WHERE name LIKE 'Alt %' AND tool_groups IS NULL AND business_id IS NULL\")->fetchColumn();")=='2','Bestandsschlüssel ohne Umfang funktionieren unverändert')
 # rate limit
 fk=mkkey(own,'Rate','read');codes=[rpc(fk,'ping')[0] for _ in range(70)]
 check(429 in codes and codes[0]==200,'rate limit applies per key')

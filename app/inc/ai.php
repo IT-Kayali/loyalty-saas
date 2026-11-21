@@ -11,19 +11,58 @@ class AiToolError extends RuntimeException {}
 
 function ai_enabled(): bool { return (bool)config('ai_enabled', false); }
 
-function ai_key_create(int $uid, string $name, string $scope, int $days): string
+/** Werkzeuggruppen fuer feinere Schluesselrechte. Meta-Werkzeuge (list_businesses, get_change_status, run_approved_change) sind immer erlaubt. */
+const AI_GROUPS = [
+    'reports'  => ['label' => 'Auswertungen', 'tools' => ['get_business_overview', 'list_transactions']],
+    'members'  => ['label' => 'Mitglieder', 'tools' => ['list_members', 'get_member', 'create_member']],
+    'points'   => ['label' => 'Punkte und Stempel buchen', 'tools' => ['award_points', 'give_stamp']],
+    'programs' => ['label' => 'Programme', 'tools' => ['list_programs', 'create_program']],
+    'delete'   => ['label' => 'Löschen (mit Freigabe)', 'tools' => ['delete_member', 'delete_program']],
+];
+
+/** Gruppe eines Werkzeugs oder null bei Meta-Werkzeugen. */
+function ai_tool_group(string $tool): ?string
+{
+    foreach (AI_GROUPS as $g => $def) if (in_array($tool, $def['tools'], true)) return $g;
+    return null;
+}
+
+/** Erlaubte Gruppen eines Schluessels (NULL in der DB = alle). */
+function ai_key_groups(array $key): array
+{
+    $raw = $key['tool_groups'] ?? null;
+    if ($raw === null || $raw === '') return array_keys(AI_GROUPS);
+    return array_values(array_intersect(array_keys(AI_GROUPS), explode(',', (string)$raw)));
+}
+
+/** Darf der Schluessel dieses Werkzeug sehen und aufrufen (Stufe, Gruppe)? */
+function ai_key_allows(array $key, string $name, array $tool): bool
+{
+    if ($tool['mode'] !== 'read' && ($key['scope'] ?? '') !== 'write') return false;
+    $g = ai_tool_group($name);
+    return $g === null || in_array($g, ai_key_groups($key), true);
+}
+
+/** $groups: null = alle, sonst Liste; $businessId: null = alle Unternehmen des Kontos. */
+function ai_key_create(int $uid, string $name, string $scope, int $days, ?array $groups = null, ?int $businessId = null): string
 {
     $name = trim($name);
     if ($name === '' || mb_strlen($name) > 80 || !in_array($scope, ['read', 'write'], true) || $days < 1 || $days > 365) {
         throw new InvalidArgumentException('Name (max. 80 Zeichen), Zugriff und Laufzeit 1 bis 365 Tage erforderlich.');
     }
+    if ($groups !== null) {
+        $groups = array_values(array_intersect(array_keys(AI_GROUPS), $groups));
+        if (!$groups) throw new InvalidArgumentException('Mindestens eine Werkzeuggruppe auswählen.');
+        if (count($groups) === count(AI_GROUPS)) $groups = null;
+    }
+    if ($businessId !== null && !own_business($uid, $businessId)) throw new InvalidArgumentException('Unternehmen nicht gefunden.');
     $q = db()->prepare('SELECT COUNT(*) FROM ai_keys WHERE user_id=? AND revoked_at IS NULL AND expires_at>datetime(\'now\')');
     $q->execute([$uid]);
     if ((int)$q->fetchColumn() >= 10) throw new InvalidArgumentException('Höchstens 10 aktive Schlüssel. Zuerst einen widerrufen.');
     $secret = 'rl_ai_' . bin2hex(random_bytes(24));
-    db()->prepare("INSERT INTO ai_keys(user_id,name,prefix,key_hash,scope,expires_at) VALUES (?,?,?,?,?,datetime('now',?))")
-        ->execute([$uid, $name, substr($secret, 0, 14), hash('sha256', $secret), $scope, '+' . $days . ' days']);
-    audit_log($uid, 'ai.key.create', ['prefix' => substr($secret, 0, 14), 'scope' => $scope]);
+    db()->prepare("INSERT INTO ai_keys(user_id,name,prefix,key_hash,scope,expires_at,tool_groups,business_id) VALUES (?,?,?,?,?,datetime('now',?),?,?)")
+        ->execute([$uid, $name, substr($secret, 0, 14), hash('sha256', $secret), $scope, '+' . $days . ' days', $groups === null ? null : implode(',', $groups), $businessId]);
+    audit_log($uid, 'ai.key.create', ['prefix' => substr($secret, 0, 14), 'scope' => $scope, 'groups' => $groups === null ? 'all' : implode(',', $groups), 'business' => $businessId ?? 'all']);
     return $secret;
 }
 
@@ -58,6 +97,12 @@ function ai_business(array $ctx, array $args): array
 {
     $uid = (int)$ctx['user']['id'];
     $bid = (int)($args['business_id'] ?? 0);
+    $only = (int)($ctx['key']['business_id'] ?? 0);
+    if ($only !== 0) {
+        // Schluessel gilt nur fuer dieses Unternehmen: Standard, andere werden wie nicht vorhanden behandelt.
+        if ($bid !== 0 && $bid !== $only) throw new AiToolError('Unternehmen nicht gefunden.');
+        $bid = $only;
+    }
     if ($bid === 0) {
         $q = db()->prepare('SELECT id FROM businesses WHERE user_id=?');
         $q->execute([$uid]);
@@ -100,7 +145,8 @@ function ai_tools(): array
     return [
         'list_businesses' => ['desc' => 'Listet die Unternehmen des Kontos.', 'props' => [], 'req' => [], 'mode' => 'read',
             'run' => function (array $c, array $a): array {
-                $q = db()->prepare('SELECT id,name,join_code FROM businesses WHERE user_id=? ORDER BY id');
+                $only = (int)($c['key']['business_id'] ?? 0);
+                $q = db()->prepare('SELECT id,name,join_code FROM businesses WHERE user_id=?' . ($only ? ' AND id=' . $only : '') . ' ORDER BY id');
                 $q->execute([$c['user']['id']]);
                 return ['businesses' => $q->fetchAll(PDO::FETCH_ASSOC)];
             }],
@@ -300,8 +346,10 @@ function ai_run_approved(array $ctx, array $args): array
 function ai_call_tool(array $ctx, string $name, array $args): array
 {
     $tools = ai_tools(); $tool = $tools[$name] ?? null;
-    $write = $ctx['key']['scope'] === 'write';
-    if (!$tool || ($tool['mode'] !== 'read' && !$write)) throw new InvalidArgumentException('Unbekanntes Werkzeug: ' . $name);
+    if (!$tool || !ai_key_allows($ctx['key'], $name, $tool)) {
+        if ($tool) audit_log((int)$ctx['user']['id'], 'ai.scope.denied', ['tool' => $name, 'key' => $ctx['key']['prefix']]);
+        throw new InvalidArgumentException('Unbekanntes Werkzeug: ' . $name);
+    }
     foreach ($tool['req'] as $field) if (!array_key_exists($field, $args) || $args[$field] === '' || $args[$field] === null) throw new AiToolError('Pflichtfeld fehlt: ' . $field);
     if ($tool['mode'] === 'read') return ($tool['run'])($ctx, $args);
     if ($e = plan_policy((int)$ctx['user']['id'], 'api')) throw new AiToolError($e);
@@ -329,13 +377,16 @@ function ai_call_tool(array $ctx, string $name, array $args): array
 
 function ai_prompts(array $ctx): array
 {
-    $write = $ctx['key']['scope'] === 'write';
+    $write = $ctx['key']['scope'] === 'write' && in_array('programs', ai_key_groups($ctx['key']), true);
+    $g = ai_key_groups($ctx['key']);
     $p = [
         'weekly_report' => ['description' => 'Wochenbericht für ein Unternehmen.', 'arguments' => [],
             'text' => 'Rufe get_business_overview, list_programs und list_transactions (limit 100) auf und fasse die letzten Tage knapp zusammen: Mitglieder, aktive Programme, offene Belohnungen, auffällige Buchungen.'],
         'member_lookup' => ['description' => 'Mitglied nachschlagen.', 'arguments' => [['name' => 'query', 'description' => 'Name, E-Mail oder Code', 'required' => true]],
             'text' => 'Suche mit list_members nach "{query}", lade bei einem Treffer get_member und erkläre Kartenstände und offene Belohnungen.'],
     ];
+    if (!in_array('reports', $g, true) || !in_array('programs', $g, true)) unset($p['weekly_report']);
+    if (!in_array('members', $g, true)) unset($p['member_lookup']);
     if ($write) $p['launch_stamp_card'] = ['description' => 'Stempelkarte anlegen.', 'arguments' => [['name' => 'name', 'required' => true], ['name' => 'stamps', 'required' => true], ['name' => 'reward', 'required' => true]],
         'text' => 'Lege mit create_program (type stamps) die Karte "{name}" mit {stamps} Stempeln und der Prämie "{reward}" an. Nenne danach die Programm-ID und weise darauf hin, dass das Design in der App angepasst wird.'];
     return $p;
@@ -368,7 +419,7 @@ function mcp_dispatch(array $ctx, array $msg): ?array
         case 'tools/list':
             $out = [];
             foreach (ai_tools() as $n => $t) {
-                if ($t['mode'] !== 'read' && $ctx['key']['scope'] !== 'write') continue;
+                if (!ai_key_allows($ctx['key'], $n, $t)) continue;
                 $out[] = ['name' => $n, 'description' => $t['desc'] . ($t['mode'] === 'approval' ? ' [Wartet auf Freigabe]' : ''),
                     'inputSchema' => ['type' => 'object', 'properties' => (object)$t['props'], 'required' => $t['req']],
                     'annotations' => ['readOnlyHint' => $t['mode'] === 'read', 'destructiveHint' => $t['mode'] === 'approval']];
@@ -426,6 +477,15 @@ function route_mcp(string $method): never
     http_response_code(200); header('Content-Type: application/json; charset=utf-8'); echo json_encode($r, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); exit;
 }
 
+function ai_key_scope_label(array $key, array $bnames): string
+{
+    $b = (int)($key['business_id'] ?? 0);
+    $biz = $b ? ($bnames[$b] ?? ('Unternehmen #' . $b)) : 'Alle Unternehmen';
+    $g = ai_key_groups($key);
+    $tools = count($g) === count(AI_GROUPS) ? 'alle Werkzeuge' : implode(', ', array_map(fn($x) => AI_GROUPS[$x]['label'], $g));
+    return $biz . ', ' . $tools;
+}
+
 function route_ai(string $method): never
 {
     $u = require_login(); $uid = (int)$u['id'];
@@ -438,7 +498,9 @@ function route_ai(string $method): never
         $act = (string)($_POST['action'] ?? '');
         try {
             if ($act === 'create') {
-                $secret = ai_key_create($uid, (string)($_POST['name'] ?? ''), (string)($_POST['scope'] ?? ''), (int)($_POST['days'] ?? 90));
+                $secret = ai_key_create($uid, (string)($_POST['name'] ?? ''), (string)($_POST['scope'] ?? ''), (int)($_POST['days'] ?? 90),
+                    isset($_POST['scoped']) ? array_map('strval', (array)($_POST['groups'] ?? [])) : null,
+                    (int)($_POST['business_id'] ?? 0) ?: null);
                 $shown = '<section class="panel"><h2>Neuer Schlüssel</h2><p>Nur jetzt sichtbar. Kopieren und im KI-Client als Bearer-Schlüssel eintragen. Später gibt es nur das Präfix.</p><p><code style="overflow-wrap:anywhere">' . h($secret) . '</code></p></section>';
             } elseif ($act === 'revoke') {
                 flash(ai_key_revoke($uid, (int)($_POST['key_id'] ?? 0)) ? 'Schlüssel widerrufen.' : 'Schlüssel nicht gefunden.', 'ok');
@@ -453,14 +515,20 @@ function route_ai(string $method): never
     $reqs = $q->fetchAll(); $pending = '';
     foreach ($reqs as $r) if (ai_request_status($r) === 'pending') $pending .= '<li><a href="/ai/approval/' . h($r['id']) . '">' . h($r['summary']) . '</a></li>';
     if ($pending !== '') $body .= '<section class="panel"><h2>Wartet auf deine Entscheidung</h2><ul>' . $pending . '</ul></section>';
-    $body .= '<h2>Schlüssel</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Präfix</th><th>Zugriff</th><th>Läuft ab (UTC)</th><th>Zuletzt benutzt</th><th></th></tr></thead><tbody>';
+    $body .= '<h2>Schlüssel</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Präfix</th><th>Zugriff</th><th>Umfang</th><th>Läuft ab (UTC)</th><th>Zuletzt benutzt</th><th></th></tr></thead><tbody>';
+    $bn = db()->prepare('SELECT id,name FROM businesses WHERE user_id=? ORDER BY id'); $bn->execute([$uid]); $bnames = $bn->fetchAll(PDO::FETCH_KEY_PAIR);
     $k = db()->prepare('SELECT * FROM ai_keys WHERE user_id=? ORDER BY id DESC'); $k->execute([$uid]);
     foreach ($k->fetchAll() as $key) {
         $dead = $key['revoked_at'] !== null || $key['expires_at'] <= gmdate('Y-m-d H:i:s');
-        $body .= '<tr><td>' . h($key['name']) . '</td><td><code>' . h($key['prefix']) . '</code></td><td>' . ($key['scope'] === 'write' ? 'Lesen und ändern' : 'Nur lesen') . '</td><td>' . h($key['expires_at']) . ($dead ? ' (inaktiv)' : '') . '</td><td>' . h($key['last_used_at'] ?? 'nie') . '</td><td>'
+        $body .= '<tr><td>' . h($key['name']) . '</td><td><code>' . h($key['prefix']) . '</code></td><td>' . ($key['scope'] === 'write' ? 'Lesen und ändern' : 'Nur lesen') . '</td><td>' . h(ai_key_scope_label($key, $bnames)) . '</td><td>' . h($key['expires_at']) . ($dead ? ' (inaktiv)' : '') . '</td><td>' . h($key['last_used_at'] ?? 'nie') . '</td><td>'
             . ($dead ? '' : '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="revoke"><input type="hidden" name="key_id" value="' . (int)$key['id'] . '"><button class="btn ghost">Widerrufen</button></form>') . '</td></tr>';
     }
-    $body .= '</tbody></table></div><section class="panel"><h2>Neuen Schlüssel erstellen</h2><form method="post" class="form">' . csrf_field() . '<input type="hidden" name="action" value="create"><label>Name<input name="name" maxlength="80" required></label><label>Zugriff<select name="scope"><option value="read">Nur lesen</option><option value="write">Lesen und ändern</option></select></label><label>Laufzeit in Tagen<input name="days" type="number" min="1" max="365" value="90"></label><button class="btn">Schlüssel erstellen</button></form></section>';
+    $bizSelect = '<label>Unternehmen<select name="business_id"><option value="0">Alle Unternehmen des Kontos</option>';
+    foreach ($bnames as $bid => $bname) $bizSelect .= '<option value="' . (int)$bid . '">' . h($bname) . '</option>';
+    $bizSelect .= '</select></label>';
+    $groupBoxes = '';
+    foreach (AI_GROUPS as $g => $def) $groupBoxes .= '<label class="check"><input type="checkbox" name="groups[]" value="' . h($g) . '" checked> ' . h($def['label']) . '</label>';
+    $body .= '</tbody></table></div><section class="panel"><h2>Neuen Schlüssel erstellen</h2><form method="post" class="form">' . csrf_field() . '<input type="hidden" name="action" value="create"><label>Name<input name="name" maxlength="80" required></label><label>Zugriff<select name="scope"><option value="read">Nur lesen</option><option value="write">Lesen und ändern</option></select></label><label>Laufzeit in Tagen<input name="days" type="number" min="1" max="365" value="90"></label><fieldset class="scope-box"><legend>Umfang</legend>' . $bizSelect . '<p class="muted">Werkzeuge, die dieser Schlüssel nutzen darf:</p>' . $groupBoxes . '<input type="hidden" name="scoped" value="1"></fieldset><button class="btn">Schlüssel erstellen</button></form></section>';
     $body .= '<h2>Letzte Anfragen</h2><div class="table-wrap"><table><thead><tr><th>Änderung</th><th>Status</th><th>Zeit (UTC)</th></tr></thead><tbody>';
     foreach (array_slice($reqs, 0, 10) as $r) $body .= '<tr><td><a href="/ai/approval/' . h($r['id']) . '">' . h($r['summary']) . '</a></td><td>' . h(ai_request_status($r)) . '</td><td>' . h($r['created_at']) . '</td></tr>';
     $body .= '</tbody></table></div>';

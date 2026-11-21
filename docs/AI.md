@@ -26,13 +26,23 @@ Mit mehr als einem Unternehmen ist `business_id` Pflicht. Schreibwerkzeuge nehme
 
 Prompts (als Jobs im Client): `weekly_report`, `member_lookup`, und mit Schreibzugriff `launch_stamp_card`.
 
+## Schlüssel-Scopes
+
+Beim Erstellen legst du den Umfang fest, zusätzlich zur Stufe (Nur lesen / Lesen und ändern):
+
+- **Unternehmen:** alle Unternehmen des Kontos oder genau eines. Mit einem Unternehmen entfällt `business_id` (Standard), ein anderes Unternehmen liefert "Unternehmen nicht gefunden", auch bei Freigaben. `list_businesses` zeigt nur dieses.
+- **Werkzeuggruppen** (mindestens eine): Auswertungen (`get_business_overview`, `list_transactions`), Mitglieder (`list_members`, `get_member`, `create_member`), Punkte und Stempel buchen (`award_points`, `give_stamp`), Programme (`list_programs`, `create_program`), Löschen mit Freigabe (`delete_member`, `delete_program`). `list_businesses`, `get_change_status` und `run_approved_change` sind immer dabei (letzteres nur bei Schreibstufe).
+- Nicht erlaubte Werkzeuge fehlen in `tools/list` und werden bei `tools/call` wie unbekannte abgelehnt (-32602) und als `ai.scope.denied` protokolliert. Prompts richten sich nach Gruppen und Stufe.
+- Der Umfang steht in der Schlüsselliste und im Audit (`ai.key.create`). Bestehende Schlüssel bleiben unverändert (alle Unternehmen, alle Gruppen). Alle Gruppen angehakt wird als "alle" gespeichert.
+- Die Prüfung läuft serverseitig bei jedem Aufruf, nicht nur in der Oberfläche. Die Stufe bleibt maßgeblich: Gruppe "Punkte" mit Stufe "Nur lesen" erlaubt nichts Schreibendes.
+
 ## Freigaben
 
 Ein riskantes Werkzeug ändert nichts. Es liefert `request_id`, `nonce` und einen Prüflink `/ai/approval/{id}`. Du siehst Änderung, Schlüssel, was sie betrifft (Anzahl Karten und Buchungen) und die Restzeit, und klickst Freigeben oder Ablehnen. Nur der Eigentümer kann entscheiden, fremde Konten bekommen 404. Die Anfrage gilt 10 Minuten ab Vorbereitung. Danach ruft der Client `run_approved_change` mit `request_id` und `nonce` auf. Das läuft höchstens einmal. Geprüft wird erneut: Schlüssel aktiv, Freigabe vorhanden und nicht abgelaufen, Datensatz unverändert seit der Prüfung (sonst "Nicht ausgeführt", Anfrage geschlossen), Plan. Zustände: pending, approved, rejected, expired, done, failed.
 
 ## Tests
 
-`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/ai-images python tests/run-ai.py`: Endpunkt standardmäßig aus, 61 HTTP-Prüfungen (Schlüssel gehasht, Auth, Origin, Protokoll, Leserechte, Mandantentrennung, Idempotenz, Freigabe/Ablehnung/Ablauf/geänderter Datensatz, Widerruf, Schlüsselablauf, Audit, Rate-Limit) und 20 Chromium-Prüfungen mit Screenshots (Desktop und Mobil). Kein echter KI-Client, kein KI-Anbieter.
+`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/ai-images python tests/run-ai.py`: Endpunkt standardmäßig aus, 86 HTTP-Prüfungen (Scopes nach Unternehmen und Gruppe, Schlüssel gehasht, Auth, Origin, Protokoll, Leserechte, Mandantentrennung, Idempotenz, Freigabe/Ablehnung/Ablauf/geänderter Datensatz, Widerruf, Schlüsselablauf, Audit, Rate-Limit) und 28 Chromium-Prüfungen mit Screenshots (Desktop und Mobil). Kein echter KI-Client, kein KI-Anbieter.
 
 ## Grenzen (ehrlich)
 
@@ -40,7 +50,7 @@ Ein riskantes Werkzeug ändert nichts. Es liefert `request_id`, `nonce` und eine
 - Nur Schlüssel (Bearer). Kein Browser-Login/OAuth, keine `/.well-known`-Discovery. Clients, die nur OAuth können, funktionieren nicht.
 - Kleine Werkzeugmenge. Keine Plattform-/Admin-Werkzeuge, keine Mitglieder-Schlüssel, keine Tools für Kampagnen/E-Mail, Tiers, Gutscheine, Pässe, Support oder Löschen weiterer Objekte. Keine Rückgängig-Werkzeuge.
 - Kein REST-Tool-Discovery-Endpunkt, kein OpenAPI für MCP, keine MCP-Apps-Ansichten, kein Streaming/SSE.
-- Schlüssel sind kontoweit, nicht pro Unternehmen einschränkbar. Zugriffsstufen nur Lesen / Lesen und ändern, keine feineren Scopes.
+- Scopes sind grob: Stufe, ein Unternehmen oder alle, und fünf feste Werkzeuggruppen. Keine Rechte je Programm, Mitglied oder Feld, keine Mengen- oder Betragslimits je Schlüssel, Scopes lassen sich nach dem Erstellen nicht ändern (neuen Schlüssel erstellen, alten widerrufen).
 - HTTPS wird nicht vom Code erzwungen. Nur hinter HTTPS betreiben.
 - Gelesene Daten gehen an den KI-Anbieter des Clients, nach dessen Bedingungen.
 - Nicht produktiv abgenommen.
