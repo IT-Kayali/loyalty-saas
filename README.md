@@ -20,6 +20,8 @@ Fertige Programm-Vorlagen für Restaurant, Café, Imbisswagen, Grillhähnchen, F
 
 Optionaler Punkteverfall bei Inaktivität pro Programm, per Cron oder Button. [Regeln und Grenzen](docs/POINTS-EXPIRY.md).
 
+E-Mail-Automationen können einen persönlichen Einmal-Gutschein beilegen (Geburtstag, Winback, Willkommen). [Details](docs/LIFECYCLE-VOUCHERS.md).
+
 ## WordPress-Händlerdashboard
 
 Eigener WordPress-Adminbereich für Mitglieder, aktuelle Salden, Punkte/Stempel und bestätigte Prämieneinlösung, auch ohne WooCommerce. Admin-only-Verbindung, geschützter API-Schlüssel und transaktionaler Wiederholschutz. Eine Site verbindet genau ein Unternehmen. Einrichtung, echte lokale WordPress-Tests und Grenzen: [Plugin-README](integrations/woocommerce/README.md).

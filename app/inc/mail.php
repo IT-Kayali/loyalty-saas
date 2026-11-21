@@ -101,10 +101,48 @@ function automation_enqueue(): int
             if($rule['event']==='birthday'){$eligible=$m['birthday']!==null && substr($m['birthday'],5)===gmdate('m-d');$cycle=gmdate('Y');}
             if(!$eligible)continue;
             $subject=str_replace('{name}',$m['name'],$rule['subject']);$body=str_replace('{name}',$m['name'],$rule['body']);
-            $queued+=(int)queue_mail((int)$rule['business_id'],(int)$m['id'],$m['email'],$subject,$body,'marketing','auto:'.$rule['id'].':'.$m['id'].':'.$cycle);
+            $dedup='auto:'.$rule['id'].':'.$m['id'].':'.$cycle;
+            if(!empty($rule['voucher_program_id'])) {
+                $queued+=automation_voucher_mail($rule,$m,$subject,$body,$dedup);continue;
+            }
+            $queued+=(int)queue_mail((int)$rule['business_id'],(int)$m['id'],$m['email'],$subject,$body,'marketing',$dedup);
         }
     }
     return $queued;
+}
+/** Persoenlichen Gutschein erzeugen und E-Mail mit Code einreihen, beides atomar und je Zyklus nur einmal. */
+function automation_voucher_mail(array $rule,array $m,string $subject,string $body,string $dedup): int
+{
+    $db=db();
+    $x=$db->prepare('SELECT 1 FROM mail_outbox WHERE dedup_key=?');$x->execute([$dedup]);if($x->fetch())return 0;
+    $q=$db->prepare("SELECT * FROM programs WHERE id=? AND business_id=? AND type='voucher' AND active=1");$q->execute([$rule['voucher_program_id'],$rule['business_id']]);
+    $p=$q->fetch();if(!$p)return 0;
+    $r=voucher_rules($p);$until=gmdate('Y-m-d',time()+max(1,(int)$rule['voucher_days'])*86400);
+    if($r['ends'] && $r['ends']<$until)$until=$r['ends'];
+    if($r['ends'] && $r['ends']<gmdate('Y-m-d'))return 0;
+    $r['ends']=$until;$code=strtoupper(bin2hex(random_bytes(8)));
+    $db->exec('BEGIN IMMEDIATE');
+    try {
+        $db->prepare('INSERT INTO voucher_codes(program_id,member_id,batch,code,rules_snapshot)VALUES(?,?,?,?,?)')
+            ->execute([$p['id'],$m['id'],'auto:'.$rule['event'].':'.$rule['id'],$code,json_encode($r,JSON_UNESCAPED_UNICODE)]);
+        $date=date('d.m.Y',strtotime($until));
+        $body=str_contains($body,'{code}')?str_replace(['{code}','{valid_until}'],[$code,$date],$body):$body."\n\nDein Gutscheincode: ".$code." (gültig bis ".$date.")";
+        $body=str_replace('{valid_until}',$date,$body);
+        if(!queue_mail((int)$rule['business_id'],(int)$m['id'],$m['email'],str_replace(['{code}','{valid_until}'],[$code,$date],$subject),$body,'marketing',$dedup)){$db->exec('ROLLBACK');return 0;}
+        $db->exec('COMMIT');return 1;
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+}
+function automation_voucher_label(array $a): string
+{
+    if(empty($a['voucher_program_id']))return '';
+    $q=db()->prepare('SELECT name FROM programs WHERE id=?');$q->execute([$a['voucher_program_id']]);
+    return ' · Gutschein: '.h((string)($q->fetchColumn() ?: 'Programm gelöscht')).' ('.(int)$a['voucher_days'].' Tage)';
+}
+function voucher_select_html(int $bid): string
+{
+    $q=db()->prepare("SELECT id,name FROM programs WHERE business_id=? AND type='voucher' AND active=1 ORDER BY name");$q->execute([$bid]);
+    $o='<option value="0">Kein Gutschein</option>';foreach($q->fetchAll() as $p)$o.='<option value="'.(int)$p['id'].'">'.h($p['name']).'</option>';
+    return '<label>Persönlichen Gutschein beilegen<select name="voucher_program_id">'.$o.'</select></label><label>Gutschein gültig (Tage)<input type="number" name="voucher_days" value="30" min="1" max="365"></label><p class="muted">Mit Gutschein erzeugt jede Mail einen eigenen Einmal-Code für dieses Mitglied. Platzhalter: {name}, {code}, {valid_until}. Ohne {code} im Text wird der Code unten angehängt. Regeln und Limits kommen vom gewählten Gutschein-Programm.</p>';
 }
 function route_unsubscribe(int $id,string $token,string $method): never
 {
@@ -123,12 +161,18 @@ function route_mail_admin(int $bid,string $method): never
         require_plan_write((int)$u['id'],'campaigns');$action=$_POST['action'] ?? '';
         if($action==='automation') {
             $event=(string)($_POST['event'] ?? '');$subject=trim((string)($_POST['subject'] ?? ''));$body=trim((string)($_POST['body'] ?? ''));
-            if(in_array($event,['welcome','winback','birthday'],true)&&$subject!==''&&$body!=='')db()->prepare('INSERT INTO mail_automations(business_id,event,days,subject,body)VALUES(?,?,?,?,?)')->execute([$bid,$event,max(1,min(3650,(int)($_POST['days'] ?? 30))),mb_substr($subject,0,180),mb_substr($body,0,20000)]);
+            $vp=(int)($_POST['voucher_program_id'] ?? 0);$vpid=null;
+            if($vp>0) {
+                $c=db()->prepare("SELECT id FROM programs WHERE id=? AND business_id=? AND type='voucher'");$c->execute([$vp,$bid]);
+                if(!$c->fetch()){flash('Gutschein-Programm gehört nicht zu diesem Unternehmen.','err');redirect('/business/'.$bid.'/mail');}
+                $vpid=$vp;
+            }
+            if(in_array($event,['welcome','winback','birthday'],true)&&$subject!==''&&$body!=='')db()->prepare('INSERT INTO mail_automations(business_id,event,days,subject,body,voucher_program_id,voucher_days)VALUES(?,?,?,?,?,?,?)')->execute([$bid,$event,max(1,min(3650,(int)($_POST['days'] ?? 30))),mb_substr($subject,0,180),mb_substr($body,0,20000),$vpid,max(1,min(365,(int)($_POST['voucher_days'] ?? 30)))]);
         }elseif($action==='toggle')db()->prepare('UPDATE mail_automations SET enabled=1-enabled WHERE id=? AND business_id=?')->execute([(int)($_POST['id'] ?? 0),$bid]);
         flash('E-Mail-Einstellungen gespeichert. Versand erfolgt nur durch den Worker.');redirect('/business/'.$bid.'/mail');
     }
-    $html='<p><a href="/business/'.$bid.'">← '.h($b['name']).'</a></p><h1>E-Mail & Automationen</h1><div class="notice">'.(smtp_ready()?'SMTP-Konfiguration vorhanden. Providerverbindung und Zustellung separat prüfen. Verarbeitung erst durch CLI-Worker.':'SMTP deaktiviert oder nicht eingerichtet. Kein E-Mail-Versand.').'</div><p class="muted">Marketing nur mit ausdrücklicher Einwilligung. Vorhandene Mitglieder werden nicht automatisch angemeldet. {name} wird personalisiert. Versandbestätigung bedeutet Annahme durch den Mailserver, nicht gelesen oder zugestellt im Posteingang.</p><section class="panel"><h2>Automation anlegen</h2><form method="post" class="form">'.csrf_field().'<input type="hidden" name="action" value="automation"><label>Ereignis<select name="event"><option value="welcome">Willkommen (Beitritt in den letzten 7 Tagen, einmal)</option><option value="winback">Inaktiv seit X Tagen (einmal je letzter Aktivität)</option><option value="birthday">Geburtstag (jährlich)</option></select></label><label>Tage bei Inaktivität<input type="number" name="days" value="30" min="1" max="3650"></label><label>Betreff<input name="subject" maxlength="180" required></label><label>Text<textarea name="body" rows="6" maxlength="20000" required></textarea></label><button class="btn">Automation speichern</button></form></section><h2>Automationen</h2>';
-    $q=db()->prepare('SELECT * FROM mail_automations WHERE business_id=? ORDER BY id DESC');$q->execute([$bid]);foreach($q->fetchAll() as $a)$html.='<section class="panel"><strong>'.h($a['subject']).'</strong><p>'.h($a['event']).' · '.($a['enabled']?'aktiv':'pausiert').'</p><form method="post">'.csrf_field().'<input type="hidden" name="action" value="toggle"><button class="btn ghost" name="id" value="'.(int)$a['id'].'">Umschalten</button></form></section>';
+    $html='<p><a href="/business/'.$bid.'">← '.h($b['name']).'</a></p><h1>E-Mail & Automationen</h1><div class="notice">'.(smtp_ready()?'SMTP-Konfiguration vorhanden. Providerverbindung und Zustellung separat prüfen. Verarbeitung erst durch CLI-Worker.':'SMTP deaktiviert oder nicht eingerichtet. Kein E-Mail-Versand.').'</div><p class="muted">Marketing nur mit ausdrücklicher Einwilligung. Vorhandene Mitglieder werden nicht automatisch angemeldet. {name} wird personalisiert. Versandbestätigung bedeutet Annahme durch den Mailserver, nicht gelesen oder zugestellt im Posteingang.</p><section class="panel"><h2>Automation anlegen</h2><form method="post" class="form">'.csrf_field().'<input type="hidden" name="action" value="automation"><label>Ereignis<select name="event"><option value="welcome">Willkommen (Beitritt in den letzten 7 Tagen, einmal)</option><option value="winback">Inaktiv seit X Tagen (einmal je letzter Aktivität)</option><option value="birthday">Geburtstag (jährlich)</option></select></label><label>Tage bei Inaktivität<input type="number" name="days" value="30" min="1" max="3650"></label>'.voucher_select_html($bid).'<label>Betreff<input name="subject" maxlength="180" required></label><label>Text<textarea name="body" rows="6" maxlength="20000" required></textarea></label><button class="btn">Automation speichern</button></form></section><h2>Automationen</h2>';
+    $q=db()->prepare('SELECT * FROM mail_automations WHERE business_id=? ORDER BY id DESC');$q->execute([$bid]);foreach($q->fetchAll() as $a)$html.='<section class="panel"><strong>'.h($a['subject']).'</strong><p>'.h($a['event']).' · '.($a['enabled']?'aktiv':'pausiert').automation_voucher_label($a).'</p><form method="post">'.csrf_field().'<input type="hidden" name="action" value="toggle"><button class="btn ghost" name="id" value="'.(int)$a['id'].'">Umschalten</button></form></section>';
     $html.='<h2>Versandprotokoll</h2><div class="table-wrap"><table><tr><th>UTC</th><th>Betreff</th><th>Status</th><th>Hinweis</th></tr>';
     $q=db()->prepare('SELECT created_at,subject,status,last_error FROM mail_outbox WHERE business_id=? ORDER BY id DESC LIMIT 100');$q->execute([$bid]);foreach($q->fetchAll() as $j)$html.='<tr><td>'.h($j['created_at']).'</td><td>'.h($j['subject']).'</td><td>'.h($j['status']).'</td><td>'.h($j['last_error']).'</td></tr>';
     page('E-Mail & Automationen',$html.'</table></div>',$u);exit;

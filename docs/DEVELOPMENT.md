@@ -88,6 +88,7 @@ python tests/run-support.py
 python tests/run-ai.py
 python tests/run-templates.py
 python tests/run-expiry.py
+python tests/run-lifecycle.py
 python tests/run-backup.py
 python tests/run-browser.py
 ```
@@ -114,6 +115,7 @@ Das WordPress-Testfixture blockiert E-Mail und externe Requests. Nur seine feste
 - [KI-Verbindungen und MCP](AI.md)
 - [Programm-Vorlagen nach Branche](TEMPLATES.md)
 - [Punkteverfall](POINTS-EXPIRY.md)
+- [Lifecycle-Gutscheine](LIFECYCLE-VOUCHERS.md)
 - [Organisation, Standorte und Team](ORGANIZATION.md)
 - [SMTP, Outbox, Automationen und Recovery](MAIL.md)
 - [Stripe](STRIPE.md), [PayPal](PAYPAL.md), [Wallet](WALLET.md)
