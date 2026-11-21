@@ -27,5 +27,8 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await q.goto(U+'/program/'+process.argv[4]);yes((await q.locator('.reward-window').count())>=2,label+': Zeitfenster-Formulare je Prämie');
  yes(await q.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Programmseite ohne horizontalen Überlauf');
  await q.locator('.reward-window').first().scrollIntoViewIfNeeded();await q.screenshot({path:`${out}/claims-window-program-${label}.png`});
+ await q.goto(U+'/business/1');yes((await q.locator('select[name=timezone]').inputValue())==='Europe/Berlin',label+': Zeitzone-Auswahl zeigt Europe/Berlin');
+ yes(await q.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Unternehmensseite ohne horizontalen Überlauf');
+ await q.locator('select[name=timezone]').scrollIntoViewIfNeeded();await q.screenshot({path:`${out}/claims-timezone-${label}.png`});
  await m.close();await o.close();}
 await b.close();console.log(n+' Einlösecode-Browser-Prüfungen bestanden');})().catch(e=>{console.error(e);process.exit(1)});

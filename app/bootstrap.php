@@ -511,6 +511,7 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'programs', 'transfer_in_daily', 'INTEGER NOT NULL DEFAULT 1000');
     ensure_column($pdo, 'webhook_deliveries', 'attempts', 'INTEGER NOT NULL DEFAULT 1');
     ensure_column($pdo, 'webhook_deliveries', 'next_attempt_at', 'TEXT');
+    ensure_column($pdo, 'businesses', 'timezone', "TEXT NOT NULL DEFAULT 'UTC'");
     ensure_column($pdo, 'rewards', 'valid_from', 'TEXT');
     ensure_column($pdo, 'rewards', 'valid_until', 'TEXT');
     ensure_column($pdo, 'programs', 'claim_minutes', 'INTEGER NOT NULL DEFAULT 0');

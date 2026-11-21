@@ -122,6 +122,7 @@ Das WordPress-Testfixture blockiert E-Mail und externe Requests. Nur seine feste
 - [Mitglieder-Punkteanfragen](POINT-REQUESTS.md)
 - [Webhook-Retries](WEBHOOK-RETRIES.md)
 - [Einlösecodes für Prämien](REWARD-CODES.md)
+- [Zeitzone je Unternehmen](TIMEZONE.md)
 - [Organisation, Standorte und Team](ORGANIZATION.md)
 - [SMTP, Outbox, Automationen und Recovery](MAIL.md)
 - [Stripe](STRIPE.md), [PayPal](PAYPAL.md), [Wallet](WALLET.md)

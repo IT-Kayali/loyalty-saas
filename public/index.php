@@ -35,6 +35,7 @@ require_once ROOT_DIR . '/app/inc/ai.php';
 require_once ROOT_DIR . '/app/inc/templates.php';
 require_once ROOT_DIR . '/app/inc/expiry.php';
 require_once ROOT_DIR . '/app/inc/transfers.php';
+require_once ROOT_DIR . '/app/inc/timezone.php';
 require_once ROOT_DIR . '/app/inc/claims.php';
 
 /* ------------------------------------------------------------------ */
@@ -102,6 +103,7 @@ try {
         $path === '/achievement/create' && $method === 'POST' => route_achievement_create(),
         $path === '/achievement/delete' && $method === 'POST' => route_achievement_delete(),
         $path === '/business/referral' && $method === 'POST' => route_business_referral(),
+        $path === '/business/timezone' && $method === 'POST' => route_business_timezone(),
         $path === '/segment/create' && $method === 'POST' => route_segment_create(),
         $path === '/segment/delete' && $method === 'POST' => route_segment_delete(),
         $path === '/campaign/create' && $method === 'POST' => route_campaign_create(),
@@ -505,6 +507,7 @@ function route_business(int $id): never
         <label>' . t('Punkte für den Neukunden') . ' <input type="number" name="referee" value="' . (int)($b['referral_points_referee'] ?? 0) . '" min="0" max="100000"></label>
         <button class="btn ghost">' . t('Speichern') . '</button>
       </form>
+      ' . business_timezone_form_html($b) . '
       <h2>' . t('API &amp; Integrationen') . '</h2>
       ' . api_html($b) . '
 

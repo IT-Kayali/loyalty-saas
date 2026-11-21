@@ -30,14 +30,27 @@ function claim_state_label(string $s): string
     return ['active' => 'Gültig', 'expired' => 'Abgelaufen', 'used' => 'Eingelöst', 'cancelled' => 'Zurückgezogen'][$s] ?? $s;
 }
 
-/** Zeitfenster einer Praemie (UTC). null = innerhalb oder unbegrenzt, sonst Klartext-Grund. */
+/** Zeitzone des Unternehmens, dem die Praemie gehoert. */
+function reward_tz(array $r): string
+{
+    $q = db()->prepare('SELECT p.business_id FROM programs p WHERE p.id=?');
+    $q->execute([(int)($r['program_id'] ?? 0)]);
+    $bid = (int)$q->fetchColumn();
+    $q->closeCursor();
+    return $bid > 0 ? biz_tz($bid) : 'UTC';
+}
+function reward_time(string $utc, string $tz): string { return tz_local($utc, $tz, 'd.m.Y H:i') . ' ' . tz_abbr($utc, $tz); }
+
+/** Zeitfenster einer Praemie. null = innerhalb oder unbegrenzt, sonst Klartext-Grund (Zeiten in der Zeitzone des Unternehmens). */
 function reward_window_error(array $r, ?string $now = null): ?string
 {
     $now = $now ?? gmdate('Y-m-d H:i:s');
     $f = (string)($r['valid_from'] ?? '');
     $u = (string)($r['valid_until'] ?? '');
-    if ($f !== '' && $now < $f) return 'Die Prämie „' . $r['name'] . '“ ist erst ab ' . $f . ' UTC verfügbar.';
-    if ($u !== '' && $now >= $u) return 'Die Prämie „' . $r['name'] . '“ ist seit ' . $u . ' UTC nicht mehr verfügbar.';
+    if ($f === '' && $u === '') return null;
+    $tz = reward_tz($r);
+    if ($f !== '' && $now < $f) return 'Die Prämie „' . $r['name'] . '“ ist erst ab ' . reward_time($f, $tz) . ' verfügbar.';
+    if ($u !== '' && $now >= $u) return 'Die Prämie „' . $r['name'] . '“ ist seit ' . reward_time($u, $tz) . ' nicht mehr verfügbar.';
     return null;
 }
 function reward_window_label(array $r): string
@@ -45,15 +58,8 @@ function reward_window_label(array $r): string
     $f = (string)($r['valid_from'] ?? '');
     $u = (string)($r['valid_until'] ?? '');
     if ($f === '' && $u === '') return '';
-    return ($f !== '' ? 'ab ' . substr($f, 0, 16) : '') . ($f !== '' && $u !== '' ? ' ' : '') . ($u !== '' ? 'bis ' . substr($u, 0, 16) : '') . ' UTC';
-}
-/** 'YYYY-MM-DDTHH:MM' oder leer -> 'YYYY-MM-DD HH:MM:00' oder null; false bei ungueltig. */
-function reward_window_parse(string $in): string|null|false
-{
-    $in = trim($in);
-    if ($in === '') return null;
-    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/', $in, $m) || !checkdate((int)$m[2], (int)$m[3], (int)$m[1]) || (int)$m[4] > 23 || (int)$m[5] > 59) return false;
-    return "$m[1]-$m[2]-$m[3] $m[4]:$m[5]:00";
+    $tz = reward_tz($r);
+    return ($f !== '' ? 'ab ' . reward_time($f, $tz) : '') . ($f !== '' && $u !== '' ? ' ' : '') . ($u !== '' ? 'bis ' . reward_time($u, $tz) : '');
 }
 
 /** Erzeugt einen Code. $memberIds: Mitglieds-IDs des angemeldeten Kontos. */
@@ -161,6 +167,7 @@ function route_claim_counter(int $bid, string $method): never
     $b = $q->fetch();
     if (!$b) not_found();
     $base = ($a['kind'] === 'staff' ? '/staff' : '') . '/business/' . $bid . '/claim-counter';
+    $btz = biz_tz($bid);
     if ($method === 'POST') {
         try {
             $code = (string)($_POST['code'] ?? '');
@@ -185,7 +192,7 @@ function route_claim_counter(int $bid, string $method): never
         } else {
             $st = claim_state($c);
             $enough = (int)$c['points'] >= (int)$c['points_cost'];
-            $body .= '<section class="panel claim-preview"><h2>' . h($c['reward_name']) . '</h2><p>Mitglied: <strong>' . h($c['member_name']) . '</strong> (' . h($c['member_code']) . ')</p><p>Kosten: ' . (int)$c['points_cost'] . ' Punkte, Guthaben jetzt: ' . (int)$c['points'] . '</p><p>Status: <strong>' . h(claim_state_label($st)) . '</strong>, gültig bis ' . h($c['expires_at']) . ' UTC</p>';
+            $body .= '<section class="panel claim-preview"><h2>' . h($c['reward_name']) . '</h2><p>Mitglied: <strong>' . h($c['member_name']) . '</strong> (' . h($c['member_code']) . ')</p><p>Kosten: ' . (int)$c['points_cost'] . ' Punkte, Guthaben jetzt: ' . (int)$c['points'] . '</p><p>Status: <strong>' . h(claim_state_label($st)) . '</strong>, gültig bis ' . h(reward_time((string)$c['expires_at'], $btz)) . '</p>';
             $rwq = db()->prepare('SELECT * FROM rewards WHERE id=?');
             $rwq->execute([(int)$c['reward_id']]);
             $rwr = $rwq->fetch();
@@ -205,9 +212,9 @@ function route_claim_counter(int $bid, string $method): never
     $r->execute([$bid]);
     $rows = '';
     foreach ($r->fetchAll() as $x) {
-        $rows .= '<tr><td data-label="Code"><code>' . h(claim_format($x['code'])) . '</code></td><td data-label="Mitglied">' . h($x['member_name']) . '</td><td data-label="Prämie">' . h($x['reward_name']) . '</td><td data-label="Status">' . h(claim_state_label(claim_state($x))) . '</td><td data-label="Erzeugt (UTC)">' . h($x['created_at']) . '</td></tr>';
+        $rows .= '<tr><td data-label="Code"><code>' . h(claim_format($x['code'])) . '</code></td><td data-label="Mitglied">' . h($x['member_name']) . '</td><td data-label="Prämie">' . h($x['reward_name']) . '</td><td data-label="Status">' . h(claim_state_label(claim_state($x))) . '</td><td data-label="Erzeugt">' . h(tz_local((string)$x['created_at'], $btz, 'd.m.Y H:i')) . '</td></tr>';
     }
-    $body .= '<h2>Letzte Codes</h2>' . ($rows ? '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Mitglied</th><th>Prämie</th><th>Status</th><th>Erzeugt (UTC)</th></tr></thead><tbody>' . $rows . '</tbody></table></div>' : '<p class="muted">Noch keine Codes.</p>');
+    $body .= '<h2>Letzte Codes</h2>' . ($rows ? '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Mitglied</th><th>Prämie</th><th>Status</th><th>Erzeugt</th></tr></thead><tbody>' . $rows . '</tbody></table></div>' : '<p class="muted">Noch keine Codes.</p>');
     page('Prämien-Code einlösen', $body, $a['kind'] === 'owner' ? $a['user'] : null);
     exit;
 }
@@ -298,13 +305,14 @@ function route_reward_window(): never
     $p = $r ? own_program((int)$u['id'], (int)$r['pid']) : null;
     if (!$p) { flash(t('Ungültige Eingabe.'), 'err'); redirect('/dashboard'); }
     $back = '/program/' . (int)$p['id'];
-    $f = reward_window_parse((string)($_POST['valid_from'] ?? ''));
-    $to = reward_window_parse((string)($_POST['valid_until'] ?? ''));
-    if ($f === false || $to === false) { flash('Datum ungültig. Format: Jahr-Monat-Tag Stunde:Minute (UTC).', 'err'); redirect($back); }
+    $tz = reward_tz($r);
+    $f = tz_input_to_utc((string)($_POST['valid_from'] ?? ''), $tz);
+    $to = tz_input_to_utc((string)($_POST['valid_until'] ?? ''), $tz);
+    if ($f === false || $to === false) { flash('Datum ungültig.', 'err'); redirect($back); }
     if ($f !== null && $to !== null && $to <= $f) { flash('Das Ende muss nach dem Start liegen.', 'err'); redirect($back); }
     db()->prepare('UPDATE rewards SET valid_from=?, valid_until=? WHERE id=?')->execute([$f, $to, $r['id']]);
     audit_log((int)$u['id'], 'reward.window', ['reward_id' => (int)$r['id'], 'valid_from' => $f, 'valid_until' => $to]);
-    flash($f === null && $to === null ? 'Zeitfenster entfernt.' : 'Zeitfenster gespeichert (UTC).');
+    flash($f === null && $to === null ? 'Zeitfenster entfernt.' : 'Zeitfenster gespeichert (' . $tz . ').');
     redirect($back);
 }
 
@@ -313,12 +321,13 @@ function reward_windows_form_html(array $p): string
     $q = db()->prepare('SELECT * FROM rewards WHERE program_id=? ORDER BY points_cost');
     $q->execute([$p['id']]);
     $rows = '';
+    $tz = biz_tz((int)$p['business_id']);
     foreach ($q->fetchAll() as $r) {
-        $v = fn($x) => $x ? h(str_replace(' ', 'T', substr((string)$x, 0, 16))) : '';
+        $v = fn($x) => $x ? h(tz_local((string)$x, $tz, 'Y-m-d\\TH:i')) : '';
         $now = reward_window_error($r);
         $rows .= '<form method="post" action="/reward/window" class="form inline-form panel reward-window">' . csrf_field() . '<input type="hidden" name="reward_id" value="' . (int)$r['id'] . '"><strong>' . h($r['name']) . '</strong>'
-            . '<label>Ab (UTC) <input type="datetime-local" name="valid_from" value="' . $v($r['valid_from']) . '"></label><label>Bis (UTC) <input type="datetime-local" name="valid_until" value="' . $v($r['valid_until']) . '"></label><button class="btn">Speichern</button>'
+            . '<label>Ab <input type="datetime-local" name="valid_from" value="' . $v($r['valid_from']) . '"></label><label>Bis <input type="datetime-local" name="valid_until" value="' . $v($r['valid_until']) . '"></label><button class="btn">Speichern</button>'
             . (reward_window_label($r) ? '<span class="muted">' . ($now ? 'Gerade nicht verfügbar' : 'Gerade verfügbar') . '</span>' : '') . '</form>';
     }
-    return $rows === '' ? '' : '<h2>Zeitfenster für Prämien</h2><p class="muted">Optional je Prämie: Einlösen und Codes nur zwischen Start und Ende (UTC). Leer = immer. Ein Code läuft spätestens am Ende des Fensters ab.</p>' . $rows;
+    return $rows === '' ? '' : '<h2>Zeitfenster für Prämien</h2><p class="muted">Optional je Prämie: Einlösen und Codes nur zwischen Start und Ende. Zeiten in der Zeitzone des Unternehmens: ' . h($tz) . ' (änderbar auf der Unternehmensseite). Leer = immer. Ein Code läuft spätestens am Ende des Fensters ab.</p>' . $rows;
 }

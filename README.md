@@ -26,6 +26,7 @@ Mitglieder-Punkteanfragen per Link, opt-in je Programm. [Regeln und Grenzen](doc
 
 Webhook-Retries mit Backoff und Wiederholung durch Owner/Admin. [Ablauf und Cron](docs/WEBHOOK-RETRIES.md).
 Einlösecodes mit QR für Prämien. [Ablauf und Grenzen](docs/REWARD-CODES.md).
+Zeitzone je Unternehmen für Prämien-Zeitfenster. [Details und Grenzen](docs/TIMEZONE.md).
 
 ## WordPress-Händlerdashboard
 
