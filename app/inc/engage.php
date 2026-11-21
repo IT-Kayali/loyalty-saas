@@ -63,7 +63,7 @@ function check_achievements(int $memberId, int $businessId): void
         }
         db()->prepare('INSERT INTO member_achievements (achievement_id, member_id) VALUES (?,?)')
             ->execute([$a['id'], $memberId]);
-        $text = '🏆 Meilenstein erreicht: ' . $a['name'];
+        $text = '🏆 ' . t('Meilenstein erreicht:') . ' ' . $a['name'];
         if ((int)$a['reward_points'] > 0) {
             $card = db()->prepare("SELECT c.id FROM cards c JOIN programs p ON c.program_id = p.id
                 WHERE c.member_id = ? AND p.business_id = ? AND p.type = 'points' LIMIT 1");
@@ -73,7 +73,7 @@ function check_achievements(int $memberId, int $businessId): void
                 db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
                     ->execute([(int)$a['reward_points'], (int)$a['reward_points'], $cid]);
                 txn((int)$cid, 'points_add', (int)$a['reward_points'], '+' . (int)$a['reward_points'] . ' Punkte (Meilenstein: ' . $a['name'] . ')');
-                $text .= ' - +' . (int)$a['reward_points'] . ' Punkte!';
+                $text .= ' – +' . (int)$a['reward_points'] . ' ' . t('Punkte') . '!';
             }
         }
         member_message($memberId, 'achievement', $text);
@@ -93,12 +93,12 @@ function route_achievement_create(): never
     $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
     $metric = $_POST['metric'] ?? '';
     if (!$b || !isset(METRIC_LABELS[$metric]) || trim($_POST['name'] ?? '') === '') {
-        flash('Ungueltige Eingabe.', 'err');
+        flash(t('Ungültige Eingabe.'), 'err');
         redirect('/dashboard');
     }
     db()->prepare('INSERT INTO achievements (business_id, name, metric, threshold, reward_points) VALUES (?,?,?,?,?)')
         ->execute([$b['id'], trim($_POST['name']), $metric, max(1, (int)$_POST['threshold']), max(0, (int)$_POST['reward_points'])]);
-    flash('Meilenstein angelegt.');
+    flash(t('Meilenstein angelegt.'));
     redirect('/business/' . (int)$b['id']);
 }
 
@@ -109,7 +109,7 @@ function route_achievement_delete(): never
     if ($b) {
         db()->prepare('DELETE FROM achievements WHERE id = ? AND business_id = ?')
             ->execute([(int)$_POST['achievement_id'], $b['id']]);
-        flash('Meilenstein geloescht.');
+        flash(t('Meilenstein gelöscht.'));
         redirect('/business/' . (int)$b['id']);
     }
     redirect('/dashboard');
@@ -124,7 +124,7 @@ function route_business_referral(): never
     }
     db()->prepare('UPDATE businesses SET referral_points_referrer = ?, referral_points_referee = ? WHERE id = ?')
         ->execute([max(0, (int)$_POST['referrer']), max(0, (int)$_POST['referee']), $b['id']]);
-    flash('Referral-Einstellungen gespeichert.');
+    flash(t('Referral-Einstellungen gespeichert.'));
     redirect('/business/' . (int)$b['id']);
 }
 
@@ -159,12 +159,12 @@ function credit_referral(array $b, int $newMemberId, string $refCode): void
         db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
             ->execute([$refBonus, $refBonus, $cid]);
         txn((int)$cid, 'points_add', $refBonus, '+' . $refBonus . ' Punkte (Freunde-werben-Bonus)');
-        member_message((int)$referrer['id'], 'referral', '🤝 Danke fuers Werben! +' . $refBonus . ' Punkte fuer dich.');
+        member_message((int)$referrer['id'], 'referral', '🤝 ' . t('Danke fürs Werben! +{n} Punkte für dich.', ['n' => $refBonus]));
     }
     if ($newBonus > 0 && ($cid = $pointsCard($newMemberId))) {
         db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
             ->execute([$newBonus, $newBonus, $cid]);
         txn((int)$cid, 'points_add', $newBonus, '+' . $newBonus . ' Punkte (Willkommensbonus)');
-        member_message($newMemberId, 'referral', '🤝 Willkommensbonus: +' . $newBonus . ' Punkte, weil du geworben wurdest.');
+        member_message($newMemberId, 'referral', '🤝 ' . t('Willkommensbonus: +{n} Punkte, weil du geworben wurdest.', ['n' => $newBonus]));
     }
 }

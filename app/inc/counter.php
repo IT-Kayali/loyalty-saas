@@ -10,19 +10,19 @@ declare(strict_types=1);
 function route_staff_scan(): never
 {
     $s = require_staff();
-    page('QR scannen', '
-      <p><a href="/staff" class="muted">← Theke</a></p>
-      <h1>Kunden-QR scannen</h1>
+    page(t('QR scannen'), '
+      <p><a href="/staff" class="muted">← ' . t('Theke') . '</a></p>
+      <h1>' . t('Kunden-QR scannen') . '</h1>
       <div class="scan-wrap">
         <video id="cam" playsinline muted></video>
         <canvas id="scan-canvas" hidden></canvas>
-        <p id="scan-status" class="muted">Kamera wird gestartet...</p>
+        <p id="scan-status" class="muted">' . t('Kamera wird gestartet…') . '</p>
       </div>
       <details class="panel" style="margin-top:1rem">
-        <summary>Kein QR? Code manuell eingeben</summary>
+        <summary>' . t('Kein QR? Code manuell eingeben') . '</summary>
         <form method="get" action="/staff/find" class="form inline-form">
-          <label>Kunden-Code <input name="code" required placeholder="z.B. B074818F74" style="text-transform:uppercase"></label>
-          <button class="btn">Kunde öffnen</button>
+          <label>' . t('Kunden-Code') . ' <input name="code" required placeholder="B074818F74" style="text-transform:uppercase"></label>
+          <button class="btn">' . t('Kunde öffnen') . '</button>
         </form>
       </details>
       <script src="/assets/jsQR.js"></script>
@@ -80,7 +80,7 @@ function route_staff_find(): never
     $stmt->execute([$s['business_id'], $code]);
     $m = $stmt->fetch();
     if (!$m) {
-        flash('Kein Kunde mit Code ' . $code . ' gefunden.', 'err');
+        flash(t('Kein Kunde mit Code {code} gefunden.', ['code' => $code]), 'err');
         redirect('/staff');
     }
     redirect('/staff/member/' . (int)$m['id']);
@@ -143,7 +143,7 @@ function undo_transaction(array $card, int $txnId): bool
     }
 
     $db->prepare("UPDATE transactions SET reversed_at = datetime('now') WHERE id = ?")->execute([$txnId]);
-    txn($cid, 'reversal', (int)$t['amount'], 'Storniert: ' . $t['note']);
+    txn($cid, 'reversal', (int)$t['amount'], t('Storniert:') . ' ' . $t['note']);
     $db->commit();
     return true;
 }
@@ -156,9 +156,9 @@ function route_card_undo(int $cardId): never
         not_found();
     }
     if (undo_transaction($card, (int)($_POST['txn_id'] ?? 0))) {
-        flash('Aktion storniert.');
+        flash(t('Aktion storniert.'));
     } else {
-        flash('Storno nicht möglich.', 'err');
+        flash(t('Storno nicht möglich.'), 'err');
     }
     redirect('/member/' . (int)$card['member_id']);
 }
@@ -175,9 +175,9 @@ function route_staff_card_undo(int $cardId): never
         not_found();
     }
     if (undo_transaction($card, (int)($_POST['txn_id'] ?? 0))) {
-        flash('Aktion storniert.');
+        flash(t('Aktion storniert.'));
     } else {
-        flash('Storno nicht möglich.', 'err');
+        flash(t('Storno nicht möglich.'), 'err');
     }
     redirect('/staff/member/' . (int)$card['member_id']);
 }

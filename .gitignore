@@ -1,3 +1,7 @@
-data/
+config.php
+data/*.sqlite
+data/uploads/
+data/apple/
+data/google/
 bin/
-*.sqlite
+node_modules/

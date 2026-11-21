@@ -6,14 +6,17 @@ declare(strict_types=1);
 /* Doku: "Segments" (dynamische Kundengruppen) + "Campaigns"           */
 /* ------------------------------------------------------------------ */
 
-const SEGMENT_RULES = [
-    'all'           => 'Alle Mitglieder',
-    'new_days'      => 'Neu: beigetreten in den letzten X Tagen',
-    'active_days'   => 'Aktiv: Aktion in den letzten X Tagen',
-    'inactive_days' => 'Inaktiv: keine Aktion seit X Tagen',
-    'min_points'    => 'Mind. X Lifetime-Punkte',
-    'min_stamps'    => 'Mind. X Stempel gesamt',
-];
+function segment_rules(): array
+{
+    return [
+        'all'           => t('Alle Mitglieder'),
+        'new_days'      => t('Neu: beigetreten in den letzten X Tagen'),
+        'active_days'   => t('Aktiv: Aktion in den letzten X Tagen'),
+        'inactive_days' => t('Inaktiv: keine Aktion seit X Tagen'),
+        'min_points'    => t('Mind. X Lifetime-Punkte'),
+        'min_stamps'    => t('Mind. X Stempel gesamt'),
+    ];
+}
 
 /** Wertet ein Segment aus und liefert die Mitglieder-IDs. */
 function segment_members(array $segment): array
@@ -64,7 +67,7 @@ function segment_members(array $segment): array
 /** Kurzbeschreibung eines Segments fuer Listen. */
 function segment_label(array $segment): string
 {
-    $label = SEGMENT_RULES[$segment['rule']] ?? $segment['rule'];
+    $label = segment_rules()[$segment['rule']] ?? $segment['rule'];
     return str_replace('X', (string)(int)$segment['param'], $label);
 }
 
@@ -77,13 +80,13 @@ function route_segment_create(): never
     $u = require_login();
     $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
     $rule = $_POST['rule'] ?? '';
-    if (!$b || !isset(SEGMENT_RULES[$rule]) || trim($_POST['name'] ?? '') === '') {
-        flash('Ungueltige Eingabe.', 'err');
+    if (!$b || !isset(segment_rules()[$rule]) || trim($_POST['name'] ?? '') === '') {
+        flash(t('Ungültige Eingabe.'), 'err');
         redirect('/dashboard');
     }
     db()->prepare('INSERT INTO segments (business_id, name, rule, param) VALUES (?,?,?,?)')
         ->execute([$b['id'], trim($_POST['name']), $rule, max(0, (int)$_POST['param'])]);
-    flash('Segment angelegt.');
+    flash(t('Segment angelegt.'));
     redirect('/business/' . (int)$b['id']);
 }
 
@@ -94,7 +97,7 @@ function route_segment_delete(): never
     if ($b) {
         db()->prepare('DELETE FROM segments WHERE id = ? AND business_id = ?')
             ->execute([(int)$_POST['segment_id'], $b['id']]);
-        flash('Segment geloescht.');
+        flash(t('Segment gelöscht.'));
         redirect('/business/' . (int)$b['id']);
     }
     redirect('/dashboard');
@@ -114,12 +117,12 @@ function route_campaign_create(): never
     $subject = trim($_POST['subject'] ?? '');
     $bodyText = trim($_POST['body'] ?? '');
     if (!$b || !$segment || $subject === '' || $bodyText === '') {
-        flash('Segment, Betreff und Text sind erforderlich.', 'err');
+        flash(t('Segment, Betreff und Text sind erforderlich.'), 'err');
         redirect($b ? '/business/' . (int)$b['id'] : '/dashboard');
     }
     db()->prepare('INSERT INTO campaigns (business_id, segment_id, name, subject, body) VALUES (?,?,?,?,?)')
         ->execute([$b['id'], $segment['id'], trim($_POST['name'] ?? '') ?: $subject, $subject, $bodyText]);
-    flash('Kampagne als Entwurf angelegt.');
+    flash(t('Kampagne als Entwurf angelegt.'));
     redirect('/business/' . (int)$b['id']);
 }
 
@@ -136,7 +139,7 @@ function route_campaign_send(): never
     $c->execute([(int)$_POST['campaign_id'], $b ? $b['id'] : 0]);
     $campaign = $c->fetch();
     if (!$b || !$campaign || $campaign['status'] === 'sent') {
-        flash('Kampagne nicht gefunden oder bereits gesendet.', 'err');
+        flash(t('Kampagne nicht gefunden oder bereits gesendet.'), 'err');
         redirect($b ? '/business/' . (int)$b['id'] : '/dashboard');
     }
     $seg = db()->prepare('SELECT * FROM segments WHERE id = ?');
@@ -153,7 +156,7 @@ function route_campaign_send(): never
     }
     db()->prepare("UPDATE campaigns SET status = 'sent', sent_at = datetime('now') WHERE id = ?")
         ->execute([$campaign['id']]);
-    flash('Kampagne an ' . $sent . ' Mitglieder zugestellt (lokal, in die Wallet-Inbox).');
+    flash(t('Kampagne an {n} Mitglieder zugestellt (lokal, in die Wallet-Inbox).', ['n' => $sent]));
     redirect('/business/' . (int)$b['id']);
 }
 
@@ -164,7 +167,7 @@ function route_campaign_delete(): never
     if ($b) {
         db()->prepare('DELETE FROM campaigns WHERE id = ? AND business_id = ?')
             ->execute([(int)$_POST['campaign_id'], $b['id']]);
-        flash('Kampagne geloescht.');
+        flash(t('Kampagne gelöscht.'));
         redirect('/business/' . (int)$b['id']);
     }
     redirect('/dashboard');
@@ -182,26 +185,26 @@ function segments_html(int $businessId): string
     foreach ($stmt->fetchAll() as $s) {
         $count = count(segment_members($s));
         $list .= '<li><strong>' . h($s['name']) . '</strong> <span class="muted">' . h(segment_label($s))
-            . ' - aktuell ' . $count . ' Mitglieder</span>'
-            . ' <form method="post" action="/segment/delete" style="display:inline">'
+            . ' - ' . t('aktuell {n} Mitglieder', ['n' => $count]) . '</span>'
+            . ' <form method="post" action="/segment/delete" style="display:inline">' . csrf_field()
             . '<input type="hidden" name="business_id" value="' . $businessId . '">'
             . '<input type="hidden" name="segment_id" value="' . (int)$s['id'] . '">'
-            . '<button class="btn ghost small">Loeschen</button></form></li>';
+            . '<button class="btn ghost small">' . t('Löschen') . '</button></form></li>';
     }
-    $list = $list ? '<ul>' . $list . '</ul>' : '<p class="muted">Noch keine Segmente.</p>';
+    $list = $list ? '<ul>' . $list . '</ul>' : '<p class="muted">' . t('Noch keine Segmente.') . '</p>';
     $opts = '';
-    foreach (SEGMENT_RULES as $key => $label) {
+    foreach (segment_rules() as $key => $label) {
         $opts .= '<option value="' . $key . '">' . h($label) . '</option>';
     }
     return $list . '
       <details class="panel">
-        <summary>Neues Segment anlegen</summary>
-        <form method="post" action="/segment/create" class="form inline-form">
+        <summary>' . t('Neues Segment anlegen') . '</summary>
+        <form method="post" action="/segment/create" class="form inline-form">' . csrf_field() . '
           <input type="hidden" name="business_id" value="' . $businessId . '">
-          <label>Name <input name="name" required maxlength="80" placeholder="Stammkunden"></label>
-          <label>Regel <select name="rule">' . $opts . '</select></label>
-          <label>Wert (X) <input type="number" name="param" value="30" min="0" max="100000"></label>
-          <button class="btn">Anlegen</button>
+          <label>' . t('Name') . ' <input name="name" required maxlength="80" placeholder="' . t('Stammkunden') . '"></label>
+          <label>' . t('Regel') . ' <select name="rule">' . $opts . '</select></label>
+          <label>' . t('Wert (X)') . ' <input type="number" name="param" value="30" min="0" max="100000"></label>
+          <button class="btn">' . t('Anlegen') . '</button>
         </form>
       </details>';
 }
@@ -216,21 +219,21 @@ function campaigns_html(int $businessId): string
     $list = '';
     foreach ($stmt->fetchAll() as $c) {
         $status = $c['status'] === 'sent'
-            ? '<span class="badge">gesendet an ' . (int)$c['sent_count'] . '</span>'
-            : '<span class="badge" style="background:#eee;color:#666">Entwurf</span>';
+            ? '<span class="badge">' . t('gesendet an {n}', ['n' => (int)$c['sent_count']]) . '</span>'
+            : '<span class="badge badge-draft">' . t('Entwurf') . '</span>';
         $list .= '<li>' . $status . ' <strong>' . h($c['name']) . '</strong> - ' . h($c['subject'])
-            . ' <span class="muted">Segment: ' . h($c['segment_name']) . '</span>'
-            . ' <form method="post" action="/campaign/send" style="display:inline">'
+            . ' <span class="muted">' . t('Segment:') . ' ' . h($c['segment_name']) . '</span>'
+            . ' <form method="post" action="/campaign/send" style="display:inline">' . csrf_field()
             . '<input type="hidden" name="business_id" value="' . $businessId . '">'
             . '<input type="hidden" name="campaign_id" value="' . (int)$c['id'] . '">'
-            . ($c['status'] === 'sent' ? '' : '<button class="btn small">Senden</button>')
+            . ($c['status'] === 'sent' ? '' : '<button class="btn small">' . t('Senden') . '</button>')
             . '</form>'
-            . ' <form method="post" action="/campaign/delete" style="display:inline">'
+            . ' <form method="post" action="/campaign/delete" style="display:inline">' . csrf_field()
             . '<input type="hidden" name="business_id" value="' . $businessId . '">'
             . '<input type="hidden" name="campaign_id" value="' . (int)$c['id'] . '">'
-            . '<button class="btn ghost small">Loeschen</button></form></li>';
+            . '<button class="btn ghost small">' . t('Löschen') . '</button></form></li>';
     }
-    $list = $list ? '<ul>' . $list . '</ul>' : '<p class="muted">Noch keine Kampagnen.</p>';
+    $list = $list ? '<ul>' . $list . '</ul>' : '<p class="muted">' . t('Noch keine Kampagnen.') . '</p>';
 
     $segStmt = db()->prepare('SELECT * FROM segments WHERE business_id = ? ORDER BY name');
     $segStmt->execute([$businessId]);
@@ -239,16 +242,16 @@ function campaigns_html(int $businessId): string
         $segOpts .= '<option value="' . (int)$s['id'] . '">' . h($s['name']) . ' (' . count(segment_members($s)) . ')</option>';
     }
     $form = $segOpts === ''
-        ? '<p class="muted">Lege zuerst ein Segment an.</p>'
+        ? '<p class="muted">' . t('Lege zuerst ein Segment an.') . '</p>'
         : '<details class="panel">
-        <summary>Neue Kampagne anlegen</summary>
-        <form method="post" action="/campaign/create" class="form">
+        <summary>' . t('Neue Kampagne anlegen') . '</summary>
+        <form method="post" action="/campaign/create" class="form">' . csrf_field() . '
           <input type="hidden" name="business_id" value="' . $businessId . '">
-          <label>Name <input name="name" maxlength="80" placeholder="Herbst-Aktion"></label>
-          <label>Segment <select name="segment_id">' . $segOpts . '</select></label>
-          <label>Betreff <input name="subject" required maxlength="120" placeholder="Doppelte Punkte am Wochenende!"></label>
-          <label>Text <textarea name="body" required rows="4" maxlength="2000" placeholder="Liebe Stammkunden, ..."></textarea></label>
-          <button class="btn">Entwurf speichern</button>
+          <label>' . t('Name') . ' <input name="name" maxlength="80" placeholder="' . t('Herbst-Aktion') . '"></label>
+          <label>' . t('Segment') . ' <select name="segment_id">' . $segOpts . '</select></label>
+          <label>' . t('Betreff') . ' <input name="subject" required maxlength="120" placeholder="' . t('Doppelte Punkte am Wochenende!') . '"></label>
+          <label>' . t('Text') . ' <textarea name="body" required rows="4" maxlength="2000" placeholder="' . t('Liebe Stammkunden, ...') . '"></textarea></label>
+          <button class="btn">' . t('Entwurf speichern') . '</button>
         </form>
       </details>';
     return $list . $form;

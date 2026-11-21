@@ -1,10 +1,11 @@
 <?php
 declare(strict_types=1);
-/* Demo-Daten für den lokalen Test. Aufruf: bin/php seed.php */
+/* Demo-Daten für den lokalen Test. Aufruf: php seed.php */
 
-@unlink(__DIR__ . '/data/app.sqlite');
+$config = is_file(__DIR__ . '/config.php') ? (require __DIR__ . '/config.php') : (require __DIR__ . '/config.example.php');
+@unlink(($config['db_path'] ?? __DIR__ . '/data/app.sqlite'));
 
-require __DIR__ . '/index.php';
+require __DIR__ . '/app/bootstrap.php';
 
 $db = db();
 $memberPw = password_hash('kunde1234', PASSWORD_DEFAULT);
@@ -17,6 +18,21 @@ $userId = (int)$db->lastInsertId();
 $db->prepare('INSERT INTO businesses (user_id, name, brand_color) VALUES (?,?,?)')
     ->execute([$userId, 'Foundry Coffee', '#E4572E']);
 $bizId = (int)$db->lastInsertId();
+
+/* Karten-Design vorfüllen (dunkle Karte, warme Akzente) */
+$db->prepare('UPDATE businesses SET card_design = ? WHERE id = ?')
+    ->execute([json_encode([
+        'bg_color' => '#221B14',
+        'text_color' => '#F7F0E6',
+        'accent_color' => '#E4572E',
+        'header' => 'Foundry Coffee',
+        'footer' => 'Kettwiger Str. 12 · foundry.coffee',
+        'show_points' => 1,
+        'show_tier' => 1,
+        'qr_logo' => 1,
+    ]), $bizId]);
+/* Auto-Punkte für Shop/POS-Bestellungen: 1 Punkt je 10 Cent */
+$db->prepare('UPDATE businesses SET points_per_cent = 0 WHERE id = ?')->execute([$bizId]);
 
 $db->prepare("INSERT INTO programs (business_id, type, name, description, stamps_required, reward_text) VALUES (?,?,?,?,?,?)")
     ->execute([$bizId, 'stamps', 'Dein nächster Kaffee', 'Sammle 6 Stempel. Dein nächster Kaffee geht auf uns.', 6, '1 Kaffee gratis']);
@@ -79,7 +95,7 @@ txn($c, 'visit', 1, 'Besuch bestätigt');
 txn($c, 'visit', 1, 'Besuch bestätigt');
 
 $c = $issue($pointsProg, $memberIds['Ben Kowalski'], null, null);
-$db->prepare('UPDATE cards SET points = 120 WHERE id = ?')->execute([$c]);
+$db->prepare('UPDATE cards SET points = 120, points_lifetime = 120 WHERE id = ?')->execute([$c]);
 txn($c, 'points_add', 50, '+50 Punkte');
 txn($c, 'points_add', 70, '+70 Punkte');
 
@@ -89,6 +105,18 @@ $issue($voucherProg, $memberIds['Chris Nguyen'], 1, null);
 $db->prepare('INSERT INTO businesses (user_id, name, brand_color) VALUES (?,?,?)')
     ->execute([$userId, 'Atelier Beauty', '#7C3AED']);
 $biz2 = (int)$db->lastInsertId();
+
+$db->prepare('UPDATE businesses SET card_design = ? WHERE id = ?')
+    ->execute([json_encode([
+        'bg_color' => '#241A2E',
+        'text_color' => '#F4EDF9',
+        'accent_color' => '#7C3AED',
+        'header' => 'Atelier Beauty',
+        'footer' => '',
+        'show_points' => 1,
+        'show_tier' => 1,
+        'qr_logo' => 1,
+    ]), $biz2]);
 
 $db->prepare("INSERT INTO programs (business_id, type, name, description) VALUES (?,?,?,?)")
     ->execute([$biz2, 'points', 'Beauty-Punkte', 'Punkte sammeln bei jedem Besuch.']);
@@ -102,10 +130,10 @@ $db->prepare('INSERT INTO members (business_id, name, email, code, password_hash
     ->execute([$biz2, 'Aylin Demir', 'aylin@example.com', member_code(), $memberPw]);
 $aylin2 = (int)$db->lastInsertId();
 $c = $issue($beautyProg, $aylin2, null, null);
-$db->prepare('UPDATE cards SET points = 80 WHERE id = ?')->execute([$c]);
+$db->prepare('UPDATE cards SET points = 80, points_lifetime = 80 WHERE id = ?')->execute([$c]);
 txn($c, 'points_add', 80, '+80 Punkte');
 
-/* Achievements + Referrals + Segmente (Etappen 4-5) */
+/* Achievements + Referrals + Segmente */
 $db->prepare('INSERT INTO achievements (business_id, name, metric, threshold, reward_points) VALUES (?,?,?,?,?)')
     ->execute([$bizId, 'Treue-Stammkunde', 'points_lifetime', 100, 25]);
 $db->prepare('INSERT INTO achievements (business_id, name, metric, threshold, reward_points) VALUES (?,?,?,?,?)')

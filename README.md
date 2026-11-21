@@ -1,99 +1,91 @@
-# Loyalty – rewardloyalty.co-Klon
+# Loyalty SaaS
 
-Eigenständige Loyalty-SaaS nach dem Vorbild von rewardloyalty.co (Feature-Set
-entlang der offiziellen Doku https://rewardloyalty.co/docs/5.x).
-Plain PHP 8.4 + SQLite + Vanilla JS/CSS. Keine Frameworks, keine Composer-Abhängigkeiten.
+Digitale Stempelkarten, Punkte, Gutscheine und Mehrfachkarten für lokale Geschäfte — mit Apple & Google Wallet, REST-API, WooCommerce/Shopify-Anbindung und mehrsprachiger Oberfläche.
 
-## Start
-
-```bash
-cd loyalty-app
-bin/php -S 127.0.0.1:8099 -t . index.php
-```
-
-Dann http://127.0.0.1:8099 öffnen.
-
-`bin/php` ist eine statische PHP-8.4-Binary (mit pdo_sqlite). Auf jedem
-System mit eigenem PHP >= 8.1 geht auch einfach `php -S 127.0.0.1:8099 -t . index.php`.
-
-## Demo-Daten
-
-```bash
-bin/php seed.php
-```
-
-- Betreiber-Login: `demo@loyalty.local` / `demo1234`
-- Business "Foundry Coffee" mit allen vier Programmtypen, Tiers, Bonus-Stunden,
-  Achievements, Segmenten und Referral-Einstellungen
-- Business "Atelier Beauty" (zeigt die geteilte Wallet: Aylin ist in beiden)
-- Staff: Lena (PIN 4321, Foundry) und Mira (PIN 9876, Atelier) -> `/staff/login?b=ID`
-- Mitglieder: `aylin@example.com` / `ben@example.com`, Passwort `kunde1234` -> `/member/login`
-- Der Seed gibt die öffentlichen Kundenkarten-URLs (`/c/CODE`) und den Beitritts-Link aus
-
-Die SQLite-Datenbank liegt in `data/app.sqlite` und wird beim ersten
-Start automatisch angelegt (Schema in `index.php` → `init_schema`).
+Reines PHP + SQLite, keine Composer-Abhängigkeiten, keine Build-Tools. Ein Binary reicht.
 
 ## Features
 
-**Programme & Karten**
-- Registrierung/Login (Sessions, `password_hash`), mehrere Unternehmen pro Account, Markenfarbe
-- Vier Programmtypen: **Stempelkarte** (mit Rollover-Belohnung), **Punkte & Prämien**,
-  **Gutschein**, **Mehrfachkarte (Prepaid)**
-- Mitglieder mit Code, Suche, Karten pro Programm
-- Öffentliche Kundenkarte `/c/CODE` (mobil, QR-Code, ohne Login)
-- Transaktionsverlauf pro Karte
+- **Vier Programmtypen**: Stempelkarte (mit Rollover-Belohnung), Punkte & Prämien, Gutschein, Mehrfachkarte (10er-Karte)
+- **Apple Wallet**: signierte `.pkpass`-Pässe, eingebauter PassKit-Web-Service, APNs-Push bei Standänderungen — Sperrbildschirm-Mitteilung inklusive
+- **Google Wallet**: "Zu Google Wallet hinzufügen"-Link (signiertes JWT) + automatische Updates über die Wallet-API
+- **QR-Studio**: druckbare QR-Codes mit Firmenlogo in der Mitte (Beitritt, Staff-Login, einzelne Kundenkarten), PNG-Download + Druckansicht
+- **Karten-Designer**: Farben, Logo, Kopf-/Fußzeile und Felder der Kundenkarte pro Business im Admin anpassen — gilt für Webkarte und beide Wallets
+- **REST-API** mit OpenAPI-Spec, API-Dokumentationsseite in der App (`/api/docs`) und `docs/API.md`
+- **WooCommerce-Plugin** (fertig in `integrations/woocommerce`) und **Shopify-Webhook** (HMAC-geprüft, Anleitung in `integrations/shopify`)
+- **Ausgehende Webhooks** mit HMAC-Signatur und Zustellprotokoll
+- **Mehrsprachig**: Deutsch + Englisch ausgeliefert, weitere Sprachen durch eine Datei in `app/lang/`
+- **Team & Rollen**: Owner, Staff (PIN-Login am Tresen), Mitglieder (eigenes Wallet-Login)
+- **Marketing**: Segmente, Kampagnen (Inbox der Mitglieder, optional SMTP), Bonus-Zeitfenster (Happy Hour), Stufen/Tiers, Achievements
+- **Analytics**: Mitgliederwachstum, Buchungen, Tageszeiten-Heatmap
 
-**Rollen (Etappe 1)**
-- Staff-Rolle mit PIN-Login und eigener Theken-Ansicht `/staff`
-- Member-Rolle mit E-Mail-Login und geteilter Wallet `/wallet` über alle Businesses
-- Öffentlicher Beitritts-Link `/join/CODE` (verteilt automatisch alle Karten)
-- Datenschutz: JSON-Export und komplettes Löschen des Kundenkontos
+## Schnellstart
 
-**Theke (Etappe 2)**
-- QR-Scanner `/staff/scan` (Kamera, jsQR) mit manueller Code-Suche als Fallback
-- Undo: jede Aktion ist über den Verlauf rückgängig machbar (`reversed_at`),
-  inkl. korrekter Auflösung von Rollover-Belohnungen; Doppel-Undo gesperrt
+```bash
+git clone https://github.com/IT-Kayali/loyalty-saas.git
+cd loyalty-saas
+cp config.example.php config.php     # base_url anpassen
+php seed.php                          # Demo-Daten (optional)
+php -S 127.0.0.1:8099 -t public public/index.php
+```
 
-**Gamification (Etappen 3-4)**
-- Membership Tiers (Schwellen auf Lifetime-Punkte, Badge + Fortschritt in Wallet)
-- Bonus Hours: Wochentag/Zeitfenster mit Punkte-Multiplikator
-- Achievements: Meilensteine (Stempel/Punkte/Besuche/Einlösungen) mit optionalem
-  Punkte-Bonus, automatische Vergabe nach jeder Aktion
-- Referrals: persönlicher Freunde-werben-Link pro Mitglied, Bonus für beide Seiten
-- Member-Inbox im Wallet (Meilensteine, Boni, Kampagnen)
+→ http://127.0.0.1:8099
 
-**Marketing (Etappe 5)**
-- Dynamische Kunden-Segmente (alle / neu / aktiv / inaktiv / Lifetime-Punkte / Stempel)
-- E-Mail-Kampagnen an Segmente mit Versand-Protokoll. Ohne SMTP erfolgt die
-  Zustellung lokal in die Wallet-Inbox; der Versand-Schritt ist austauschbar.
+**Wichtig:** Document Root ist `public/`, der Front Controller `public/index.php`. Beim eingebauten PHP-Server immer mit `-t public public/index.php` starten. Bei nginx/Apache entsprechend `root .../public` und `try_files $uri /index.php$is_args$args`.
 
-**Integrationen (Etappe 6)**
-- REST API mit Bearer-API-Key pro Business:
-  `GET /api/v1/business`, `GET/POST /api/v1/members`, `GET /api/v1/members/{code}`,
-  `GET /api/v1/programs`, `GET /api/v1/transactions`, `POST /api/v1/cards/{id}/points`
-- Webhooks für 6 Events (member.joined, card.stamp, card.points, card.redeem,
-  card.visit, achievement.unlocked), HMAC-SHA256-signiert, mit Zustell-Protokoll
+### Demo-Logins (nach `php seed.php`)
 
-**Analytics (Etappe 7)**
-- Dashboard `/business/{id}/analytics`: KPIs, 30-Tage-Aktivitätschart (SVG),
-  Programm-Performance, Top-Mitglieder
+| Rolle | Zugang |
+| --- | --- |
+| Inhaber | demo@loyalty.local / demo1234 |
+| Staff (Foundry Coffee) | PIN 4321 über Staff-Login |
+| Staff (Atelier Beauty) | PIN 9876 über Staff-Login |
+| Mitglied | aylin@example.com / kunde1234 über Kunden-Login |
 
-## Struktur
+Nur für lokale Demos — vor Produktivbetrieb eigene Zugänge anlegen und die Seed-Daten löschen (`data/app.sqlite` entfernen).
 
-- `index.php` – Front-Controller, Schema, Owner-Flows
-- `inc/roles.php` – Staff/Member/Join/Wallet/Export
-- `inc/counter.php` – QR-Scan + Undo
-- `inc/tiers.php` – Tiers + Bonus Hours
-- `inc/engage.php` – Achievements + Referrals + Inbox
-- `inc/segments.php` – Segmente + Kampagnen
-- `inc/api.php` – REST API + Webhooks
-- `inc/analytics.php` – Analytics-Dashboard
-- `assets/` – CSS, qrcode.min.js, jsQR.js (lokal gebündelt)
-- `seed.php` – Demo-Daten
+## Konfiguration
 
-## Bewusste Grenzen
+`config.php` (nicht im Repo) aus `config.example.php` kopieren:
 
-- Kampagnen-Versand ohne SMTP nur lokal in die Wallet-Inbox
-- Keine Apple/Google-Wallet-Pässe, kein mehrschichtiges Clubs/Networks
-- Webhook-Zustellung synchron beim Event (kein Retry-Queue)
-- Kein CSRF-Schutz (lokale Demo)
+| Schlüssel | Zweck |
+| --- | --- |
+| `base_url` | Öffentliche URL (wird in QRs, Pässen und Links verwendet) |
+| `default_lang` | `de` oder `en`; Nutzer können umschalten, `?lang=` setzt die Session |
+| `db_path` | SQLite-Pfad — **muss außerhalb des Document Root liegen** (Standard: `data/app.sqlite`) |
+| `webhook_allow_http` | Nur für lokale Entwicklung auf `true` |
+| `apple_wallet` | Pass Type ID, Zertifikate, APNs-Key → [docs/WALLET.md](docs/WALLET.md) |
+| `google_wallet` | Issuer-ID, Service-Account-JSON → [docs/WALLET.md](docs/WALLET.md) |
+| `smtp` | Optional: Kampagnen per echter E-Mail statt Inbox |
+
+Ohne Wallet-Konfiguration läuft alles andere; die Pass-Endpunkte antworten dann mit HTTP 501 und einem Hinweis.
+
+## Architektur
+
+```
+public/            Document Root (Front Controller + Assets)
+app/bootstrap.php  Config, DB + Schema/Migrationen, i18n, CSRF, Layout
+app/inc/           Feature-Module (Rollen, Wallet, API, Designer, QR, ...)
+app/lang/          Sprachdateien (de = Quellstrings, en = Übersetzung)
+data/              SQLite-DB, Uploads, Wallet-Zertifikate (nicht im Repo, nicht im Web)
+integrations/      WooCommerce-Plugin + Shopify-Anleitung
+docs/              WALLET.md (Zertifikate & Setup), API.md (REST-Referenz)
+```
+
+### Sicherheit
+
+- **SQLite liegt außerhalb des Document Root.** In einer früheren Version war die Datenbank per URL herunterladbar — das ist durch den Umzug nach `data/` + Document Root `public/` behoben.
+- **SSRF-Schutz für Webhooks:** Ziele müssen HTTPS sein und auf öffentliche IPs zeigen (DNS-Auflösung wird geprüft, Redirects werden nicht gefolgt).
+- CSRF-Token auf allen Session-Formularen, prepared statements überall, Passwort-Hashing mit `password_hash`, PINs gehasht, HMAC-Signatur für eingehende (Shopify) und ausgehende Webhooks, Uploads per `getimagesize` validiert und mit Zufallsnamen gespeichert, `data/` per `.gitignore` aus dem Repo gehalten.
+
+### Mehrsprachigkeit erweitern
+
+`app/lang/en.php` kopieren, z. B. nach `fr.php`, Werte übersetzen und in `app/bootstrap.php` bei `AVAILABLE_LANGS` eintragen. Schlüssel sind immer die deutschen Quellstrings.
+
+### Eigene Integrationen
+
+Die REST-API deckt Mitglieder, Karten, Punkte, Stempel, Bestellungen und Journal ab — für eigene Plugins, Kassensysteme oder Automatisierungen: [docs/API.md](docs/API.md).
+
+## Anforderungen
+
+PHP ≥ 8.1 mit `pdo_sqlite`, `gd`, `openssl`, `curl`, `mbstring`. Produktiv hinter HTTPS (Apple verlangt es für den Pass-Web-Service; der API-Schlüssel gehört ohnehin nicht auf unverschlüsselte Leitungen).

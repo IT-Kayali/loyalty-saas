@@ -51,7 +51,7 @@ function tier_html(int $programId, int $lifetimePoints): string
         }
     }
     if ($next) {
-        $out .= '<span class="muted">Noch ' . ((int)$next['min_points'] - $lifetimePoints) . ' Punkte bis ' . h($next['name']) . '</span>';
+        $out .= '<span class="muted">' . t('Noch {n} Punkte bis {tier}', ['n' => (int)$next['min_points'] - $lifetimePoints, 'tier' => $next['name']]) . '</span>';
     }
     return $out . '</p>';
 }
@@ -66,12 +66,12 @@ function route_tier_create(): never
     $p = own_program((int)$u['id'], (int)($_POST['program_id'] ?? 0));
     $name = trim($_POST['name'] ?? '');
     if (!$p || $p['type'] !== 'points' || $name === '') {
-        flash('Ungueltige Eingabe.', 'err');
+        flash(t('Ungültige Eingabe.'), 'err');
         redirect('/dashboard');
     }
     db()->prepare('INSERT INTO tiers (program_id, name, min_points, benefit) VALUES (?,?,?,?)')
         ->execute([$p['id'], $name, max(0, (int)$_POST['min_points']), trim($_POST['benefit'] ?? '')]);
-    flash('Stufe angelegt.');
+    flash(t('Stufe angelegt.'));
     redirect('/program/' . (int)$p['id']);
 }
 
@@ -82,7 +82,7 @@ function route_tier_delete(): never
     if ($p) {
         db()->prepare('DELETE FROM tiers WHERE id = ? AND program_id = ?')
             ->execute([(int)$_POST['tier_id'], $p['id']]);
-        flash('Stufe geloescht.');
+        flash(t('Stufe gelöscht.'));
         redirect('/program/' . (int)$p['id']);
     }
     redirect('/dashboard');
@@ -93,7 +93,7 @@ function route_bonus_create(): never
     $u = require_login();
     $p = own_program((int)$u['id'], (int)($_POST['program_id'] ?? 0));
     if (!$p || $p['type'] !== 'points') {
-        flash('Ungueltige Eingabe.', 'err');
+        flash(t('Ungültige Eingabe.'), 'err');
         redirect('/dashboard');
     }
     $wd = max(0, min(6, (int)$_POST['weekday']));
@@ -101,12 +101,12 @@ function route_bonus_create(): never
     $eh = max(1, min(24, (int)$_POST['end_hour']));
     $mult = max(2, min(10, (int)$_POST['multiplier']));
     if ($eh <= $sh) {
-        flash('Ende muss nach Start liegen.', 'err');
+        flash(t('Ende muss nach Start liegen.'), 'err');
         redirect('/program/' . (int)$p['id']);
     }
     db()->prepare('INSERT INTO bonus_hours (program_id, weekday, start_hour, end_hour, multiplier) VALUES (?,?,?,?,?)')
         ->execute([$p['id'], $wd, $sh, $eh, $mult]);
-    flash('Bonus-Zeit angelegt.');
+    flash(t('Bonus-Zeit angelegt.'));
     redirect('/program/' . (int)$p['id']);
 }
 
@@ -117,7 +117,7 @@ function route_bonus_delete(): never
     if ($p) {
         db()->prepare('DELETE FROM bonus_hours WHERE id = ? AND program_id = ?')
             ->execute([(int)$_POST['bonus_id'], $p['id']]);
-        flash('Bonus-Zeit geloescht.');
+        flash(t('Bonus-Zeit gelöscht.'));
         redirect('/program/' . (int)$p['id']);
     }
     redirect('/dashboard');

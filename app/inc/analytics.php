@@ -38,14 +38,14 @@ function route_analytics(int $businessId): never
     $achUnlocked = $kpi('SELECT COUNT(*) FROM member_achievements ma JOIN achievements a ON ma.achievement_id = a.id WHERE a.business_id = ?', [$businessId]);
 
     $kpis = [
-        'Mitglieder' => $members,
-        'Aktiv (30 Tage)' => $activeMembers,
-        'Stempel vergeben' => $stamps,
-        'Punkte vergeben' => $pointsGiven,
-        'Einloesungen' => $redeems,
-        'Rueckgaengig' => $undos,
-        'Kampagnen-Empfaenger' => $campaignSent,
-        'Meilensteine erreicht' => $achUnlocked,
+        t('Mitglieder') => $members,
+        t('Aktiv (30 Tage)') => $activeMembers,
+        t('Stempel vergeben') => $stamps,
+        t('Punkte vergeben') => $pointsGiven,
+        t('Einlösungen') => $redeems,
+        t('Stornierungen') => $undos,
+        t('Kampagnen-Empfänger') => $campaignSent,
+        t('Meilensteine erreicht') => $achUnlocked,
     ];
     $kpiHtml = '';
     foreach ($kpis as $label => $value) {
@@ -94,12 +94,12 @@ function route_analytics(int $businessId): never
     $prog->execute([$businessId]);
     $rows = '';
     foreach ($prog->fetchAll() as $p) {
-        $rows .= '<tr><td>' . h($p['name']) . '</td><td class="muted">' . h(TYPE_LABELS[$p['type']] ?? $p['type']) . '</td>
+        $rows .= '<tr><td>' . h($p['name']) . '</td><td class="muted">' . h(type_label($p['type'])) . '</td>
           <td>' . (int)$p['cards'] . '</td><td>' . (int)$p['actions'] . '</td><td>' . (int)$p['redeems'] . '</td></tr>';
     }
     $progTable = $rows
-        ? '<table class="table"><thead><tr><th>Programm</th><th>Typ</th><th>Karten</th><th>Aktionen</th><th>Einloesungen</th></tr></thead><tbody>' . $rows . '</tbody></table>'
-        : '<p class="muted">Noch keine Programme.</p>';
+        ? '<table class="table"><thead><tr><th>' . t('Programm') . '</th><th>' . t('Typ') . '</th><th>' . t('Karten') . '</th><th>' . t('Aktionen') . '</th><th>' . t('Einlösungen') . '</th></tr></thead><tbody>' . $rows . '</tbody></table>'
+        : '<p class="muted">' . t('Noch keine Programme.') . '</p>';
 
     /* Top-Mitglieder nach Lifetime-Punkten */
     $top = $db->prepare("SELECT m.id, m.name, m.code, SUM(c.points_lifetime) AS lifetime
@@ -108,19 +108,19 @@ function route_analytics(int $businessId): never
     $top->execute([$businessId]);
     $topList = '';
     foreach ($top->fetchAll() as $t) {
-        $topList .= '<li><a href="/member/' . (int)$t['id'] . '">' . h($t['name']) . '</a> <span class="muted">(' . h($t['code']) . ')</span> - ' . (int)$t['lifetime'] . ' Punkte</li>';
+        $topList .= '<li><a href="/member/' . (int)$t['id'] . '">' . h($t['name']) . '</a> <span class="muted">(' . h($t['code']) . ')</span> - ' . (int)$t['lifetime'] . ' ' . t('Punkte') . '</li>';
     }
-    $topList = $topList ? '<ol>' . $topList . '</ol>' : '<p class="muted">Noch keine Punkte vergeben.</p>';
+    $topList = $topList ? '<ol>' . $topList . '</ol>' : '<p class="muted">' . t('Noch keine Punkte vergeben.') . '</p>';
 
     page('Analytics: ' . $b['name'], '
       <p><a href="/business/' . $businessId . '" class="muted">← ' . h($b['name']) . '</a></p>
       <h1>Analytics</h1>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">' . $kpiHtml . '</div>
-      <h2>Aktivitaet</h2>
+      <h2>' . t('Aktivität') . '</h2>
       <div class="panel">' . $chart . '</div>
-      <h2>Programm-Performance</h2>
+      <h2>' . t('Programm-Performance') . '</h2>
       ' . $progTable . '
-      <h2>Top-Mitglieder (Lifetime-Punkte)</h2>
+      <h2>' . t('Top-Mitglieder (Lifetime-Punkte)') . '</h2>
       ' . $topList . '
     ', $u, $b['brand_color']);
     exit;

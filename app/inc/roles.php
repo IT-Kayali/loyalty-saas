@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 /* ------------------------------------------------------------------ */
 /* Staff-Rolle (Theke) und Member-Rolle (Kunden-Wallet)                */
-/* Angelehnt an rewardloyalty.co/docs/5.x: Staff guide & Member guide  */
 /* ------------------------------------------------------------------ */
 
 function current_staff(): ?array
@@ -43,7 +42,7 @@ function require_member(): string
 /** Alle Mitglieds-Zeilen (ueber Businesses hinweg) zu einer E-Mail. */
 function member_rows_by_email(string $email): array
 {
-    $stmt = db()->prepare('SELECT m.*, b.name AS business_name, b.brand_color, b.join_code,
+    $stmt = db()->prepare('SELECT m.*, b.name AS business_name, b.brand_color, b.join_code, b.card_design,
         b.referral_points_referrer, b.referral_points_referee FROM members m
         JOIN businesses b ON b.id = m.business_id WHERE lower(m.email) = lower(?) ORDER BY m.created_at');
     $stmt->execute([$email]);
@@ -61,12 +60,12 @@ function route_staff_create(): never
     $name = trim($_POST['name'] ?? '');
     $pin = (string)($_POST['pin'] ?? '');
     if (!$b || $name === '' || strlen($pin) < 4) {
-        flash('Name und PIN (min. 4 Zeichen) erforderlich.', 'err');
+        flash(t('Name und PIN (min. 4 Zeichen) erforderlich.'), 'err');
         redirect('/dashboard');
     }
     db()->prepare('INSERT INTO staff (business_id, name, pin_hash) VALUES (?,?,?)')
         ->execute([$b['id'], $name, password_hash($pin, PASSWORD_DEFAULT)]);
-    flash('Staff-Zugang fuer ' . $name . ' angelegt.');
+    flash(t('Staff-Zugang für {name} angelegt.', ['name' => $name]));
     redirect('/business/' . (int)$b['id']);
 }
 
@@ -78,17 +77,18 @@ function route_staff_login(string $method): never
 {
     if ($method === 'GET') {
         $b = (int)($_GET['b'] ?? 0);
-        page('Staff-Login', '
+        page(t('Staff-Login'), '
         <div class="auth-box">
-          <h1>Staff-Portal</h1>
-          <p class="muted">Theken-Zugang: Kunden finden, Stempel und Punkte vergeben, einloesen.</p>
-          <form method="post" action="/staff/login" class="form">
-            <label>Business-Nr. <input name="business_id" required inputmode="numeric" value="' . ($b ?: '') . '"></label>
-            <label>Dein Name <input name="name" required></label>
+          <h1>' . t('Staff-Portal') . '</h1>
+          <p class="muted">' . t('Theken-Zugang: Kunden finden, Stempel und Punkte vergeben, einlösen.') . '</p>
+          <form method="post" action="/staff/login" class="form">' . csrf_field() . '
+            <label>' . t('Business-Nr.') . ' <input name="business_id" required inputmode="numeric" value="' . ($b ?: '') . '"></label>
+            <label>' . t('Dein Name') . ' <input name="name" required></label>
             <label>PIN <input type="password" name="pin" required></label>
-            <button class="btn">Anmelden</button>
+            <button class="btn">' . t('Anmelden') . '</button>
           </form>
-          <p class="muted"><a href="/login">Betreiber-Login</a> · <a href="/member/login">Kunden-Login</a></p>
+          <p class="muted"><a href="/login">' . t('Betreiber-Login') . '</a> · <a href="/member/login">' . t('Kunden-Login') . '</a></p>
+          ' . lang_switcher() . '
         </div>');
         exit;
     }
@@ -96,7 +96,7 @@ function route_staff_login(string $method): never
     $stmt->execute([(int)($_POST['business_id'] ?? 0), trim($_POST['name'] ?? '')]);
     $s = $stmt->fetch();
     if (!$s || !password_verify((string)($_POST['pin'] ?? ''), $s['pin_hash'])) {
-        flash('Zugangsdaten stimmen nicht.', 'err');
+        flash(t('Zugangsdaten stimmen nicht.'), 'err');
         redirect('/staff/login');
     }
     $_SESSION['staff_id'] = (int)$s['id'];
@@ -113,12 +113,12 @@ function route_staff_counter(): never
 {
     $s = require_staff();
     $q = trim($_GET['q'] ?? '');
-    $body = '<h1>Theke · ' . h($s['business_name']) . '</h1>
-      <p class="muted">Angemeldet als ' . h($s['name']) . ' · <a href="/staff/logout">Abmelden</a></p>
+    $body = '<h1>' . t('Theke') . ' · ' . h($s['business_name']) . '</h1>
+      <p class="muted">' . t('Angemeldet als') . ' ' . h($s['name']) . ' · <a href="/staff/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p>
       <form method="get" action="/staff" class="form inline-form">
-        <label>Kunde finden <input name="q" value="' . h($q) . '" placeholder="Name, E-Mail oder Code" autofocus></label>
-        <button class="btn">Suchen</button>
-        <a class="btn accent" href="/staff/scan">QR scannen</a>
+        <label>' . t('Kunde finden') . ' <input name="q" value="' . h($q) . '" placeholder="' . t('Name, E-Mail oder Code') . '" autofocus></label>
+        <button class="btn">' . t('Suchen') . '</button>
+        <a class="btn accent" href="/staff/scan">' . t('QR scannen') . '</a>
       </form>';
 
     if ($q !== '') {
@@ -131,8 +131,8 @@ function route_staff_counter(): never
               <td class="muted">' . h($m['email']) . '</td><td><code>' . h($m['code']) . '</code></td></tr>';
         }
         $body .= $rows
-            ? '<table class="table"><thead><tr><th>Name</th><th>E-Mail</th><th>Code</th></tr></thead><tbody>' . $rows . '</tbody></table>'
-            : '<p class="muted">Niemand gefunden.</p>';
+            ? '<table class="table"><thead><tr><th>' . t('Name') . '</th><th>' . t('E-Mail') . '</th><th>Code</th></tr></thead><tbody>' . $rows . '</tbody></table>'
+            : '<p class="muted">' . t('Niemand gefunden.') . '</p>';
     } else {
         $recent = db()->prepare('SELECT m.*, MAX(t.id) AS last_txn FROM members m
             JOIN cards c ON c.member_id = m.id JOIN transactions t ON t.card_id = c.id
@@ -144,11 +144,11 @@ function route_staff_counter(): never
               <td><code>' . h($m['code']) . '</code></td></tr>';
         }
         if ($rows) {
-            $body .= '<h2>Zuletzt an der Theke</h2>
+            $body .= '<h2>' . t('Zuletzt an der Theke') . '</h2>
               <table class="table"><tbody>' . $rows . '</tbody></table>';
         }
     }
-    page('Theke', $body, null, $s['brand_color']);
+    page(t('Theke'), $body, null, $s['brand_color']);
     exit;
 }
 
@@ -164,12 +164,12 @@ function route_staff_member(int $id): never
     $programs = db()->prepare('SELECT * FROM programs WHERE business_id = ? AND active = 1');
     $programs->execute([$s['business_id']]);
 
-    $body = '<p><a href="/staff" class="muted">← Theke</a></p>
+    $body = '<p><a href="/staff" class="muted">← ' . t('Theke') . '</a></p>
       <h1>' . h($m['name']) . '</h1>
       <p class="muted">' . h($m['email']) . ' · <code>' . h($m['code']) . '</code></p>'
       . member_panels($id, $programs->fetchAll(), '/staff/card');
 
-    page($m['name'] . ' · Theke', $body, null, $s['brand_color']);
+    page($m['name'] . ' · ' . t('Theke'), $body, null, $s['brand_color']);
     exit;
 }
 
@@ -195,16 +195,17 @@ function route_staff_card_action(int $cardId): never
 function route_member_login(string $method): never
 {
     if ($method === 'GET') {
-        page('Kunden-Login', '
+        page(t('Kunden-Login'), '
         <div class="auth-box">
-          <h1>Meine Karten</h1>
-          <p class="muted">Dein Wallet: alle Treuekarten, Punkte und Belohnungen auf einen Blick.</p>
-          <form method="post" action="/member/login" class="form">
-            <label>E-Mail <input type="email" name="email" required></label>
-            <label>Passwort <input type="password" name="password" required></label>
-            <button class="btn">Anmelden</button>
+          <h1>' . t('Meine Karten') . '</h1>
+          <p class="muted">' . t('Dein Wallet: alle Treuekarten, Punkte und Belohnungen auf einen Blick.') . '</p>
+          <form method="post" action="/member/login" class="form">' . csrf_field() . '
+            <label>' . t('E-Mail') . ' <input type="email" name="email" required></label>
+            <label>' . t('Passwort') . ' <input type="password" name="password" required></label>
+            <button class="btn">' . t('Anmelden') . '</button>
           </form>
-          <p class="muted"><a href="/login">Betreiber-Login</a> · <a href="/staff/login">Staff-Login</a></p>
+          <p class="muted"><a href="/login">' . t('Betreiber-Login') . '</a> · <a href="/staff/login">' . t('Staff-Login') . '</a></p>
+          ' . lang_switcher() . '
         </div>');
         exit;
     }
@@ -219,7 +220,7 @@ function route_member_login(string $method): never
         }
     }
     if (!$ok) {
-        flash('E-Mail oder Passwort falsch.', 'err');
+        flash(t('E-Mail oder Passwort falsch.'), 'err');
         redirect('/member/login');
     }
     $_SESSION['member_email'] = $email;
@@ -251,27 +252,27 @@ function wallet_cards_html(int $memberId): string
             }
             $body .= '<h2>' . h($c['program_name']) . '</h2>
               <div class="stamp-row">' . $dots . '</div>
-              <p>' . (int)$c['stamps'] . ' / ' . $req . ' Stempel</p>'
+              <p>' . (int)$c['stamps'] . ' / ' . $req . ' ' . t('Stempel') . '</p>'
               . ($c['pending_rewards'] > 0
-                  ? '<p class="reward-pending">🎉 ' . (int)$c['pending_rewards'] . 'x ' . h($c['reward_text']) . ' - zum Einloesen bereit!</p>'
+                  ? '<p class="reward-pending">★ ' . (int)$c['pending_rewards'] . 'x ' . h($c['reward_text']) . ' – ' . t('zum Einlösen bereit!') . '</p>'
                   : '<p class="muted">' . h($c['reward_text']) . '</p>');
         } elseif ($c['type'] === 'points') {
             $body .= '<h2>' . h($c['program_name']) . '</h2>
-              <p class="big-number">' . (int)$c['points'] . ' <span>Punkte</span></p>'
+              <p class="big-number">' . (int)$c['points'] . ' <span>' . t('Punkte') . '</span></p>'
               . tier_html((int)$c['program_id'], (int)($c['points_lifetime'] ?? 0));
             $rewards = db()->prepare('SELECT * FROM rewards WHERE program_id = ? ORDER BY points_cost');
             $rewards->execute([$c['program_id']]);
             foreach ($rewards->fetchAll() as $r) {
                 $okk = $c['points'] >= $r['points_cost'];
-                $body .= '<p class="' . ($okk ? 'reward-pending' : 'muted') . '">' . ($okk ? '✓ ' : '') . h($r['name']) . ' · ' . (int)$r['points_cost'] . ' Punkte</p>';
+                $body .= '<p class="' . ($okk ? 'reward-pending' : 'muted') . '">' . ($okk ? '✓ ' : '') . h($r['name']) . ' · ' . (int)$r['points_cost'] . ' ' . t('Punkte') . '</p>';
             }
         } elseif ($c['type'] === 'voucher') {
             $body .= '<h2>' . h($c['program_name']) . '</h2>
               <p class="big-number">' . h($c['voucher_value']) . '</p>
-              <p class="muted">' . (int)($c['uses_left'] ?? 0) . ' Nutzungen uebrig</p>';
+              <p class="muted">' . (int)($c['uses_left'] ?? 0) . ' ' . t('Nutzungen übrig') . '</p>';
         } else {
             $body .= '<h2>' . h($c['program_name']) . '</h2>
-              <p class="big-number">' . (int)($c['visits_left'] ?? 0) . ' <span>Besuche uebrig</span></p>';
+              <p class="big-number">' . (int)($c['visits_left'] ?? 0) . ' <span>' . t('Besuche übrig') . '</span></p>';
         }
         $body .= '</section>';
     }
@@ -284,16 +285,16 @@ function route_wallet(): never
     $rows = member_rows_by_email($email);
     if (!$rows) {
         unset($_SESSION['member_email']);
-        flash('Kein Kundenkonto gefunden.', 'err');
+        flash(t('Kein Kundenkonto gefunden.'), 'err');
         redirect('/member/login');
     }
     $firstName = explode(' ', trim($rows[0]['name']))[0];
     $brand = $rows[0]['brand_color'] ?: '#E4572E';
 
     $body = '<div class="member-view">
-      <p class="brand-tag">Mein Wallet</p>
-      <h1>Hallo, ' . h($firstName) . '!</h1>
-      <p class="muted">' . h($email) . ' · <a href="/member/logout">Abmelden</a></p>';
+      <p class="brand-tag">' . t('Mein Wallet') . '</p>
+      <h1>' . t('Hallo, {name}!', ['name' => $firstName]) . '</h1>
+      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p>';
 
     /* Inbox: Meilensteine, Referral-Boni etc. (letzte 5 je Konto) */
     $msgQ = db()->prepare('SELECT mm.text, mm.created_at FROM member_messages mm
@@ -313,8 +314,9 @@ function route_wallet(): never
     foreach ($rows as $m) {
         $body .= '<h2 class="wallet-biz">' . h($m['business_name']) . '</h2>';
         $cards = wallet_cards_html((int)$m['id']);
-        $body .= $cards ?: '<p class="muted">Noch keine Karten bei diesem Geschaeft.</p>';
-        $body .= '<p><a href="/c/' . h($m['code']) . '" target="_blank">Karte zum Vorzeigen (QR)</a></p>';
+        $body .= $cards ?: '<p class="muted">' . t('Noch keine Karten bei diesem Geschäft.') . '</p>';
+        $body .= '<p><a href="/c/' . h($m['code']) . '" target="_blank">' . t('Karte zum Vorzeigen (QR)') . '</a></p>';
+        $body .= wallet_buttons($m['code']);
 
         /* Achievements: freigeschaltet + naechster Fortschritt */
         $achQ = db()->prepare('SELECT a.*, ma.unlocked_at FROM achievements a
@@ -324,14 +326,14 @@ function route_wallet(): never
         $achs = $achQ->fetchAll();
         if ($achs) {
             $metrics = member_metrics((int)$m['id'], (int)$m['business_id']);
-            $body .= '<div class="panel" style="text-align:left"><strong>Meilensteine</strong><ul style="margin:6px 0;padding-left:20px">';
+            $body .= '<div class="panel" style="text-align:left"><strong>' . t('Meilensteine') . '</strong><ul style="margin:6px 0;padding-left:20px">';
             foreach ($achs as $a) {
                 $value = $metrics[$a['metric']] ?? 0;
                 if ($a['unlocked_at']) {
-                    $body .= '<li>🏆 ' . h($a['name']) . ' <span class="muted">erreicht</span></li>';
+                    $body .= '<li>🏆 ' . h($a['name']) . ' <span class="muted">' . t('erreicht') . '</span></li>';
                 } else {
-                    $body .= '<li class="muted">' . h($a['name']) . ' - ' . min($value, (int)$a['threshold']) . '/' . (int)$a['threshold']
-                        . ' ' . h(METRIC_LABELS[$a['metric']] ?? $a['metric']) . '</li>';
+                    $body .= '<li class="muted">' . h($a['name']) . ' – ' . min($value, (int)$a['threshold']) . '/' . (int)$a['threshold']
+                        . ' ' . h(metric_label($a['metric'])) . '</li>';
                 }
             }
             $body .= '</ul></div>';
@@ -340,24 +342,24 @@ function route_wallet(): never
         /* Referral-Link */
         if ((int)$m['referral_points_referrer'] > 0 || (int)$m['referral_points_referee'] > 0) {
             $refLink = '/join/' . h($m['join_code']) . '?ref=' . h($m['code']);
-            $body .= '<div class="panel" style="text-align:left">🤝 <strong>Freunde werben:</strong> '
-                . (int)$m['referral_points_referrer'] . ' Punkte fuer dich, ' . (int)$m['referral_points_referee'] . ' fuer deine Freunde. '
-                . 'Dein Link: <code>' . $refLink . '</code></div>';
+            $body .= '<div class="panel" style="text-align:left">🤝 <strong>' . t('Freunde werben:') . '</strong> '
+                . t('{a} Punkte für dich, {b} für deine Freunde.', ['a' => (int)$m['referral_points_referrer'], 'b' => (int)$m['referral_points_referee']])
+                . ' ' . t('Dein Link:') . ' <code>' . $refLink . '</code></div>';
         }
     }
 
     $body .= '<details class="panel" style="text-align:left">
-        <summary>Konto &amp; Datenschutz</summary>
-        <p class="muted">Deine Daten liegen beim jeweiligen Geschaeft. Du kannst sie exportieren oder komplett loeschen.</p>
+        <summary>' . t('Konto &amp; Datenschutz') . '</summary>
+        <p class="muted">' . t('Deine Daten liegen beim jeweiligen Geschäft. Du kannst sie exportieren oder komplett löschen.') . '</p>
         <div class="btn-row">
-          <a class="btn ghost small" href="/member/export">Daten exportieren (JSON)</a>
-          <form method="post" action="/member/delete" onsubmit="return confirm(\'Wirklich alle Kundenkonten zu dieser E-Mail loeschen?\')">
-            <button class="btn ghost small" style="color:#b3261e;border-color:#b3261e">Konto loeschen</button>
+          <a class="btn ghost small" href="/member/export">' . t('Daten exportieren (JSON)') . '</a>
+          <form method="post" action="/member/delete" onsubmit="return confirm(\'' . t('Wirklich alle Kundenkonten zu dieser E-Mail löschen?') . '\')">' . csrf_field() . '
+            <button class="btn ghost small" style="color:#b3261e;border-color:#b3261e">' . t('Konto löschen') . '</button>
           </form>
         </div>
       </details></div>';
 
-    page('Mein Wallet', $body, null, $brand);
+    page(t('Mein Wallet'), $body, null, $brand);
     exit;
 }
 
@@ -396,7 +398,7 @@ function route_member_delete(): never
     $stmt = db()->prepare('DELETE FROM members WHERE lower(email) = lower(?)');
     $stmt->execute([$email]);
     unset($_SESSION['member_email']);
-    flash('Deine Kundenkonten wurden geloescht.');
+    flash(t('Deine Kundenkonten wurden gelöscht.'));
     redirect('/member/login');
 }
 
@@ -414,18 +416,19 @@ function route_join(string $joinCode, string $method): never
     }
     $ref = strtoupper(preg_replace('/[^A-F0-9]/', '', (string)($_GET['ref'] ?? $_POST['ref'] ?? '')));
     if ($method === 'GET') {
-        page('Beitreten: ' . $b['name'], '
+        page(t('Beitreten:') . ' ' . $b['name'], '
         <div class="auth-box">
           <h1>' . h($b['name']) . '</h1>
-          <p class="muted">Werde Mitglied und sammle Stempel, Punkte und Belohnungen - digital auf dem Handy.</p>'
-          . ($ref !== '' ? '<p class="notice">Du wurdest von einem Freund eingeladen - Willkommensbonus inklusive! 🤝</p>' : '') . '
-          <form method="post" class="form">
+          <p class="muted">' . t('Werde Mitglied und sammle Stempel, Punkte und Belohnungen - digital auf dem Handy.') . '</p>'
+          . ($ref !== '' ? '<p class="notice">' . t('Du wurdest von einem Freund eingeladen - Willkommensbonus inklusive!') . ' 🤝</p>' : '') . '
+          <form method="post" class="form">' . csrf_field() . '
             <input type="hidden" name="ref" value="' . h($ref) . '">
-            <label>Name <input name="name" required maxlength="80"></label>
-            <label>E-Mail (optional, fuer dein Wallet) <input type="email" name="email" maxlength="190"></label>
-            <label>Passwort (fuer dein Wallet, min. 8 Zeichen) <input type="password" name="password" required minlength="8"></label>
-            <button class="btn">Jetzt beitreten</button>
+            <label>' . t('Name') . ' <input name="name" required maxlength="80"></label>
+            <label>' . t('E-Mail (für dein Wallet)') . ' <input type="email" name="email" maxlength="190"></label>
+            <label>' . t('Passwort (für dein Wallet, min. 8 Zeichen)') . ' <input type="password" name="password" required minlength="8"></label>
+            <button class="btn">' . t('Jetzt beitreten') . '</button>
           </form>
+          ' . lang_switcher() . '
         </div>', null, $b['brand_color']);
         exit;
     }
@@ -433,7 +436,7 @@ function route_join(string $joinCode, string $method): never
     $email = strtolower(trim($_POST['email'] ?? ''));
     $pw = (string)($_POST['password'] ?? '');
     if ($name === '' || strlen($pw) < 8) {
-        flash('Name und Passwort (min. 8 Zeichen) erforderlich.', 'err');
+        flash(t('Name und Passwort (min. 8 Zeichen) erforderlich.'), 'err');
         redirect('/join/' . $joinCode);
     }
     db()->prepare('INSERT INTO members (business_id, name, email, code, password_hash) VALUES (?,?,?,?,?)')
@@ -457,7 +460,7 @@ function route_join(string $joinCode, string $method): never
     $code = db()->query("SELECT code FROM members WHERE id = $memberId")->fetchColumn();
     if ($email !== '') {
         $_SESSION['member_email'] = $email;
-        flash('Willkommen bei ' . $b['name'] . '! Deine Karten sind bereit.');
+        flash(t('Willkommen bei {business}! Deine Karten sind bereit.', ['business' => $b['name']]));
         redirect('/wallet');
     }
     redirect('/c/' . $code);
