@@ -45,6 +45,31 @@ function require_member(): string
     return $e;
 }
 
+/** Mitglieder koennen nur den eigenen Anzeigenamen je Unternehmen aendern. */
+function route_member_profile(string $method): never
+{
+    $email=require_member();
+    header('Cache-Control: no-store');
+    if ($method==='POST') {
+        if (!rate_limit_take('member-profile',strtolower($email),20,900)) rate_limit_stop();
+        $id=(int)($_POST['member_id'] ?? 0); $name=trim((string)($_POST['name'] ?? ''));
+        $q=db()->prepare('SELECT id FROM members WHERE id=? AND lower(email)=lower(?)');$q->execute([$id,$email]);
+        if (!$q->fetchColumn()) not_found();
+        if ($name==='' || !mb_check_encoding($name,'UTF-8') || mb_strlen($name)>80 || preg_match('/[\x00-\x1F\x7F]/u',$name)) {
+            flash('Name mit 1 bis 80 Zeichen ohne Steuerzeichen angeben.','err');redirect('/member/profile');
+        }
+        $GLOBALS['profile_update_authorized']=true;
+        try {db()->prepare('UPDATE members SET name=? WHERE id=? AND lower(email)=lower(?)')->execute([$name,$id,$email]);}
+        finally {$GLOBALS['profile_update_authorized']=false;}
+        flash('Name für dieses Unternehmen gespeichert.');redirect('/member/profile');
+    }
+    $body='<p><a href="/wallet">← Meine Karten</a></p><h1>Meine Namen</h1><p class="muted">Dein Name wird je Unternehmen getrennt gespeichert. Ändere hier nur den Namen beim ausgewählten Unternehmen. E-Mail, Passwort, Karten und Einwilligungen bleiben unverändert. Das Team dieses Unternehmens sieht deinen aktuellen Namen auch in Ansichten älterer Buchungen.</p>';
+    foreach (member_rows_by_email($email) as $m) {
+        $body.='<section class="panel member-profile"><h2>'.h($m['business_name']).'</h2><p class="muted">Mitgliedscode: <code>'.h($m['code']).'</code></p><form method="post" class="form">'.csrf_field().'<input type="hidden" name="member_id" value="'.(int)$m['id'].'"><label>Name<input name="name" value="'.h($m['name']).'" maxlength="80" autocomplete="name" required></label><button class="btn">Name speichern</button></form></section>';
+    }
+    page('Meine Namen',$body);exit;
+}
+
 /** Alle Mitglieds-Zeilen (ueber Businesses hinweg) zu einer E-Mail. */
 function member_rows_by_email(string $email): array
 {
@@ -320,7 +345,7 @@ function route_wallet(): never
     $body = '<div class="member-view">
       <p class="brand-tag">' . t('Mein Wallet') . '</p>
       <h1>' . t('Hallo, {name}!', ['name' => $firstName]) . '</h1>
-      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p><p><a href="/member/password">Passwort ändern</a> · <a href="/member/preferences">E-Mail-Einwilligung & Geburtstag</a> · <a href="/wallet/request">Punkte anfordern</a></p>';
+      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p><p><a href="/member/profile">Meine Namen</a> · <a href="/member/password">Passwort ändern</a> · <a href="/member/preferences">E-Mail-Einwilligung & Geburtstag</a> · <a href="/wallet/request">Punkte anfordern</a></p>';
 
     $body.='<section class="panel"><h2>Karten offline vorzeigen</h2><p>Nur auf deinem eigenen Gerät speichern. Kundencodes und letzte Salden bleiben hier bis zu 24 Stunden lesbar, auch ohne Anmeldung. Keine Buchungen oder Einlösungen offline.</p><label><input id="offline-consent" type="checkbox"> Dies ist mein privates Gerät, ich möchte eine lokale Kopie.</label><p><button type="button" class="btn" id="offline-save">Karten auf diesem Gerät speichern</button> <button type="button" class="btn ghost" id="offline-clear">Lokale Kopie löschen</button></p><p id="offline-status" role="status"></p><p><a href="/offline.html">Gespeicherte Karten öffnen / Installationshilfe</a></p></section>';
 

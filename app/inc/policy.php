@@ -55,7 +55,7 @@ function install_plan_guards(PDO $pdo): void
     $pdo->sqliteCreateFunction('loyalty_plan_ok', static function($uid,$feature,$create): int {
         return plan_policy((int)$uid,(string)$feature,(string)$create)===null ? 1 : 0;
     },3);
-    $pdo->sqliteCreateFunction('loyalty_account_change',static fn():int=>(!empty($GLOBALS['consent_update_authorized'])||!empty($GLOBALS['password_reset_authorized'])||!empty($GLOBALS['password_change_authorized']))?1:0,0);
+    $pdo->sqliteCreateFunction('loyalty_account_change',static fn():int=>(!empty($GLOBALS['consent_update_authorized'])||!empty($GLOBALS['password_reset_authorized'])||!empty($GLOBALS['password_change_authorized'])||!empty($GLOBALS['profile_update_authorized']))?1:0,0);
     $pdo->sqliteCreateFunction('loyalty_privacy_delete',static fn():int=>!empty($GLOBALS['privacy_delete_authorized'])?1:0,0);
     $direct='(SELECT user_id FROM businesses WHERE id=%s.business_id)';
     $program='(SELECT b.user_id FROM programs p JOIN businesses b ON b.id=p.business_id WHERE p.id=%s.program_id)';
@@ -106,7 +106,7 @@ function policy_browser_guard(string $path,string $method): void
     if($method!=='POST')return;
     // Auth, billing and privacy are not paid features. The admin allowlist is separate.
     if($path==='/ai' || str_starts_with($path,'/ai/approval/') || $path==='/contact' || $path==='/support' || str_starts_with($path,'/support/'))return;
-    if(str_starts_with($path,'/unsubscribe/') || in_array($path,['/member/preferences','/member/password'],true))return;
+    if(str_starts_with($path,'/unsubscribe/') || in_array($path,['/member/preferences','/member/password','/member/profile'],true))return;
     if(in_array($path,['/login','/register','/staff/login','/member/login','/billing','/billing/paypal','/member/delete','/forgot-password','/reset-password'],true) || str_starts_with($path,'/admin'))return;
     if(preg_match('#^/join/([A-F0-9]{8})$#',$path,$m)) {
         $q=db()->prepare('SELECT user_id FROM businesses WHERE join_code=?');$q->execute([$m[1]]);$uid=$q->fetchColumn();

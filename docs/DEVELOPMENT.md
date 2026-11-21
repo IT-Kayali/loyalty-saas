@@ -94,6 +94,7 @@ python tests/run-claims.py
 python tests/run-cardlayout.py
 python tests/run-voucher-batches.py
 python tests/run-member-password.py
+python tests/run-member-profile.py
 python tests/run-webhooks.py
 python tests/run-backup.py
 python tests/run-browser.py
@@ -134,3 +135,5 @@ Das WordPress-Testfixture blockiert E-Mail und externe Requests. Nur seine feste
 Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Parität (siehe SUPPORT.md), volle AI/MCP-Parität (siehe AI.md), Geldguthabenpässe, vollständige Original-Detailregeln, mehrere Delegations-/Mitglieder-Authentifizierungsfunktionen sowie echte Hosting-/Provider-/Geräteabnahmen. Die Liste im Feature-Audit ist maßgeblich. Vor einer Produktionseinführung unabhängige Sicherheits-/Betriebsprüfung einplanen.
 
 - [Mitglieder-Passwort ändern](MEMBER-PASSWORD.md)
+
+- [Eigene Mitgliedsnamen](MEMBER-PROFILE.md)

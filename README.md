@@ -173,3 +173,5 @@ Browser-Tests benötigen Port 8099 und erzeugen nur lokale Testdaten. Ausgaben s
 Optionales SaaS-Abo zusätzlich zur Stripe-Anbindung: SDK v6, serverseitiges Create und Statusprüfung, signaturverifizierte Webhook-Verarbeitung mit Originaldaten, Retry-/Tenantbindung, Refund-Sperren und ausdrücklich bestätigte Kündigung. Ohne Keys aus. Keine echte Sandbox-/Live-Zahlung wurde abgenommen. Einrichtung, manueller Refund-Abgleich und Grenzen: [docs/PAYPAL.md](docs/PAYPAL.md). Test: `PHP_BIN=php python tests/run-paypal.py`. Planwechsel kündigen kein laufendes Abo still.
 
 Mitglieder können ihr eigenes Shared-Wallet-Passwort ändern und alle Wallet-Sitzungen abmelden: [docs/MEMBER-PASSWORD.md](docs/MEMBER-PASSWORD.md).
+
+Eigene Namen pro Mitgliedseintrag in der Wallet: [docs/MEMBER-PROFILE.md](docs/MEMBER-PROFILE.md).
