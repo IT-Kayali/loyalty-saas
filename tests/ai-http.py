@@ -212,6 +212,28 @@ check(req('/ai/key/'+str(kid+9999),c=own)[0]==404,'Unbekannter Schlüssel nicht 
 sql("db()->prepare('UPDATE ai_keys SET revoked_at=? WHERE id=?')->execute(['2026-01-01',%d]);"%kid)
 check(req(edit,c=own)[0]==404,'Widerrufener Schlüssel nicht editierbar')
 check(req('/ai/key/'+sql("echo db()->query(\"SELECT id FROM ai_keys WHERE name='Lesen'\")->fetchColumn();"),c=own)[0]==404,'Abgelaufener Schlüssel nicht editierbar')
+# Einstellbares HTTP-Anfragelimit je Schluessel.
+rateid=int(sql("""echo db()->query("SELECT id FROM ai_keys WHERE name='Alt Lesen'")->fetchColumn();"""));rateedit='/ai/key/'+str(rateid)
+rpm=lambda:sql("echo db()->query('SELECT requests_per_minute FROM ai_keys WHERE id=%d')->fetchColumn();"%rateid)
+def setrpm(value,c=own,token=True):
+ fields=[('scope','read'),('business_id','0'),('groups[]','reports'),('requests_per_minute',str(value))]
+ if token:fields.append(('csrf',csrf(c,rateedit if c is own else '/ai')))
+ return req(rateedit,urllib.parse.urlencode(fields).encode(),c)
+check(rpm()=='60','Anfragelimit bestehender Schlüssel bleibt 60')
+setrpm(2,token=False);check(rpm()=='60','Anfragelimit ohne CSRF unverändert')
+setrpm(2,c=oth);check(rpm()=='60','Fremder Owner kann Anfragelimit nicht ändern')
+for invalid in [0,61,-1]:
+ setrpm(invalid);check(rpm()=='60','Anfragelimit außerhalb 1 bis 60 abgelehnt')
+setrpm(2);check(rpm()=='2','Anfragelimit gespeichert')
+# Use deterministic fresh DB window, then test HTTP admission in this same minute.
+sql("db()->prepare('DELETE FROM rate_limits WHERE key=?')->execute([hash('sha256','mcp|%d')]);"%rateid)
+if time.time()%60>55:time.sleep(61-time.time()%60)
+first=rpc(lk1,'ping')[0];second=rpc(lk1,'tools/list')[0];blocked=rpc(lk1,'ping')
+check(first==200 and second==200 and blocked[0]==429 and blocked[1]['error']=='rate_limited','Individuelles HTTP-Limit blockiert dritte Anfrage mit JSON 429')
+check(rpc(lk2,'ping')[0]==200,'Limit eines Schlüssels blockiert anderen Schlüssel nicht')
+setrpm(1);check(rpc(lk1,'ping')[0]==429,'Limitänderung setzt laufenden Zähler nicht zurück')
+sql("db()->prepare('UPDATE rate_limits SET window_start=0 WHERE key=?')->execute([hash('sha256','mcp|%d')]);"%rateid)
+check(rpc(lk1,'ping')[0]==200,'Nächstes Zeitfenster erlaubt wieder Anfragen')
 # rate limit
 fk=mkkey(own,'Rate','read');codes=[rpc(fk,'ping')[0] for _ in range(70)]
 check(429 in codes and codes[0]==200,'rate limit applies per key')

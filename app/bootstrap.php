@@ -519,6 +519,7 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'webhook_deliveries', 'owner_ack', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'businesses', 'webhook_owner_mail', 'INTEGER NOT NULL DEFAULT 1');
     ensure_column($pdo, 'ai_keys', 'tool_groups', 'TEXT');
+    ensure_column($pdo, 'ai_keys', 'requests_per_minute', 'INTEGER NOT NULL DEFAULT 60');
     ensure_column($pdo, 'ai_keys', 'business_id', 'INTEGER');
     ensure_column($pdo, 'webhook_deliveries', 'lock_until', 'TEXT');
     ensure_column($pdo, 'webhook_deliveries', 'dead_ack', 'INTEGER NOT NULL DEFAULT 0');

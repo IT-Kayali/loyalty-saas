@@ -12,7 +12,7 @@ Unter `/ai` erstellst du Schlüssel (`rl_ai_...`): Name, Zugriff **Nur lesen** o
 
 ## Protokoll
 
-`POST /mcp` mit `Authorization: Bearer rl_ai_...`. Unterstützt: `initialize`, `ping`, `tools/list`, `tools/call`, `prompts/list`, `prompts/get`, Benachrichtigungen (202) und Batches bis 20. Anfragen mit `Origin`-Header (Browser) werden abgelehnt. 60 Anfragen pro Minute und Schlüssel. Jeder Werkzeugaufruf steht im Audit (Werkzeug, Schlüsselpräfix, Ergebnis, keine Mitgliedsdaten).
+`POST /mcp` mit `Authorization: Bearer rl_ai_...`. Unterstützt: `initialize`, `ping`, `tools/list`, `tools/call`, `prompts/list`, `prompts/get`, Benachrichtigungen (202) und Batches bis 20. Anfragen mit `Origin`-Header (Browser) werden abgelehnt. Standard 60 HTTP-Anfragen pro Minute und Schlüssel, im Umfang-Editor auf 1 bis 60 einstellbar. Jeder Werkzeugaufruf steht im Audit (Werkzeug, Schlüsselpräfix, Ergebnis, keine Mitgliedsdaten).
 
 ## Werkzeuge
 
@@ -42,7 +42,7 @@ Ein riskantes Werkzeug ändert nichts. Es liefert `request_id`, `nonce` und eine
 
 ## Tests
 
-`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/ai-images python tests/run-ai.py`: Endpunkt standardmäßig aus, 86 HTTP-Prüfungen (Scopes nach Unternehmen und Gruppe, Schlüssel gehasht, Auth, Origin, Protokoll, Leserechte, Mandantentrennung, Idempotenz, Freigabe/Ablehnung/Ablauf/geänderter Datensatz, Widerruf, Schlüsselablauf, Audit, Rate-Limit) und 28 Chromium-Prüfungen mit Screenshots (Desktop und Mobil). Kein echter KI-Client, kein KI-Anbieter.
+`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/ai-images python tests/run-ai.py`: Endpunkt standardmäßig aus, 111 HTTP-Prüfungen (Scopes nach Unternehmen und Gruppe, Schlüssel gehasht, Auth, Origin, Protokoll, Leserechte, Mandantentrennung, Idempotenz, Freigabe/Ablehnung/Ablauf/geänderter Datensatz, Widerruf, Schlüsselablauf, Audit, Rate-Limit) und 38 Chromium-Prüfungen mit Screenshots (Desktop und Mobil). Kein echter KI-Client, kein KI-Anbieter.
 
 ## Grenzen (ehrlich)
 
@@ -50,7 +50,7 @@ Ein riskantes Werkzeug ändert nichts. Es liefert `request_id`, `nonce` und eine
 - Nur Schlüssel (Bearer). Kein Browser-Login/OAuth, keine `/.well-known`-Discovery. Clients, die nur OAuth können, funktionieren nicht.
 - Kleine Werkzeugmenge. Keine Plattform-/Admin-Werkzeuge, keine Mitglieder-Schlüssel, keine Tools für Kampagnen/E-Mail, Tiers, Gutscheine, Pässe, Support oder Löschen weiterer Objekte. Keine Rückgängig-Werkzeuge.
 - Kein REST-Tool-Discovery-Endpunkt, kein OpenAPI für MCP, keine MCP-Apps-Ansichten, kein Streaming/SSE.
-- Scopes sind grob: Stufe, ein Unternehmen oder alle, und fünf feste Werkzeuggruppen. Keine Rechte je Programm, Mitglied oder Feld, keine Mengen- oder Betragslimits je Schlüssel, Scopes lassen sich nach dem Erstellen nicht ändern (neuen Schlüssel erstellen, alten widerrufen).
+- Scopes sind grob: Stufe, ein Unternehmen oder alle, und fünf feste Werkzeuggruppen. Keine Rechte je Programm, Mitglied oder Feld, keine Mengen- oder Betragslimits je Schlüssel, Scopes und HTTP-Anfragelimit sind im Editor änderbar.
 - HTTPS wird nicht vom Code erzwungen. Nur hinter HTTPS betreiben.
 - Gelesene Daten gehen an den KI-Anbieter des Clients, nach dessen Bedingungen.
 - Nicht produktiv abgenommen.
@@ -64,3 +64,13 @@ Speichern ändert den bestehenden Datensatz, nicht das Geheimnis oder Ablaufdatu
 Nur der Eigentümer, CSRF, Eigentumsprüfung der ausgewählten Firma und Audit `ai.key.update`. Keine Änderung über den MCP-Endpunkt selbst. Der Client sollte anschließend `tools/list` neu laden; keine automatische `list_changed`-Push-Nachricht oder Stream-Verbindung. Weiterhin keine Objekt-Scopes oder eigenen Mengenlimits je Schlüssel.
 
 Tests in `tests/ai-http.py` und `tests/ai-ui.cjs`: nachträgliche Einschränkung/Erweiterung und Gruppenwechsel mit demselben Schlüssel, Unternehmenswechsel, Hash/Ablauf unverändert, offene und freigegebene Anfragen verfallen, Fremd-Owner, CSRF, leere Gruppen und nicht editierbare alte Schlüssel. Desktop/Mobil; kein Test mit echten MCP-Clients.
+
+## HTTP-Anfragelimit pro Schlüssel
+
+Der Umfang-Editor bietet 1 bis 60 HTTP-Anfragen pro Minute. Neue und bestehende Schlüssel starten mit 60, das bisherige Schutzlimit wird also nicht erhöht. Die Liste zeigt den Wert. Das Limit ist an die Schlüssel-ID gebunden, atomar in SQLite und verwendet feste UTC-Minutenfenster. Am Fensterwechsel kann kurzfristig die doppelte Menge passieren, es ist kein gleitendes Fenster.
+
+Gezählt werden authentifizierte POST-Anfragen an `/mcp`, einschließlich ping, Discovery und fehlerhaftem JSON. Ein JSON-RPC-Batch zählt als eine HTTP-Anfrage und darf weiter bis zu 20 Einzelaufrufe enthalten. Das Limit ist kein Punkte-/Stempel-/Buchungsbudget, keine Betragsgrenze und keine Gesamtgrenze über alle Schlüssel. Ein Schlüssel mit 1 HTTP/Minute kann in dieser Anfrage weiterhin einen Batch senden.
+
+Bei Überschreitung: HTTP 429, JSON `rate_limited`, `Retry-After` bis zum nächsten Minutenfenster. Änderungen am Limit setzen den aktuellen Zähler nicht zurück. Wie beim übrigen Umfang-Editor verfallen offene Freigaben beim Speichern. Keine automatische Client-Benachrichtigung, keine automatische Wiederholung durch den Server.
+
+Technik: `ai_keys.requests_per_minute`, additive Migration mit Default 60. Tests prüfen Standard, Grenzen, Eigentum/CSRF, individuelle Ablehnung, unabhängige Schlüssel und Wiederzulassung im nächsten Fenster. Kein externer Lasttest.

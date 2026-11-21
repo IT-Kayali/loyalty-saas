@@ -67,19 +67,20 @@ function ai_key_create(int $uid, string $name, string $scope, int $days, ?array 
 }
 
 /** Umfang eines aktiven eigenen Schluessels aendern, offene Freigaben verwerfen. */
-function ai_key_update(int $uid, int $keyId, string $scope, array $groups, ?int $businessId): void
+function ai_key_update(int $uid, int $keyId, string $scope, array $groups, ?int $businessId, int $rpm = 60): void
 {
+    if ($rpm < 1 || $rpm > 60) throw new InvalidArgumentException('Anfragelimit muss zwischen 1 und 60 liegen.');
     if (!in_array($scope, ['read','write'], true)) throw new InvalidArgumentException('Ungültiger Zugriff.');
     $groups = array_values(array_intersect(array_keys(AI_GROUPS), $groups));
     if (!$groups) throw new InvalidArgumentException('Mindestens eine Werkzeuggruppe auswählen.');
     if ($businessId !== null && !own_business($uid, $businessId)) throw new InvalidArgumentException('Unternehmen nicht gefunden.');
     db()->exec('BEGIN IMMEDIATE');
     try {
-        $q = db()->prepare("UPDATE ai_keys SET scope=?,tool_groups=?,business_id=? WHERE id=? AND user_id=? AND revoked_at IS NULL AND expires_at>datetime('now')");
-        $q->execute([$scope, count($groups) === count(AI_GROUPS) ? null : implode(',', $groups), $businessId, $keyId, $uid]);
+        $q = db()->prepare("UPDATE ai_keys SET scope=?,tool_groups=?,business_id=?,requests_per_minute=? WHERE id=? AND user_id=? AND revoked_at IS NULL AND expires_at>datetime('now')");
+        $q->execute([$scope, count($groups) === count(AI_GROUPS) ? null : implode(',', $groups), $businessId, $rpm, $keyId, $uid]);
         if (!$q->rowCount()) throw new InvalidArgumentException('Aktiver Schlüssel nicht gefunden.');
         db()->prepare("UPDATE ai_requests SET status='expired' WHERE key_id=? AND status IN ('pending','approved')")->execute([$keyId]);
-        audit_log($uid, 'ai.key.update', ['key_id'=>$keyId,'scope'=>$scope,'groups'=>implode(',', $groups),'business'=>$businessId ?? 'all']);
+        audit_log($uid, 'ai.key.update', ['key_id'=>$keyId,'scope'=>$scope,'groups'=>implode(',', $groups),'business'=>$businessId ?? 'all','requests_per_minute'=>$rpm]);
         db()->exec('COMMIT');
     } catch (Throwable $e) { db()->exec('ROLLBACK'); throw $e; }
 }
@@ -93,7 +94,7 @@ function route_ai_key(int $keyId, string $method): never
     if (!$key) not_found();
     if ($method === 'POST') {
         try {
-            ai_key_update($uid,$keyId,(string)($_POST['scope'] ?? ''),array_map('strval',(array)($_POST['groups'] ?? [])),(int)($_POST['business_id'] ?? 0) ?: null);
+            ai_key_update($uid,$keyId,(string)($_POST['scope'] ?? ''),array_map('strval',(array)($_POST['groups'] ?? [])),(int)($_POST['business_id'] ?? 0) ?: null,(int)($_POST['requests_per_minute'] ?? 60));
             flash('Schlüsselumfang gespeichert. Offene Freigaben sind abgelaufen.'); redirect('/ai');
         } catch (InvalidArgumentException $e) { flash($e->getMessage(),'err'); redirect('/ai/key/'.$keyId); }
     }
@@ -103,7 +104,7 @@ function route_ai_key(int $keyId, string $method): never
     foreach ($bs->fetchAll() as $b) $body.='<option value="'.(int)$b['id'].'"'.((int)$key['business_id']===(int)$b['id']?' selected':'').'>'.h($b['name']).'</option>';
     $body.='</select></label><fieldset><legend>Werkzeuggruppen</legend>';
     foreach (AI_GROUPS as $g=>$def) $body.='<label class="check"><input type="checkbox" name="groups[]" value="'.h($g).'"'.(in_array($g,ai_key_groups($key),true)?' checked':'').'> '.h($def['label']).'</label>';
-    $body.='</fieldset><button class="btn">Umfang speichern</button></form></section>';
+    $body.='</fieldset><label>HTTP-Anfragen pro Minute (1 bis 60)<input type="number" name="requests_per_minute" min="1" max="60" value="'.(int)$key['requests_per_minute'].'" required></label><p class="muted">Gilt für HTTP-Anfragen, auch ping und tools/list. Ein Batch zählt als eine Anfrage und kann bis zu 20 Aufrufe enthalten. Kein Punkte- oder Buchungsbudget. Ändern setzt den laufenden Zähler nicht zurück.</p><button class="btn">Umfang speichern</button></form></section>';
     page('Schlüsselumfang ändern',$body,$u);exit;
 }
 
@@ -501,7 +502,10 @@ function route_mcp(string $method): never
     if ($method !== 'POST') { http_response_code(405); header('Allow: POST'); exit; }
     $auth = preg_match('#^Bearer\s+(\S+)$#i', $_SERVER['HTTP_AUTHORIZATION'] ?? '', $m) ? ai_key_lookup($m[1]) : null;
     if (!$auth) { http_response_code(401); header('WWW-Authenticate: Bearer realm="loyalty-mcp"'); header('Content-Type: application/json'); echo '{"error":"invalid_key"}'; exit; }
-    if (!rate_limit_take('mcp', (string)$auth['key']['id'], 60, 60)) rate_limit_stop();
+    if (!rate_limit_take('mcp', (string)$auth['key']['id'], max(1, min(60, (int)$auth['key']['requests_per_minute'])), 60)) {
+        http_response_code(429); header('Retry-After: ' . (60 - time() % 60)); header('Content-Type: application/json');
+        echo '{"error":"rate_limited"}'; exit;
+    }
     db()->prepare("UPDATE ai_keys SET last_used_at=datetime('now') WHERE id=?")->execute([$auth['key']['id']]);
     $raw = (string)file_get_contents('php://input');
     if (strlen($raw) > 100000) mcp_reply(null, ['error' => ['code' => -32600, 'message' => 'Anfrage zu groß']], 413);
@@ -561,7 +565,7 @@ function route_ai(string $method): never
     $k = db()->prepare('SELECT * FROM ai_keys WHERE user_id=? ORDER BY id DESC'); $k->execute([$uid]);
     foreach ($k->fetchAll() as $key) {
         $dead = $key['revoked_at'] !== null || $key['expires_at'] <= gmdate('Y-m-d H:i:s');
-        $body .= '<tr><td>' . h($key['name']) . '</td><td><code>' . h($key['prefix']) . '</code></td><td>' . ($key['scope'] === 'write' ? 'Lesen und ändern' : 'Nur lesen') . '</td><td>' . h(ai_key_scope_label($key, $bnames)) . '</td><td>' . h($key['expires_at']) . ($dead ? ' (inaktiv)' : '') . '</td><td>' . h($key['last_used_at'] ?? 'nie') . '</td><td>'
+        $body .= '<tr><td>' . h($key['name']) . '</td><td><code>' . h($key['prefix']) . '</code></td><td>' . ($key['scope'] === 'write' ? 'Lesen und ändern' : 'Nur lesen') . '</td><td>' . h(ai_key_scope_label($key, $bnames)) . '<br><small>' . (int)$key['requests_per_minute'] . ' HTTP/Min.</small></td><td>' . h($key['expires_at']) . ($dead ? ' (inaktiv)' : '') . '</td><td>' . h($key['last_used_at'] ?? 'nie') . '</td><td>'
             . ($dead ? '' : '<p><a href="/ai/key/' . (int)$key['id'] . '">Umfang ändern</a></p><form method="post">' . csrf_field() . '<input type="hidden" name="action" value="revoke"><input type="hidden" name="key_id" value="' . (int)$key['id'] . '"><button class="btn ghost">Widerrufen</button></form>') . '</td></tr>';
     }
     $bizSelect = '<label>Unternehmen<select name="business_id"><option value="0">Alle Unternehmen des Kontos</option>';
