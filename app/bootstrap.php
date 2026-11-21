@@ -768,12 +768,14 @@ function page(string $title, string $body, ?array $user = null, string $brand = 
     echo '<!DOCTYPE html><html lang="' . h(lang()) . '"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#E4572E"><link rel="apple-touch-icon" href="/assets/pwa-192.png">
 <title>' . h($title) . ' · Loyalty</title>
 <link rel="stylesheet" href="/assets/style.css?v=2">
 <script src="/assets/qrcode.min.js"></script>
 <script src="/assets/app.js?v=2" defer></script>
+<script src="/assets/pwa.js" defer></script>
 <style>:root{--brand:' . h($brand) . '}</style>
-</head><body>' . $nav . '<main class="wrap">' . $flashes . $body . '</main>
+</head><body data-member-account="' . h((function_exists('current_member_email') && ($memberEmail=current_member_email()))?hash('sha256',strtolower($memberEmail)):'') . '">' . $nav . '<main class="wrap">' . $flashes . $body . '</main>
 </body></html>';
 }
 

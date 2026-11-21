@@ -24,7 +24,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Plattform-Admin | Neu, Basis | Globale Übersicht, Brandingname, Registrierungsschalter, CSV und Healthchecks vorhanden. Keine Managerdelegation, granularen Plattformrechte, Unternehmens-Sperrung oder Admin-Impersonation. |
 | Betreiber-Dashboard | Basis | Programme, Mitglieder, Designer, Analytics, Team. Neu: Standort- und Teamverwaltung. Keine vollständigen Unternehmenseinstellungen oder monatlichen Zusammenfassungen. |
 | Staff-Kasse | Basis | PIN-Login, Suche, QR-Scan, vergeben/einlösen, Undo. Neu: Viewer/Kasse/Schichtleitung mit Einzelrechten, Standortbindung, Deaktivierung und PIN-Reset mit Sitzungswiderruf. Keine Clubrechte, Managerkonten, Einladungen oder MFA. |
-| Mitglieder-Wallet | Basis | Login, mehrere Unternehmen, Karten, Inbox, Export/Löschung. Kein OTP-Login, anonyme Mitglieder, umfassendes Profil-/Passwortmanagement, Offlineinstallation oder Live-Event-Updates. |
+| Mitglieder-Wallet | Basis | Login, mehrere Unternehmen, Karten, Inbox, Export/Löschung. Kein OTP-Login, anonyme Mitglieder, umfassendes Profil-/Passwortmanagement, vollständige PWA-Details oder Live-Event-Updates. Offline-Basis mit Opt-in ergänzt, siehe PWA-Nachtrag. |
 | Punkte & Prämien | Basis | Punkte, Prämien, Lifetime-Punkte, Stufen und Bonusstunden. Punkteanfragen zwischen Mitgliedern, Punkteverfall, individuelle Einlösecodes und zeitlich begrenzte Reward-QRs fehlen. |
 | Stempelkarten | Basis + Neu | Stempel/Rollover/Belohnungen, eigener Bildupload, Vorschau. Neu: eigenes Programmdesign, Hintergrundfoto/Deckkraft und kuratierte Emoji-Auswahl. Nativer Wallet-Pass bleibt ein Sammelpass, Fotos/Emoji nur im Web. |
 | Gutscheine | Basis | Fester Wert und begrenzte Nutzungen. Neu: Code-Batches, Prozent/Festbetrag/Produkt/Punkte, einfache Eligibility und Limits. Geburtstags-/Winback-Automation, Claim-QR, Batchstorno und eigene Analysen fehlen. |
@@ -49,7 +49,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Pläne verwalten | Basis | Serverkonfiguration statt editierbarer Admin-Planverwaltung; keine Planmigrationen/Feature-Toggles pro Mandant. |
 | Branding/Homepages | Basis | Plattformname, Business-Farben/-Logo, Designer. Keine Smart/Showcase/Portal/Public-Listing-Homepages, eigenen Domains oder vollständigen E-Mail-Templates. |
 | Sprachen | Basis | DE/EN für bisherigen Bestand, neue Texte teilweise noch deutsch als Fallback. Nicht alle Originalsprachen; keine Übersetzungsverwaltung. |
-| PWA | Offen | Kein Service Worker, Offline-Wallet, Web-Push oder installierbare Offline-App. |
+| PWA | Neu, Basis | Manifest/Icons, öffentliche Service-Worker-Hülle und ausdrücklicher Kartensnapshot mit QR/Suche/Typfilter. Keine Offlinebuchungen, Web-Push, automatische Erneuerung, eigenes Appbranding oder echten Gerätetests. |
 | Datenschutz | Basis | Datenexport/-löschung. Kein vollständiges Consent-/Cookie-Management, Aufbewahrungsjobs, Abmeldeverwaltung, Rechtstexte oder AVV. Keine DSGVO-Konformitätszusage. |
 | Aktivitätsprotokoll | Neu, Basis | Login und Admin-Einstellungen/Export protokolliert. Keine lückenlose Security-/Änderungshistorie für alle Module. |
 | System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
@@ -115,3 +115,8 @@ SDK-v6-Subscribe-Session, serverseitige Anlage und verbindlicher Statusabgleich,
 ## Nachtrag: WordPress-Händlerdashboard
 
 Eigenständiges WordPress-Adminmenü ohne WooCommerce-Abhängigkeit, Live-Kundenliste/Suche/Cursor, Salden, Anlegen und Namensänderung sowie Punkte-/Stempelbuchungen und bestätigte Prämieneinlösung ergänzt. Geschäftsbindung erfolgt über einen serverseitigen API-Schlüssel, Verbindungsverwaltung nur für Administratoren, Bedienung auch mit `manage_woocommerce`. Atomare Wiederholungsbelege einschließlich echter Parallel- und Antwortverlusttests. Lokal echte WordPress-Installation und responsive Formulare geprüft. Kein Multi-Vendor-/Pro-Verkäufer-Routing, kein E-Mail-Wechsel, keine Passverkäufe oder automatische Folge-Workflows über diesen neuen API-Pfad. Keine echte WooCommerce-/HTTPS-Produktionsabnahme. [Einrichtung, Datenhaltung, Tests und Grenzen](../integrations/woocommerce/README.md).
+
+
+## Nachtrag: Offline-PWA-Basis
+
+Installierbare Metadaten/Icons und generische öffentliche Offline-Hülle ergänzt. Mitglieder speichern bis zu 30 aktive einfache Karten ausdrücklich auf einem privaten Gerät, mit 24-Stunden-Anzeigefrist, Kundencode/QR, letztem Saldo, Suche/Filter und QR-Vergrößerung. Keine Namen/E-Mail im Snapshot, aber Codes/Salden bleiben sensible lokale Daten. Keine Session-/API-Seiten im Service-Worker-Cache und keine Offline-Schreibqueue. Logout/Kontowechsel/Löschung berücksichtigen die lokale Kopie; ein getrenntes Gerät lässt sich nicht fernlöschen. Separat verkaufte Passinstanzen und vollständige Referenz-/Geräteabnahme bleiben offen. [Details, Grenzen und Tests](PWA.md).

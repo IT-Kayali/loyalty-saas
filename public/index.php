@@ -29,6 +29,7 @@ require_once ROOT_DIR . '/app/inc/mail.php';
 require_once ROOT_DIR . '/app/inc/recovery.php';
 require_once ROOT_DIR . '/app/inc/organization.php';
 require_once ROOT_DIR . '/app/inc/qr.php';
+require_once ROOT_DIR . '/app/inc/pwa.php';
 
 /* ------------------------------------------------------------------ */
 /* Router                                                              */
@@ -64,6 +65,7 @@ policy_browser_guard($path,$method);
 try {
     match (true) {
         $path === '/' => route_home(),
+        $path === '/member/offline-snapshot' && $method==='GET' => route_offline_snapshot(),
         $path === '/billing/paypal' => route_paypal($method),
         $path === '/register' => route_register($method),
         $path === '/login' => route_login($method),
