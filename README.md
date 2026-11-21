@@ -197,3 +197,5 @@ Die Code-Gutschein-Auswertung bietet einen aggregierten CSV-Download für densel
 Persönlicher QR bereits gekaufter Prepaid-Pässe mit getrennter Team-Prüfung vor Besuchsbuchung: [PREPAID-QR.md](docs/PREPAID-QR.md), Tests `python3 tests/run-prepaid-qr.py`.
 
 Bestätigtes Löschen nur unverknüpfter Segmente und unvorbereiteter Kampagnenentwürfe: [MARKETING-DELETE.md](docs/MARKETING-DELETE.md), Tests `python3 tests/run-marketing-delete.py`.
+
+Support-Admin-Inbox: Kanalfilter, Zuständigkeit per Name und mobile Volldatenliste, siehe [SUPPORT.md](docs/SUPPORT.md). Tests `python3 tests/run-support.py`.

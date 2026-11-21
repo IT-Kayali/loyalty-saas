@@ -27,6 +27,12 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await cp.locator('[name=name]').fill('Max Besucher');await cp.locator('[name=email]').fill('besucher@kunde.invalid');await cp.locator('[name=subject]').fill('Frage vor Registrierung');await cp.locator('[name=message]').fill('Hallo, gibt es eine Testphase?');await cp.locator('form button.btn').last().click();await cp.waitForLoadState();
  yes((await cp.content()).includes('nicht verifiziert'),label+': contact confirms unverified address');yes(await noScroll(cp),label+': contact page has no horizontal overflow');
  await cp.screenshot({path:`${out}/support-contact-${label}.png`,fullPage:true});
+ await a.goto(U+'/admin/support');await a.locator('[name=channel]').selectOption('contact');await a.getByRole('button',{name:'Suchen',exact:true}).click();await a.waitForLoadState();
+ yes((await a.content()).includes('Frage vor Registrierung') && !(await a.content()).includes(ref),label+': Kontaktkanal ohne Betreiberticket');
+ yes(await a.locator('[name=assignee]').evaluate(e=>e.tagName==='SELECT') && (await a.locator('[name=assignee]').textContent()).includes('Admin · admin@test.local'),label+': Zuständigkeit per Name auswählbar');
+ yes(await a.locator('.support-inbox-table').evaluate(e=>e.scrollWidth<=e.clientWidth+1),label+': vollständige Inbox ohne Tabellen-Scrollen');
+ yes(await noScroll(a),label+': Kanalfilter auf Desktop/Mobil ohne Überlauf');await a.screenshot({path:`${out}/support-channel-filter-${label}.png`,fullPage:true});
+ await a.locator('[name=channel]').selectOption('partner');await a.getByRole('button',{name:'Suchen',exact:true}).click();await a.waitForLoadState();yes((await a.content()).includes(ref) && !(await a.content()).includes('Frage vor Registrierung'),label+': Betreiberkanal ohne Kontaktanfragen');
  await pc.close();await ac.close();await c.close();
 }
 await b.close();console.log(n+' support browser assertions passed');})().catch(e=>{console.error(e);process.exit(1)});

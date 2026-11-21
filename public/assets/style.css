@@ -526,3 +526,13 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
  .analytics-programs td {display:flex;justify-content:space-between;gap:12px;white-space:normal;overflow-wrap:anywhere;border:0;padding:8px 0;}
  .analytics-programs td::before {content:attr(data-label);font-weight:600;flex:0 0 35%;}
 }
+
+@media(max-width:680px) {
+  .support-inbox-table table,.support-inbox-table tbody,.support-inbox-table tr,.support-inbox-table td { display:block; width:100%; box-sizing:border-box; }
+  .support-inbox-table thead { display:none; }
+  .support-inbox-table tr { border-bottom:2px solid var(--line); padding:8px 0; }
+  .support-inbox-table td { white-space:normal; overflow-wrap:anywhere; border:0; padding:7px 14px; }
+  .support-inbox-table td::before { content:attr(data-label); display:block; font-size:.8rem; font-weight:700; margin-bottom:3px; color:var(--muted); }
+}
+.support-inbox-table table { table-layout:fixed; }
+.support-inbox-table th,.support-inbox-table td { white-space:normal; overflow-wrap:anywhere; }

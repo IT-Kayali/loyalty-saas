@@ -57,7 +57,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
 | Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. Neu: Passwortreset mit Einmaltoken und Sessionwiderruf; eigenes Betreiberpasswort mit bisherigem Passwort ändern (OWNER-PASSWORD.md), beendet Websitzungen, nicht API-/Agent-Schlüssel. OTP, Geräteverwaltung und vollständiger Security-Audit fehlen. |
 | Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Getestetes Backup-/Restore-Werkzeug jetzt vorhanden. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker oder automatischer Updater. |
-| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Status/Priorität/Zuständigkeit/Suche, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Export/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
+| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Status/Priorität/Kanal/Namens-Zuständigkeit/Suche, filtertreuer Paginierung und mobiler Volldatenliste, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Export/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
 
 ## Empfohlene weitere Baupakete
 
