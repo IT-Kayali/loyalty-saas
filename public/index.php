@@ -33,6 +33,7 @@ require_once ROOT_DIR . '/app/inc/pwa.php';
 require_once ROOT_DIR . '/app/inc/support.php';
 require_once ROOT_DIR . '/app/inc/ai.php';
 require_once ROOT_DIR . '/app/inc/templates.php';
+require_once ROOT_DIR . '/app/inc/expiry.php';
 
 /* ------------------------------------------------------------------ */
 /* Router                                                              */
@@ -93,6 +94,7 @@ try {
         $path === '/reward/create' && $method === 'POST' => route_reward_create(),
         $path === '/tier/create' && $method === 'POST' => route_tier_create(),
         $path === '/tier/delete' && $method === 'POST' => route_tier_delete(),
+        $path === '/program/expiry' && $method === 'POST' => route_program_expiry(),
         $path === '/bonus/create' && $method === 'POST' => route_bonus_create(),
         $path === '/bonus/delete' && $method === 'POST' => route_bonus_delete(),
         $path === '/achievement/create' && $method === 'POST' => route_achievement_create(),
@@ -619,7 +621,7 @@ function route_program(int $id): never
           <label>' . t('Bis') . ' <input type="number" name="end_hour" value="16" min="1" max="24"></label>
           <label>' . t('Multiplikator') . ' <input type="number" name="multiplier" value="2" min="2" max="10"></label>
           <button class="btn">' . t('Hinzufügen') . '</button>
-        </form>';
+        </form>' . points_expiry_form_html($p);
     }
 
     if($p['type']==='voucher')$body.=voucher_form_html($p);
@@ -748,7 +750,7 @@ function member_panels(int $id, array $programs, string $actionBase): string
                     . h($r['name']) . ' (' . (int)$r['points_cost'] . ' P.)</button>';
             }
             $body .= '<p class="big-number">' . (int)$card['points'] . ' <span>' . t('Punkte') . '</span></p>
-              ' . tier_html((int)$p['id'], (int)($card['points_lifetime'] ?? 0)) . '
+              ' . tier_html((int)$p['id'], (int)($card['points_lifetime'] ?? 0)) . points_expiry_notice_html((int)$card['id']) . '
               <form method="post" action="' . $actionUrl . '" class="form inline-form">' . csrf_field() . '
                 <input type="number" name="amount" value="10" min="1" max="10000" style="width:6rem">
                 <button class="btn" name="action" value="points_add">' . t('Punkte gutschreiben') . '</button>
@@ -775,7 +777,7 @@ function member_panels(int $id, array $programs, string $actionBase): string
                 $body .= '<li><span class="muted">' . h($txnRow['created_at']) . '</span> ' . h($txnRow['note']);
                 if ($txnRow['reversed_at'] ?? null) {
                     $body .= ' <span class="muted">(' . t('storniert') . ')</span>';
-                } elseif (!in_array($txnRow['kind'], ['reversal', 'reward_earned'], true) && ($actionBase!=='/staff/card' || (($counterStaff=current_staff()) && in_array('reverse',staff_permissions($counterStaff),true) && (int)$txnRow['staff_id']===(int)$counterStaff['id']))) {
+                } elseif (!in_array($txnRow['kind'], ['reversal', 'reward_earned', 'points_expire'], true) && ($actionBase!=='/staff/card' || (($counterStaff=current_staff()) && in_array('reverse',staff_permissions($counterStaff),true) && (int)$txnRow['staff_id']===(int)$counterStaff['id']))) {
                     $body .= ' <form method="post" action="' . $actionBase . '/' . $cid . '/undo" class="undo-form" onsubmit="return confirm(\'' . t('Diese Aktion stornieren?') . '\')">' . csrf_field() . '<button class="undo-btn" name="txn_id" value="' . (int)$txnRow['id'] . '" title="' . t('Stornieren') . '">↩</button></form>';
                 }
                 $body .= '</li>';

@@ -502,6 +502,7 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'programs', 'pass_currency', "TEXT NOT NULL DEFAULT 'EUR'");
     ensure_column($pdo, 'businesses', 'join_code', 'TEXT');
     ensure_column($pdo, 'transactions', 'reversed_at', 'TEXT');
+    ensure_column($pdo, 'programs', 'points_expire_days', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'cards', 'points_lifetime', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'businesses', 'referral_points_referrer', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'businesses', 'referral_points_referee', 'INTEGER NOT NULL DEFAULT 0');

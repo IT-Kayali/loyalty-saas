@@ -18,6 +18,8 @@ Optionaler MCP-Endpunkt `/mcp` mit Bearer-Schlüsseln (Lesen oder Lesen und änd
 
 Fertige Programm-Vorlagen für Restaurant, Café, Imbisswagen, Grillhähnchen, Friseur und weitere Branchen. [Übersicht](docs/TEMPLATES.md).
 
+Optionaler Punkteverfall bei Inaktivität pro Programm, per Cron oder Button. [Regeln und Grenzen](docs/POINTS-EXPIRY.md).
+
 ## WordPress-Händlerdashboard
 
 Eigener WordPress-Adminbereich für Mitglieder, aktuelle Salden, Punkte/Stempel und bestätigte Prämieneinlösung, auch ohne WooCommerce. Admin-only-Verbindung, geschützter API-Schlüssel und transaktionaler Wiederholschutz. Eine Site verbindet genau ein Unternehmen. Einrichtung, echte lokale WordPress-Tests und Grenzen: [Plugin-README](integrations/woocommerce/README.md).

@@ -277,7 +277,7 @@ function wallet_cards_html(int $memberId): string
         } elseif ($c['type'] === 'points') {
             $body .= '<h2>' . h($c['program_name']) . '</h2>
               <p class="big-number">' . (int)$c['points'] . ' <span>' . t('Punkte') . '</span></p>'
-              . tier_html((int)$c['program_id'], (int)($c['points_lifetime'] ?? 0));
+              . tier_html((int)$c['program_id'], (int)($c['points_lifetime'] ?? 0)) . points_expiry_notice_html((int)$c['id']);
             $rewards = db()->prepare('SELECT * FROM rewards WHERE program_id = ? ORDER BY points_cost');
             $rewards->execute([$c['program_id']]);
             foreach ($rewards->fetchAll() as $r) {
