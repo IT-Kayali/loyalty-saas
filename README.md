@@ -193,3 +193,5 @@ Kampagnen-Inbox, Versandbelege und Mail-Outbox atomar vorbereiten: [CAMPAIGN-DIS
 Eigene Kampagnenentwürfe bearbeiten und vollständigen Text prüfen: [CAMPAIGN-EDIT.md](docs/CAMPAIGN-EDIT.md), Tests `python3 tests/run-campaign-edit.py`.
 
 Die Code-Gutschein-Auswertung bietet einen aggregierten CSV-Download für denselben UTC-Zeitraum, ohne Mitgliedsdaten/Codes: [VOUCHER-REPORT.md](docs/VOUCHER-REPORT.md).
+
+Persönlicher QR bereits gekaufter Prepaid-Pässe mit getrennter Team-Prüfung vor Besuchsbuchung: [PREPAID-QR.md](docs/PREPAID-QR.md), Tests `python3 tests/run-prepaid-qr.py`.

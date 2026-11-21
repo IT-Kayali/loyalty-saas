@@ -72,3 +72,5 @@ Auf der Programmseite zeigt die Batch-Tabelle Codes, bisherige Einlösungen, off
 Grenzen: Die Übersicht zeigt die letzten 20 Batchnamen, ohne Suche/Seitenwechsel. Offene Codes können abgelaufen sein; die Anzeige ist kein Gültigkeitsversprechen. Es gibt keine Einzelcode-Stornierung, Benachrichtigung betroffener Mitglieder, Rückerstattung oder Rücknahme vergangener Einlösungen und keinen eigenen Storno-Webhook. Batchaktionen und Einlösen verwenden `BEGIN IMMEDIATE`; ein eigener Paralleltest für Storno gegen Einlösen fehlt. Kein Test mit echten Geräten/POS-Systemen.
 
 Tests: `python3 tests/run-voucher-batches.py`, Wegwerf-Datenbank, HTTP/Rechte/Audit/CSV, teilweise verwendete Codes, historische Namensduplikate und Ablauf nach Wiederherstellung sowie Chromium Desktop/Mobil einschließlich Bestätigung abbrechen.
+
+Bereits gekaufte Besuchs-/Zeitpässe haben jetzt einen persönlichen QR in der angemeldeten Wallet und eine getrennte Prüfseite nach Team-Scan: [PREPAID-QR.md](PREPAID-QR.md). Kein Kauf-/Zahlungs-QR.

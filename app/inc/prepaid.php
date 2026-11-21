@@ -72,7 +72,7 @@ function route_prepaid_settings(int $id): never
     }catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
     redirect('/program/'.$id);
 }
-function prepaid_member_html(int $memberId,string $base,bool $readOnly=false): string
+function prepaid_member_html(int $memberId,string $base,bool $readOnly=false,bool $privateQr=false): string
 {
     $q=db()->prepare('SELECT * FROM members WHERE id=?');$q->execute([$memberId]);$m=$q->fetch();if(!$m)return '';
     $q=db()->prepare('SELECT * FROM prepaid_issues WHERE member_id=? ORDER BY COALESCE(expires_at,\'9999\'),id DESC LIMIT 100');$q->execute([$memberId]);$issues=$q->fetchAll();
@@ -80,6 +80,7 @@ function prepaid_member_html(int $memberId,string $base,bool $readOnly=false): s
     foreach($issues as $p) {
         $expired=$p['expires_at'] && $p['expires_at']<=gmdate('Y-m-d H:i:s');$empty=$p['kind']==='visits' && (int)$p['remaining']===0;
         $html.='<article class="pass-item"><h3>'.h($p['name']).'</h3><p><code>'.h(substr($p['code'],-8)).'</code> · '.($p['kind']==='unlimited'?'Unbegrenzt':(int)$p['remaining'].' / '.(int)$p['original_visits'].' Besuche').'</p><p class="muted">'.($expired?'Abgelaufen':($empty?'Aufgebraucht':'Aktiv')).' · '.($p['expires_at']?'Bis '.h($p['expires_at']).' UTC':'Ohne Ablauf').'</p>';
+        if($privateQr && !$expired && !$empty)$html.='<div class="qr-box" data-qr="P-'.h($p['code']).'" data-qr-size="180"></div><p><code>P-'.h($p['code']).'</code></p><p class="muted">Diesen Pass an der Kasse prüfen lassen. Nicht weitergeben: Der QR enthält deinen Passcode. Erst das Team bestätigt einen Besuch.</p>';
         if(!$readOnly && !$expired && !$empty)$html.='<form method="post" action="'.$base.'/prepaid/'.(int)$p['id'].'/use" class="form inline-form">'.csrf_field().'<input type="hidden" name="version" value="'.(int)$p['version'].'"><input type="hidden" name="operation" value="'.bin2hex(random_bytes(16)).'"><label>Besuche<input type="number" name="quantity" value="1" min="1" max="'.($p['kind']==='unlimited'?1:min(100,(int)$p['remaining'])).'"></label><button class="btn">Besuch bestätigen</button></form>';
         $q=db()->prepare('SELECT l.*,r.id AS reversal FROM prepaid_ledger l LEFT JOIN prepaid_ledger r ON r.reverses_id=l.id WHERE l.issue_id=? ORDER BY l.id DESC LIMIT 15');$q->execute([$p['id']]);$html.='<details><summary>Verlauf</summary><ul>';
         foreach($q->fetchAll() as $e){$html.='<li>'.h($e['created_at']).' · '.h(['sale'=>'Verkauf','visit'=>'Besuch','reversal'=>'Storno'][$e['kind']] ?? $e['kind']).' · '.(int)$e['quantity'];if(!$readOnly && $e['kind']==='visit' && !$e['reversal'])$html.='<form method="post" class="undo-form" action="'.$base.'/prepaid/'.(int)$p['id'].'/reverse">'.csrf_field().'<input type="hidden" name="entry_id" value="'.(int)$e['id'].'"><input type="hidden" name="operation" value="'.bin2hex(random_bytes(16)).'"><button class="undo-btn">Stornieren</button></form>';$html.='</li>';}
@@ -124,4 +125,19 @@ function route_prepaid_export(int $bid): never
     $u=require_login();if(!own_business((int)$u['id'],$bid))not_found();
     $q=db()->prepare('SELECT l.id,l.created_at,i.code,i.name,i.currency,i.receipt,l.kind,l.quantity,l.amount_cents,l.reverses_id FROM prepaid_ledger l JOIN prepaid_issues i ON i.id=l.issue_id WHERE l.business_id=? ORDER BY l.id LIMIT 10001');$q->execute([$bid]);$rows=$q->fetchAll();if(count($rows)>10000){http_response_code(422);echo 'Exportlimit erreicht';exit;}
     header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="prepaid-ledger.csv"');header('Cache-Control: private, no-store');$f=fopen('php://output','w');fputcsv($f,['ID','UTC','Pass','Name','Currency','Receipt','Action','Quantity','Cents','Reverses'],',','"','');foreach($rows as $row){foreach($row as &$v)if(is_string($v)&&preg_match('/^[\s]*[=+@-]/u',$v))$v="'".$v;unset($v);fputcsv($f,array_values($row),',','"','');}fclose($f);exit;
+}
+
+/** Scan-Vorschau eines bereits verkauften Passes, ohne GET-Buchung. */
+function route_prepaid_scan(string $code): never
+{
+    $s=require_staff();require_staff_permission('redeem',$s);
+    $q=db()->prepare('SELECT i.*,m.name AS member_name,b.name AS business_name FROM prepaid_issues i JOIN members m ON m.id=i.member_id AND m.business_id=i.business_id JOIN businesses b ON b.id=i.business_id WHERE i.code=? AND i.business_id=?');
+    $q->execute([$code,$s['business_id']]);$p=$q->fetch();if(!$p)not_found();
+    header('Cache-Control: private, no-store');
+    $expired=$p['expires_at'] && $p['expires_at']<=gmdate('Y-m-d H:i:s');$empty=$p['kind']==='visits' && (int)$p['remaining']===0;
+    $body='<p><a href="/staff/scan">← Scanner</a></p><h1>Gekauften Pass prüfen</h1><section class="panel prepaid-scan"><h2>'.h($p['name']).'</h2><p>Unternehmen: '.h($p['business_name']).'</p><p>Mitglied: '.h($p['member_name']).' (#'.(int)$p['member_id'].')</p><p>Pass: <code>'.h(substr($p['code'],-8)).'</code></p><p>'.($p['kind']==='unlimited'?'Unbegrenzt':(int)$p['remaining'].' / '.(int)$p['original_visits'].' Besuche').'</p><p>'.($p['expires_at']?'Bis '.h($p['expires_at']).' UTC':'Ohne Ablauf').'</p><p class="muted">Der Scan hat nichts gebucht. Richtigen Kunden und Pass prüfen. Keine Zahlung durch diese Aktion.</p>';
+    if($expired || $empty)$body.='<p class="alert">'.($expired?'Pass abgelaufen.':'Pass aufgebraucht.').' Kein Besuch möglich.</p>';
+    else $body.='<form method="post" action="/staff/prepaid/'.(int)$p['id'].'/use" class="form">'.csrf_field().'<input type="hidden" name="version" value="'.(int)$p['version'].'"><input type="hidden" name="operation" value="'.bin2hex(random_bytes(16)).'"><label>Besuche<input type="number" name="quantity" value="1" min="1" max="'.($p['kind']==='unlimited'?1:min(100,(int)$p['remaining'])).'" required></label><label class="check"><input type="checkbox" required> Richtigen Kunden und diesen Pass geprüft</label><button class="btn">Besuch bestätigen</button></form>';
+    $body.='<p><a href="/staff/member/'.(int)$p['member_id'].'">Kundenkarte und Passverlauf</a></p></section>';
+    page('Gekauften Pass prüfen',$body);exit;
 }

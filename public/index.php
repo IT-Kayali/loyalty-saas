@@ -137,6 +137,7 @@ try {
         preg_match('#^/(?:staff/)?business/(\d+)/voucher-counter$#',$path,$m)===1 => route_voucher_counter((int)$m[1],$method),
         preg_match('#^/program/(\d+)/prepaid-settings$#',$path,$m)===1 && $method==='POST' => route_prepaid_settings((int)$m[1]),
         preg_match('#^/business/(\d+)/prepaid-export$#',$path,$m)===1 => route_prepaid_export((int)$m[1]),
+        preg_match('#^/staff/prepaid/scan/([A-F0-9]{20})$#',$path,$m)===1 && $method==='GET' => route_prepaid_scan($m[1]),
         preg_match('#^/(?:staff/)?prepaid/sell$#',$path)===1 && $method==='POST' => route_prepaid_action('sell'),
         preg_match('#^/(?:staff/)?prepaid/(\d+)/(use|reverse)$#',$path,$m)===1 && $method==='POST' => route_prepaid_action($m[2],(int)$m[1]),
         preg_match('#^/business/(\d+)/mail$#',$path,$m)===1 => route_mail_admin((int)$m[1],$method),

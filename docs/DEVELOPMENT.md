@@ -172,3 +172,7 @@ Die Segment-Suite prüft zusätzlich die ungespeicherte Anzahl-Vorschau ohne Än
 `python3 tests/run-campaign-edit.py`: 35 Domänen-/HTTP-/Parallelprüfungen und 12 Browserprüfungen für Editieren ohne Versand, vollständige Textansicht, Konflikte und unveränderbare vorbereitete Inhalte. [CAMPAIGN-EDIT.md](CAMPAIGN-EDIT.md).
 
 Die Gutschein-Auswertung prüft jetzt auch den aggregierten CSV-Download: 40 Domänen-/HTTP- und 16 Browserprüfungen. Schema, Datumsfilter, Centwerte ohne Währungsaddition, Rechte und harter Abbruch bei zu vielen Datensätzen.
+
+## QR gekaufter Pässe
+
+`python3 tests/run-prepaid-qr.py`: 26 Domänen-/HTTP- und 11 Browserprüfungen für eigene Wallet-QRs, keine öffentlichen Vollcodes, Scan ohne Buchung, Rechte, Datum, Version und ausdrückliche Besuchsbestätigung. [PREPAID-QR.md](PREPAID-QR.md).

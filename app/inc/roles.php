@@ -272,7 +272,7 @@ function route_member_logout(): never
 }
 
 /** Read-only Kartenansicht eines Mitglieds (Wallet & oeffentliche Karte). */
-function wallet_cards_html(int $memberId): string
+function wallet_cards_html(int $memberId,bool $privatePassQr=false): string
 {
     $stmt = db()->prepare('SELECT c.*, p.type, p.name AS program_name, p.description, p.stamps_required,
         p.reward_text, p.voucher_value, p.pass_visits,p.card_design
@@ -326,7 +326,7 @@ function wallet_cards_html(int $memberId): string
         }
         $body .= '</section>';
     }
-    $body.=prepaid_member_html($memberId,'',true);
+    $body.=prepaid_member_html($memberId,'',true,$privatePassQr);
     return $body;
 }
 
@@ -370,7 +370,7 @@ function route_wallet(): never
 
     foreach ($rows as $m) {
         $body .= '<h2 class="wallet-biz">' . h($m['business_name']) . '</h2>';
-        $cards = wallet_cards_html((int)$m['id']);
+        $cards = wallet_cards_html((int)$m['id'],true);
         $body .= $cards ?: '<p class="muted">' . t('Noch keine Karten bei diesem Geschäft.') . '</p>';
         $body .= $claimsHtml[(int)$m['id']] ?? '';
         $body .= '<p><a href="/c/' . h($m['code']) . '" target="_blank">' . t('Karte zum Vorzeigen (QR)') . '</a></p>';
