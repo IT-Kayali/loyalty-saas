@@ -561,3 +561,7 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 
 /* Voucher batch actions remain visible when print/QR joins status actions. */
 .voucher-actions{display:flex;flex-wrap:wrap;gap:6px;min-width:0;max-width:100%}.voucher-actions .inline-action{margin:0}.voucher-actions .btn{white-space:normal}.voucher-batches td:last-child{white-space:normal}
+
+/* Read-only UTC monthly summary. */
+.monthly-kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}.monthly-kpis h2{font-size:16px;overflow-wrap:anywhere}.monthly-number{font-size:30px;font-weight:700;margin:8px 0}.monthly-programs td{overflow-wrap:anywhere;white-space:normal}.monthly-programs table{table-layout:fixed;width:100%}
+@media(max-width:640px){.monthly-programs table,.monthly-programs tbody,.monthly-programs tr{display:block;width:100%}.monthly-programs thead{display:none}.monthly-programs td{display:flex;justify-content:space-between;gap:14px;width:100%;box-sizing:border-box}.monthly-programs td::before{content:attr(data-label);font-weight:600;min-width:110px}.monthly-programs tr+tr{border-top:2px solid var(--line)}}

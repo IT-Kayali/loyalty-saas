@@ -115,7 +115,7 @@ function route_analytics(int $businessId): never
 
     page('Analytics: ' . $b['name'], '
       <p><a href="/business/' . $businessId . '" class="muted">← ' . h($b['name']) . '</a></p>
-      <h1>Analytics</h1>
+      <h1>Analytics</h1><p><a class="btn ghost" href="/business/' . $businessId . '/monthly-summary">Monatsübersicht (UTC)</a></p>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">' . $kpiHtml . '</div>
       <p class="muted">Einlösungen zählen Stempelprämien, Punkteprämien, einfache Gutscheinkarten und Code-Gutscheine ohne stornierte Transaktionen. Keine Anzahl verkaufter Prepaid-Pässe oder Geldsumme. Einlösungszahl und Programm-Performance gelten für alle gespeicherten Daten, das Aktivitätsdiagramm nur für die letzten 30 UTC-Tage.</p>
       <h2>' . t('Aktivität') . '</h2>

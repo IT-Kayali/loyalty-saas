@@ -241,3 +241,7 @@ Organisation bietet explizites Aktivieren/Deaktivieren mit geprüftem Ausgangsst
 ## Gutschein-Batch-Druck
 
 Privater A4-Browserdruck und einzelne lokale QR-PNGs, ohne Erzeugen/Einlösen oder Versand: [docs/VOUCHER-PRINT.md](docs/VOUCHER-PRINT.md). Tests: `python3 tests/run-voucher-print.py`.
+
+## UTC-Monatsübersicht
+
+Separate private Eigentümer-Leseansicht mit Monatsfilter und klar abgegrenzten Ereigniszahlen, ohne Versand oder finanzielle Auswertung: [MONTHLY-SUMMARY.md](docs/MONTHLY-SUMMARY.md). Tests: `python3 tests/run-monthly-summary.py`.

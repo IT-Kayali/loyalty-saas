@@ -214,3 +214,7 @@ Meilenstein-Suite jetzt 50 Domänen-/HTTP-/Parallel- und 18 Browserprüfungen ei
 ## Gutschein-Batch-Druck
 
 Privater A4-Browserdruck und einzelne lokale QR-PNGs, ohne Erzeugen/Einlösen oder Versand: [VOUCHER-PRINT.md](VOUCHER-PRINT.md). Tests: `python3 tests/run-voucher-print.py`.
+
+## UTC-Monatsübersicht
+
+Separate private Eigentümer-Leseansicht mit Monatsfilter und klar abgegrenzten Ereigniszahlen, ohne Versand oder finanzielle Auswertung: [MONTHLY-SUMMARY.md](MONTHLY-SUMMARY.md). Tests: `python3 tests/run-monthly-summary.py`.
