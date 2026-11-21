@@ -217,3 +217,7 @@ Neue Meilensteine und Bearbeitungen verwenden dieselben Grenzen für Namen, Schw
 ## Eigener Supportstatus
 
 Betreiber können eigene Tickets ohne neue Nachricht schließen und wieder öffnen. Thread bleibt erhalten, keine Mail und kein neues Kontaktrecht. Alte Formulare überschreiben keinen neueren Stand. [Supportstatus und Grenzen](docs/SUPPORT.md).
+
+## Admin-Aktivitätsprotokoll
+
+Plattform-Admins können bestehende Protokolle nach UTC-Tagen, exakter Aktion und Konto filtern und ältere Einträge lesen. Keine Detaildaten oder Exporte, keine Zusage einer vollständigen Sicherheitsgeschichte. [Umfang, Datenschutz und Tests](docs/ADMIN-AUDIT.md).

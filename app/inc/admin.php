@@ -89,7 +89,7 @@ function route_admin(string $method): never
     $body.='<form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="webhook_run_due"><button class="btn ghost small">'.t('Fällige Wiederholungen jetzt ausführen').'</button></form><p></p>';
     $body.='<section class="panel"><h2>'.t('Transaktionen exportieren').'</h2><p>CSV mit Datum, Unternehmen, Programm, Aktion und Betrag. Maximal 10.000 Einträge pro Zeitraum.</p><form method="get" action="/admin/export" class="form inline-form"><label>Von<input type="date" name="from" value="'.date('Y-m-01').'" required></label><label>Bis<input type="date" name="to" value="'.date('Y-m-d').'" required></label><button class="btn">CSV herunterladen</button></form></section>';
     $body.='<section class="panel"><h2>'.t('Plattform-Einstellungen').'</h2><form method="post" class="form">'.csrf_field().'<input type="hidden" name="action" value="settings"><label>Plattform-Name<input name="platform_name" maxlength="60" value="'.h(platform_setting('platform_name','Loyalty')).'" required></label><label class="check"><input type="checkbox" name="registration_open" '.(platform_setting('registration_open','1')==='1'?'checked':'').'> Betreiber-Registrierung erlauben</label><button class="btn">Speichern</button></form></section>';
-    $body.='<h2>'.t('Aktivitätsprotokoll').'</h2><div class="table-wrap"><table><thead><tr><th>UTC</th><th>Konto</th><th>Aktion</th></tr></thead><tbody>';
+    $body.='<h2>'.t('Aktivitätsprotokoll').'</h2><p><a class="btn ghost" href="/admin/audit">Filtern und ältere Einträge lesen</a></p><div class="table-wrap"><table><thead><tr><th>UTC</th><th>Konto</th><th>Aktion</th></tr></thead><tbody>';
     foreach(db()->query('SELECT a.created_at,u.email,a.action FROM audit_logs a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 100')->fetchAll() as $a) $body.='<tr><td>'.h($a['created_at']).'</td><td>'.h($a['email']).'</td><td>'.h($a['action']).'</td></tr>';
     page(t('Admin-Dashboard'),$body.'</tbody></table></div>',$u);exit;
 }
@@ -112,4 +112,33 @@ function route_admin_export(): never
         unset($v);fputcsv($out,array_values($row),',','"','');
     }
     fclose($out);exit;
+}
+
+/** Read-only index of existing audit rows, without stored detail payloads. */
+function route_admin_audit(string $method): never
+{
+    $u=require_platform_admin();header('Cache-Control: private, no-store');
+    if($method!=='GET'){header('Allow: GET');http_response_code(405);exit;}
+    try{
+        $filters=[];foreach(['from','to','action','account','before'] as $key){$v=$_GET[$key] ?? '';if(!is_string($v) || preg_match('/[\x00-\x1f\x7f]/',$v))throw new InvalidArgumentException('Filter müssen einzelne Werte ohne Steuerzeichen sein.');$filters[$key]=trim($v);}
+        ['from'=>$from,'to'=>$to,'action'=>$action,'account'=>$account,'before'=>$before]=$filters;
+        foreach([$from,$to] as $date)if($date!==''){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$date,new DateTimeZone('UTC'));if(!$d || $d->format('Y-m-d')!==$date)throw new InvalidArgumentException('Gültige UTC-Daten im Format JJJJ-MM-TT angeben.');}
+        if($from!=='' && $to!=='' && $from>$to)throw new InvalidArgumentException('Von darf nicht nach Bis liegen.');
+        if(strlen($action)>120 || ($action!=='' && !preg_match('/^[a-zA-Z0-9_.:-]+$/D',$action)))throw new InvalidArgumentException('Aktion exakt mit maximal 120 Zeichen angeben (Buchstaben, Zahlen, Punkt, Unterstrich, Doppelpunkt, Bindestrich).');
+        if(!mb_check_encoding($account,'UTF-8') || mb_strlen($account)>254 || preg_match('/[\x00-\x1f\x7f]/u',$account))throw new InvalidArgumentException('Kontosuche mit maximal 254 Zeichen ohne Steuerzeichen angeben.');
+        if($before!=='' && (!preg_match('/^[1-9][0-9]{0,17}$/D',$before)))throw new InvalidArgumentException('Ungültige Folgeseite.');
+    }catch(InvalidArgumentException $e){http_response_code(422);page('Protokollfilter prüfen','<h1>Protokollfilter prüfen</h1><p>'.h($e->getMessage()).'</p><p><a href="/admin/audit">Filter zurücksetzen</a></p>',$u);exit;}
+    $where=['1=1'];$params=[];
+    if($from!==''){$where[]='a.created_at>=?';$params[]=$from.' 00:00:00';}
+    if($to!==''){$where[]='a.created_at<=?';$params[]=$to.' 23:59:59';}
+    if($action!==''){$where[]='a.action=?';$params[]=$action;}
+    if($account!==''){$where[]="u.email LIKE ? ESCAPE '!'";$params[]='%'.str_replace(['!','%','_'],['!!','!%','!_'],$account).'%';}
+    if($before!==''){$where[]='a.id<?';$params[]=(int)$before;}
+    $q=db()->prepare('SELECT a.id,a.created_at,a.action,u.email FROM audit_logs a LEFT JOIN users u ON u.id=a.user_id WHERE '.implode(' AND ',$where).' ORDER BY a.id DESC LIMIT 101');$q->execute($params);$rows=$q->fetchAll();$more=count($rows)>100;$rows=array_slice($rows,0,100);
+    $body='<p><a href="/admin">← Admin-Dashboard</a></p><h1>Aktivitätsprotokoll</h1><p>Nur vorhandene Protokolleinträge, neueste ID zuerst, maximal 100 je Seite. Keine lückenlose Sicherheits- oder Änderungshistorie. Gespeicherte Detaildaten werden hier nicht angezeigt. Konto zeigt die heutige E-Mail, keinen historischen Identitätsnachweis.</p><form method="get" class="form inline-form"><label>Von (UTC, inklusive)<input type="date" name="from" value="'.h($from).'"></label><label>Bis (UTC, inklusive)<input type="date" name="to" value="'.h($to).'"></label><label>Aktion exakt<input name="action" maxlength="120" placeholder="support.partner_state" value="'.h($action).'"></label><label>Konto enthält<input name="account" maxlength="254" value="'.h($account).'"></label><button class="btn">Filtern</button><a href="/admin/audit">Zurücksetzen</a></form><p>'.count($rows).' Einträge auf dieser Seite'.($before!==''?' · ältere Folgeseite':'').'.</p><div class="table-wrap audit-table"><table><thead><tr><th>ID / UTC</th><th>Konto</th><th>Aktion</th></tr></thead><tbody>';
+    foreach($rows as $row)$body.='<tr data-audit-id="'.(int)$row['id'].'"><td data-label="ID / UTC">'.(int)$row['id'].'<br>'.h($row['created_at']).'</td><td data-label="Konto">'.h($row['email'] ?? 'Konto nicht mehr vorhanden').'</td><td data-label="Aktion">'.h($row['action']).'</td></tr>';
+    if(!$rows)$body.='<tr><td colspan="3">Keine passenden Einträge.</td></tr>';
+    $body.='</tbody></table></div>';
+    if($more){$filters['before']=(string)end($rows)['id'];$body.='<p><a class="btn ghost" href="/admin/audit?'.h(http_build_query($filters)).'">Ältere 100</a></p>';}
+    page('Aktivitätsprotokoll',$body,$u);exit;
 }

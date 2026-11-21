@@ -92,6 +92,7 @@ try {
         (bool)preg_match('#^/ai/key/(\d+)$#D',$path,$aim) => route_ai_key((int)$aim[1],$method),
         (bool)preg_match('#^/ai/approval/([a-f0-9]{24})$#D',$path,$aim) => route_ai_approval($aim[1],$method),
         $path === '/billing' => route_billing($method),
+        $path === '/admin/audit' => route_admin_audit($method),
         $path === '/admin' => route_admin($method),
         $path === '/admin/export' => route_admin_export(),
         $path === '/business/create' && $method === 'POST' => route_business_create(),

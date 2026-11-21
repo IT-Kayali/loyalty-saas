@@ -53,7 +53,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Sprachen | Basis | DE/EN für bisherigen Bestand, neue Texte teilweise noch deutsch als Fallback. Nicht alle Originalsprachen; keine Übersetzungsverwaltung. |
 | PWA | Neu, Basis | Manifest/Icons, öffentliche Service-Worker-Hülle und ausdrücklicher Kartensnapshot mit QR/Suche/Typfilter. Keine Offlinebuchungen, Web-Push, automatische Erneuerung, eigenes Appbranding oder echten Gerätetests. |
 | Datenschutz | Basis | Datenexport/-löschung. Kein vollständiges Consent-/Cookie-Management, Aufbewahrungsjobs, Abmeldeverwaltung, Rechtstexte oder AVV. Keine DSGVO-Konformitätszusage. |
-| Aktivitätsprotokoll | Neu, Basis | Login und Admin-Einstellungen/Export protokolliert. Keine lückenlose Security-/Änderungshistorie für alle Module. |
+| Aktivitätsprotokoll | Neu, Basis | Login und Admin-Einstellungen/Export protokolliert. Neu: getrennte Admin-Leseansicht mit UTC-/Aktions-/Kontofilter und älteren Folgeseiten, ohne Details/Export (ADMIN-AUDIT.md). Keine lückenlose Security-/Änderungshistorie für alle Module. |
 | System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
 | Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. Neu: Passwortreset mit Einmaltoken und Sessionwiderruf; eigenes Betreiberpasswort mit bisherigem Passwort ändern (OWNER-PASSWORD.md), beendet Websitzungen, nicht API-/Agent-Schlüssel. OTP, Geräteverwaltung und vollständiger Security-Audit fehlen. |
 | Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Getestetes Backup-/Restore-Werkzeug jetzt vorhanden. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker oder automatischer Updater. |
@@ -146,3 +146,7 @@ Anlage und Editor verwenden dieselbe serverseitige Prüfung für Namen/Messgrö�
 ## Nachtrag: Eigener Supportstatus
 
 Betreiber können ein eigenes aktives Partner-Ticket schließen/wieder öffnen, auch ohne aktiven Bezahlplan. Keine Mail, Antwort, Löschung oder Änderung von Adminfeldern. Bestehende Versions-/CSRF-/Vorgangsprüfungen, atomarer Referenz-Audit, kein Kontakt-/Ausblendungszugriff. Kein Ersatz für vollständige Statushistorie oder Support-Parität. 23 Domänen-, 113 HTTP- und 58 Browserprüfungen. [Details und Grenzen](SUPPORT.md).
+
+## Nachtrag: Aktivitätsprotokoll lesen
+
+Zusätzliche Admin-GET-Ansicht bestehender Einträge: UTC-Tage, exakte Aktion, heutige Konto-E-Mail, 100 Zeilen und ID-Cursor für ältere Treffer. Privat/no-store, keine JSON-Details oder Schreib-/Exportfunktion. 39 HTTP-/DB- und 20 Browserprüfungen. Keine zusätzliche Erfassungsabdeckung, historische Identitätsbeweise oder manipulationssichere Aufbewahrung. [Details und Grenzen](ADMIN-AUDIT.md).

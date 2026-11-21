@@ -190,3 +190,7 @@ Support-Thread-Download: Suite jetzt 23 Domänen-, 79 HTTP- und 36 Browserprüfu
 `python3 tests/run-achievement-edit.py`: 83 Domänen-/HTTP-/Parallel- und 24 Browserprüfungen für Bearbeiten vor erster Freischaltung, keine Vergabe beim Speichern, Konflikt, Regel-/Historienerhalt und atomare lokale Bonusvergabe. [ACHIEVEMENTS.md](ACHIEVEMENTS.md).
 
 Meilenstein-Suite jetzt 50 Domänen-/HTTP-/Parallel- und 18 Browserprüfungen einschließlich Pause/Fortsetzen ohne Entzug oder nachträgliche Vergabe. [ACHIEVEMENTS.md](ACHIEVEMENTS.md).
+
+### Admin-Protokoll-Leseansicht
+
+`python3 tests/run-admin-audit.py`: 39 HTTP-/Datenbank- und 20 Desktop-/Mobilbrowserprüfungen für reine Leseansicht, Filter, Cursor, Rollen, Nebenwirkungsfreiheit und ausgeschlossene Details. [ADMIN-AUDIT.md](ADMIN-AUDIT.md).

@@ -539,3 +539,18 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 
 /* Long valid rule names must not widen the business page. */
 .achievement-list, .achievement-review { overflow-wrap: anywhere; }
+
+.audit-table th,.audit-table td { white-space:normal; overflow-wrap:anywhere; }
+@media(max-width:640px){
+ .audit-table table,.audit-table tbody {display:block;width:100%;}
+ .audit-table thead {display:none;}
+ .audit-table tr {display:block;border-bottom:1px solid var(--line,#ddd);padding:8px 0;}
+ .audit-table td {display:block;border:0;padding:7px 14px;}
+ .audit-table td::before {content:attr(data-label);display:block;font-weight:700;margin-bottom:3px;}
+}
+@media(min-width:641px){
+ .audit-table table {table-layout:fixed;}
+ .audit-table th:first-child {width:26%;}
+ .audit-table th:nth-child(2) {width:34%;}
+ .audit-table th:nth-child(3) {width:40%;}
+}
