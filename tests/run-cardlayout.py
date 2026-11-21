@@ -94,6 +94,6 @@ with tempfile.TemporaryDirectory(prefix='loyalty-cardlayout-') as temp:
    b=io.BytesIO();im.save(b,'PNG');return b.getvalue()
   save(dict(base,lay_front_title_text='Kaffee-Karte',lay_front_title_x='6',lay_front_title_y='8',lay_front_reward_y='84',lay_back_text_text='Zeige diesen Code an der Kasse.',lay_back_qr_size='34',lay_back_title_x='6',lay_back_title_y='8',lay_front_overlay_color='#C2410C',overlay_opacity='55',lay_front_text_show='1',lay_front_text_text='Zehn Getränke, eins gratis.',lay_front_stamps_size='9',lay_front_stamps_x='30',lay_front_stamps_y='52',lay_back_title_text='So funktioniert es',lay_back_overlay_color='#1C1A17'),{'background_image':('f.png','image/png',photo((120,70,30),(240,190,120))),'lay_back_image':('b.png','image/png',photo((30,40,60),(120,150,190)))})
   # Browser
-  subprocess.run(['node',str(R/'tests/cardlayout-ui.cjs'),str(sp)],cwd=R,check=True)
+  subprocess.run(['node',str(R/'tests/cardlayout-ui.cjs'),str(sp),mc],cwd=R,check=True)
  finally:s.terminate();s.wait();log.close()
  print(n,'Kartenlayout-Prüfungen bestanden')

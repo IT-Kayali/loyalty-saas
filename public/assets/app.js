@@ -190,14 +190,64 @@
     renderQrBox(qr);
   }
 
+  /* Text bleibt in seiner freien Flaeche. Gespeicherte Positionen bleiben erhalten. */
+  function fitCardFace(face) {
+    if (!face.clientWidth) return;
+    var bounds = face.getBoundingClientRect(), gap = bounds.width * .025;
+    var nodes = Array.from(face.querySelectorAll(".cl-el")).filter(function (n) { return getComputedStyle(n).display !== "none"; });
+    var texts = nodes.filter(function (n) { return /cl-(title|text|reward)/.test(n.className); });
+    texts.forEach(function (n) { n.style.width = ""; n.style.maxHeight = ""; n.style.webkitLineClamp = "unset"; });
+    var raw = nodes.map(function (n) { return {node:n, rect:n.getBoundingClientRect()}; });
+    var issues = [];
+    raw.forEach(function (a, i) {
+      if (a.rect.right > bounds.right + 1 || a.rect.bottom > bounds.bottom + 1) issues.push("Kartenrand");
+      raw.slice(i + 1).forEach(function (b) {
+        if (Math.min(a.rect.right,b.rect.right) > Math.max(a.rect.left,b.rect.left) + 1 && Math.min(a.rect.bottom,b.rect.bottom) > Math.max(a.rect.top,b.rect.top) + 1) issues.push("Überlappung");
+      });
+    });
+    var qr = raw.find(function (a) { return a.node.classList.contains("cl-qr"); });
+    texts.forEach(function (n) {
+      var r = n.getBoundingClientRect(), bottom = bounds.bottom - gap;
+      // Reserve room before the next text anchor, including long titles.
+      raw.forEach(function (a) {
+        if (a.node !== n && texts.indexOf(a.node) !== -1 && a.rect.top > r.top + 1 && a.rect.left < r.right && a.rect.right > r.left) bottom = Math.min(bottom, a.rect.top - gap);
+      });
+      if (qr && r.top < qr.rect.bottom && Math.min(r.bottom,bottom) > qr.rect.top && r.left < qr.rect.right && r.right > qr.rect.left) {
+        if (qr.rect.left - r.left > bounds.width * .18) {
+          n.style.width = Math.max(0, qr.rect.left - r.left - gap) + "px";
+        } else {
+          bottom = Math.min(bottom, qr.rect.top - gap);
+        }
+      }
+      // Wrapping can make previously short text taller, so cap its final box too.
+      r = n.getBoundingClientRect();
+      if (qr && r.left < qr.rect.right && r.right > qr.rect.left && r.top < qr.rect.bottom) bottom = Math.min(bottom, qr.rect.top - gap);
+      var line = parseFloat(getComputedStyle(n).lineHeight), room = Math.max(0, bottom - r.top);
+      n.style.maxHeight = room + "px";
+      n.style.webkitLineClamp = String(Math.max(1, Math.floor(room / line)));
+    });
+    face.dataset.layoutIssue = issues.length ? "1" : "0";
+    var wrap = face.closest(".cl-wrap"), warning = wrap.querySelector(".cl-warning");
+    if (warning) {
+      warning.hidden = !issues.length;
+      warning.textContent = issues.length ? "Layout-Warnung: Elemente überlappen oder ragen über den Kartenrand. Text wird zum Schutz gekürzt oder umbrochen. Bitte Positionen und Größen prüfen, auch auf kleinen Karten. Stempel und QR werden nicht automatisch verschoben." : "";
+    }
+  }
+
   /* Gestaltete Webkarte: Vorder-/Rueckseite umschalten */
   function initFaces() {
     document.querySelectorAll(".cl-wrap").forEach(function (w) {
       w.setAttribute("data-js", "1");
+      function fit() { w.querySelectorAll(".cl-face").forEach(fitCardFace); }
+      fit();
+      if (window.ResizeObserver) new ResizeObserver(fit).observe(w);
+      if (document.fonts) document.fonts.ready.then(fit);
+      w.addEventListener("layoutchange", fit);
       w.querySelectorAll(".cl-tab").forEach(function (b) {
         b.addEventListener("click", function () {
           w.setAttribute("data-side", b.getAttribute("data-side"));
           w.querySelectorAll(".cl-tab").forEach(function (o) { o.classList.toggle("active", o === b); });
+          fit();
         });
       });
     });
@@ -239,6 +289,7 @@
         if (name === "title" && !t) t = side === "front" ? n.getAttribute("data-default") : n.getAttribute("data-default");
         n.textContent = t;
       }
+      wrap.dispatchEvent(new Event("layoutchange"));
     }
     ["front", "back"].forEach(function (s) {
       ["title", "text", "reward", "stamps", "qr"].forEach(function (e) {

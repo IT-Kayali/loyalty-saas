@@ -17,7 +17,7 @@ function layout_defaults(): array
         'front' => ['image' => '', 'overlay_color' => '', 'overlay_opacity' => 60, 'els' => [
             'title' => $el(1, 6, 8), 'text' => $el(1, 6, 24), 'reward' => $el(1, 6, 82), 'stamps' => $el(1, 36, 58, 9), 'qr' => $el(0, 70, 8, 22)]],
         'back' => ['image' => '', 'overlay_color' => '', 'overlay_opacity' => 75, 'els' => [
-            'title' => $el(1, 6, 8), 'text' => $el(1, 6, 26, 0, 'Zeige diesen Code an der Kasse.'), 'reward' => $el(0, 6, 82), 'stamps' => $el(0, 6, 58, 8), 'qr' => $el(1, 62, 38, 34)]],
+            'title' => $el(1, 6, 8), 'text' => $el(1, 6, 26, 0, 'Zeige diesen Code an der Kasse.'), 'reward' => $el(0, 6, 82), 'stamps' => $el(0, 6, 58, 8), 'qr' => $el(1, 64, 42, 30)]],
     ];
 }
 
@@ -127,7 +127,7 @@ function card_faces_html(array $d, array $ctx, bool $preview = false): string
         }
         $html .= '</div>';
     }
-    return $html . '</div>';
+    return $html . ($preview ? '<p class="cl-warning" role="status" aria-live="polite" hidden></p>' : '') . '</div>';
 }
 
 function cl_element_inner(string $e, array $x, array $d, array $ctx, string $side): string

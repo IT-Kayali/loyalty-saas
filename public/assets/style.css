@@ -475,3 +475,8 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 #layoutPreview .cl-el:hover, #layoutPreview .cl-el.drag { outline-color: rgba(255,255,255,.7); }
 #layoutPreview .cl-el.drag { cursor: grabbing; }
 .cl-wrap#layoutPreview { position: sticky; top: 12px; }
+
+/* Text boxes respect available space before QR, following text and card edge. */
+.cl-title, .cl-text, .cl-reward { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.cl-warning { color: #753b00; background: #fff1d6; border: 1px solid #bd7a29; border-radius: 10px; padding: 12px; font-size: 14px; line-height: 1.5; }
+.cl-warning[hidden] { display: none; }

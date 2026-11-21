@@ -19,8 +19,15 @@ Der Haken "Gestaltete Karte verwenden" ist standardmäßig aus. Dann bleibt die 
 
 ## Grenzen
 - Gilt nur für die Webkarte. **Apple-Wallet- und Google-Wallet-Pässe haben feste Layouts** und übernehmen nur Farben, Logo und Stempel-Streifen wie bisher, nicht die freie Positionierung oder die Rückseite.
-- Positionen sind Prozentwerte der Kartenfläche mit oberer linker Ecke, keine Ebenen und keine Drehung. Elemente können sich überlappen.
+- Positionen sind Prozentwerte der Kartenfläche mit oberer linker Ecke, keine Ebenen und keine Drehung. Der Designer warnt bei Überschneidungen oder Elementen außerhalb der Kartenfläche. Stempel und QR werden nicht automatisch verschoben; solche Konflikte müssen im Designer korrigiert werden.
 - Eine Karte pro Programm, die Stempel-Kreise erscheinen nur bei Stempelprogrammen. Der Kreis-Stil (Bild, Emoji) kommt weiter aus dem bisherigen Designer.
 - Kein Schriftartenwechsel, keine Schriftgröße je Element, keine Bilder als freie Elemente.
 - Nicht mit echten Geräten oder QR-Scannern getestet, nur Browser-Tests (Desktop und Mobil, inklusive Ziehen mit der Maus). Touch-Ziehen ist nicht gesondert getestet.
 - Die Wallet-Pässe von Apple und Google zeigen den QR-Code in ihrem eigenen Format.
+
+## Schutz vor QR-Überdeckung (Webkarte)
+- Neue Standard-Rückseite: Überschrift oben links, Hinweis darunter, QR weiter unten rechts (Links 64, Oben 42, Größe 30). Bereits gespeicherte Positionen werden nicht still umgeschrieben.
+- Im Browser begrenzen Textfelder ihre Fläche vor dem QR, dem nächsten Textfeld und dem Kartenrand. Lange Texte umbrechen; reicht der Platz nicht, werden ganze Zeilen gekürzt. Bei völlig unbrauchbaren Positionen kann ein Textfeld ganz verschwinden. Dann im Designer mehr Platz schaffen.
+- Die Warnung berücksichtigt die ursprünglichen Elementflächen vor der Textkürzung, erscheint live nach Eingabe, Ziehen und Seitenwechsel und verschwindet nach Korrektur. Sie blockiert das Speichern nicht. Nur die sichtbare Kartenseite wird geprüft.
+- Der Schutz läuft auch für bereits gespeicherte Designs in Wallet und öffentlicher Karte. Er benötigt JavaScript wie die Live-Vorschau. QR-Inhalt und gewählte QR-Größe bleiben dabei unverändert.
+- Automatisiert geprüft bei 1280, 390 und 320 Pixeln Browserbreite, einschließlich alter überlappender Positionen mit langen Texten. Kein Test auf echten Geräten oder mit physischem Scanner.
