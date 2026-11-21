@@ -1,0 +1,127 @@
+<?php
+declare(strict_types=1);
+
+/* ------------------------------------------------------------------ */
+/* Etappe 7: Analytics-Dashboard                                       */
+/* Doku: "Analytics" - Kennzahlen, Trends, Programm-Performance        */
+/* ------------------------------------------------------------------ */
+
+function route_analytics(int $businessId): never
+{
+    $u = require_login();
+    $b = own_business((int)$u['id'], $businessId);
+    if (!$b) {
+        not_found();
+    }
+    $db = db();
+
+    /* KPI-Karten */
+    $kpi = function (string $sql, array $params = []) use ($db) {
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
+    };
+    $members = $kpi('SELECT COUNT(*) FROM members WHERE business_id = ?', [$businessId]);
+    $activeMembers = $kpi("SELECT COUNT(DISTINCT c.member_id) FROM transactions t
+        JOIN cards c ON t.card_id = c.id JOIN programs p ON c.program_id = p.id
+        WHERE p.business_id = ? AND t.created_at >= datetime('now', '-30 days')", [$businessId]);
+    $stamps = $kpi("SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id
+        JOIN programs p ON c.program_id = p.id WHERE p.business_id = ? AND t.kind = 'stamp_add' AND t.reversed_at IS NULL", [$businessId]);
+    $pointsGiven = $kpi("SELECT COALESCE(SUM(t.amount),0) FROM transactions t JOIN cards c ON t.card_id = c.id
+        JOIN programs p ON c.program_id = p.id WHERE p.business_id = ? AND t.kind = 'points_add' AND t.reversed_at IS NULL", [$businessId]);
+    $redeems = $kpi("SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id
+        JOIN programs p ON c.program_id = p.id WHERE p.business_id = ?
+        AND t.kind IN ('reward_redeem','points_redeem','voucher_use') AND t.reversed_at IS NULL", [$businessId]);
+    $undos = $kpi("SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id
+        JOIN programs p ON c.program_id = p.id WHERE p.business_id = ? AND t.reversed_at IS NOT NULL", [$businessId]);
+    $campaignSent = $kpi('SELECT COUNT(*) FROM campaign_sends cs JOIN campaigns c2 ON cs.campaign_id = c2.id WHERE c2.business_id = ?', [$businessId]);
+    $achUnlocked = $kpi('SELECT COUNT(*) FROM member_achievements ma JOIN achievements a ON ma.achievement_id = a.id WHERE a.business_id = ?', [$businessId]);
+
+    $kpis = [
+        'Mitglieder' => $members,
+        'Aktiv (30 Tage)' => $activeMembers,
+        'Stempel vergeben' => $stamps,
+        'Punkte vergeben' => $pointsGiven,
+        'Einloesungen' => $redeems,
+        'Rueckgaengig' => $undos,
+        'Kampagnen-Empfaenger' => $campaignSent,
+        'Meilensteine erreicht' => $achUnlocked,
+    ];
+    $kpiHtml = '';
+    foreach ($kpis as $label => $value) {
+        $kpiHtml .= '<div class="panel" style="text-align:center;padding:14px">
+          <div style="font-size:26px;font-weight:700">' . $value . '</div>
+          <div class="muted" style="font-size:13px">' . h($label) . '</div></div>';
+    }
+
+    /* Aktivitaet der letzten 30 Tage (SVG-Balkendiagramm) */
+    $days = [];
+    for ($i = 29; $i >= 0; $i--) {
+        $days[date('Y-m-d', strtotime("-$i days"))] = 0;
+    }
+    $stmt = $db->prepare("SELECT substr(t.created_at, 1, 10) AS day, COUNT(*) AS n FROM transactions t
+        JOIN cards c ON t.card_id = c.id JOIN programs p ON c.program_id = p.id
+        WHERE p.business_id = ? AND t.created_at >= datetime('now', '-30 days') AND t.reversed_at IS NULL
+        GROUP BY day");
+    $stmt->execute([$businessId]);
+    foreach ($stmt->fetchAll() as $r) {
+        if (isset($days[$r['day']])) {
+            $days[$r['day']] = (int)$r['n'];
+        }
+    }
+    $max = max(1, max($days));
+    $bars = '';
+    $x = 0;
+    $w = 18;
+    $gap = 4;
+    $height = 120;
+    foreach ($days as $day => $n) {
+        $h = (int)round($n / $max * $height);
+        $bars .= '<rect x="' . $x . '" y="' . ($height - $h) . '" width="' . $w . '" height="' . max(1, $h) . '" rx="3"'
+            . ' fill="' . h($b['brand_color'] ?: '#E4572E') . '"><title>' . $day . ': ' . $n . ' Aktionen</title></rect>';
+        $x += $w + $gap;
+    }
+    $chart = '<svg viewBox="0 0 ' . $x . ' ' . $height . '" style="width:100%;height:auto" role="img" aria-label="Aktivitaet letzte 30 Tage">' . $bars . '</svg>'
+        . '<p class="muted" style="font-size:12px">Aktionen pro Tag, letzte 30 Tage (' . array_sum($days) . ' gesamt)</p>';
+
+    /* Programm-Performance */
+    $prog = $db->prepare("SELECT p.name, p.type,
+        (SELECT COUNT(*) FROM cards c WHERE c.program_id = p.id) AS cards,
+        (SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id WHERE c.program_id = p.id AND t.reversed_at IS NULL) AS actions,
+        (SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id WHERE c.program_id = p.id
+            AND t.kind IN ('reward_redeem','points_redeem','voucher_use') AND t.reversed_at IS NULL) AS redeems
+        FROM programs p WHERE p.business_id = ? ORDER BY p.id");
+    $prog->execute([$businessId]);
+    $rows = '';
+    foreach ($prog->fetchAll() as $p) {
+        $rows .= '<tr><td>' . h($p['name']) . '</td><td class="muted">' . h(TYPE_LABELS[$p['type']] ?? $p['type']) . '</td>
+          <td>' . (int)$p['cards'] . '</td><td>' . (int)$p['actions'] . '</td><td>' . (int)$p['redeems'] . '</td></tr>';
+    }
+    $progTable = $rows
+        ? '<table class="table"><thead><tr><th>Programm</th><th>Typ</th><th>Karten</th><th>Aktionen</th><th>Einloesungen</th></tr></thead><tbody>' . $rows . '</tbody></table>'
+        : '<p class="muted">Noch keine Programme.</p>';
+
+    /* Top-Mitglieder nach Lifetime-Punkten */
+    $top = $db->prepare("SELECT m.id, m.name, m.code, SUM(c.points_lifetime) AS lifetime
+        FROM cards c JOIN programs p ON c.program_id = p.id JOIN members m ON c.member_id = m.id
+        WHERE p.business_id = ? GROUP BY m.id ORDER BY lifetime DESC LIMIT 5");
+    $top->execute([$businessId]);
+    $topList = '';
+    foreach ($top->fetchAll() as $t) {
+        $topList .= '<li><a href="/member/' . (int)$t['id'] . '">' . h($t['name']) . '</a> <span class="muted">(' . h($t['code']) . ')</span> - ' . (int)$t['lifetime'] . ' Punkte</li>';
+    }
+    $topList = $topList ? '<ol>' . $topList . '</ol>' : '<p class="muted">Noch keine Punkte vergeben.</p>';
+
+    page('Analytics: ' . $b['name'], '
+      <p><a href="/business/' . $businessId . '" class="muted">← ' . h($b['name']) . '</a></p>
+      <h1>Analytics</h1>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">' . $kpiHtml . '</div>
+      <h2>Aktivitaet</h2>
+      <div class="panel">' . $chart . '</div>
+      <h2>Programm-Performance</h2>
+      ' . $progTable . '
+      <h2>Top-Mitglieder (Lifetime-Punkte)</h2>
+      ' . $topList . '
+    ', $u, $b['brand_color']);
+    exit;
+}
