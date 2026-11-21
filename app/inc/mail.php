@@ -71,6 +71,12 @@ function mail_worker(int $limit=25,?callable $transport=null): array
         db()->exec('BEGIN IMMEDIATE');$job=db()->query("SELECT * FROM mail_outbox WHERE status='queued' ORDER BY id LIMIT 1")->fetch();
         if(!$job){db()->exec('COMMIT');break;}
         db()->prepare("UPDATE mail_outbox SET status='sending',claimed_at=datetime('now'),attempts=attempts+1 WHERE id=?")->execute([$job['id']]);db()->exec('COMMIT');
+        if(str_starts_with($job['dedup_key'],'webhook-dead-owner-')) {
+            $pref=db()->prepare('SELECT webhook_owner_mail FROM businesses WHERE id=?');$pref->execute([$job['business_id']]);
+            if((int)$pref->fetchColumn()!==1) {
+                db()->prepare("UPDATE mail_outbox SET status='skipped',body='',last_error='Webhook owner mail disabled' WHERE id=?")->execute([$job['id']]);$stats['skipped']++;continue;
+            }
+        }
         if($job['category']==='marketing') {
             $q=db()->prepare('SELECT m.marketing_consent,b.user_id FROM members m JOIN businesses b ON b.id=m.business_id WHERE m.id=?');$q->execute([$job['member_id']]);$m=$q->fetch();
             if(!$m || !$m['marketing_consent'] || plan_policy((int)$m['user_id'],'campaigns')!==null) {

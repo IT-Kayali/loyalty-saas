@@ -43,11 +43,21 @@ Ohne Cron passiert nichts automatisch. Der Admin kann dann im Admin-Dashboard "F
 - Business-Seite, Bereich Webhooks: roter Hinweis mit der Anzahl endgültig fehlgeschlagener Zustellungen, "Als gesehen markieren" (nur dieses Unternehmen, CSRF). Eine neue dead-Zustellung zeigt ihn wieder. Unabhängig vom Admin-Hinweis.
 - Mit SMTP zusätzlich eine Mail an die Konto-Adresse des Owners (transaktional, höchstens eine je Webhook und Tag) mit Event, eigener Ziel-URL, Versuchszahl und Link zur Business-Seite. Kein Secret, keine Payload. Läuft über die Mail-Queue, braucht den Mail-Worker. Adressen auf example.*, *.test und *.local werden nicht angeschrieben.
 
+## Owner-Mail ein- und ausschalten
+
+Auf der Business-Seite im Bereich Webhooks gibt es den Haken "E-Mail bei endgültig fehlgeschlagenen Webhooks". Er gilt nur für dieses Unternehmen, standardmäßig eingeschaltet wie bisher. Nur der Eigentümer kann ihn speichern (CSRF, Audit `webhook.notifications`).
+
+- Ausschalten verhindert neue Owner-Hinweismails und verwirft noch wartende Mails dieses Typs (Status `skipped`, Body gelöscht). Andere Mailarten und die Plattformbetreiber-Mail bleiben unberührt.
+- Der Mail-Worker prüft die Einstellung vor dem Versand erneut. Eine bereits an den Versand übergebene Mail kann nicht zurückgerufen werden.
+- Der App-Hinweis und "Als gesehen markieren" bleiben unabhängig davon aktiv. Webhooks und deren Wiederholungen laufen unverändert weiter.
+- Wiedereinschalten verschickt keine verworfenen Mails nachträglich. Die Deduplizierung je Webhook und UTC-Tag bleibt bestehen; wurde an dem Tag bereits eine Mail vorgemerkt, kann die nächste erst an einem späteren Tag entstehen.
+- Technisch: `businesses.webhook_owner_mail`, Standard 1, Migration automatisch. Keine Änderung an Demo-/Live-Einstellungen nötig.
+
 ## Grenzen
 
 - Die Sperre ist ein Lease in SQLite, keine Garantie über mehrere Datenbanken oder Hosts.
 - Versand läuft synchron im Request (Timeout 5 s je Ziel), keine echte Queue.
-- Keine automatische Deaktivierung dauerhaft toter Ziele. Kein Opt-out für die Owner-Mail, keine andere Empfängeradresse als die Konto-Adresse.
+- Keine automatische Deaktivierung dauerhaft toter Ziele. Keine andere Empfängeradresse als die Konto-Adresse.
 - Alte Zustellungen vor dieser Version haben keinen Termin und werden nur manuell wiederholt.
 - Tests nutzen die Testnaht `webhook_transport` in `config.php` statt echtem Netzwerk. Echte Zielserver wurden nicht angesprochen.
 

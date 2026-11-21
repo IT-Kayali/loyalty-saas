@@ -157,7 +157,7 @@ function webhook_notify_dead(int $deliveryId): void
     if (!function_exists('queue_mail')) {
         return;
     }
-    $st = db()->prepare('SELECT d.event, d.attempts, d.webhook_id, w.url, b.id AS bid, b.name, u.email FROM webhook_deliveries d JOIN webhooks w ON w.id=d.webhook_id JOIN businesses b ON b.id=w.business_id JOIN users u ON u.id=b.user_id WHERE d.id=?');
+    $st = db()->prepare('SELECT d.event, d.attempts, d.webhook_id, w.url, b.id AS bid, b.name, b.webhook_owner_mail, u.email FROM webhook_deliveries d JOIN webhooks w ON w.id=d.webhook_id JOIN businesses b ON b.id=w.business_id JOIN users u ON u.id=b.user_id WHERE d.id=?');
     $st->execute([$deliveryId]);
     $r = $st->fetch();
     $st->closeCursor();
@@ -172,7 +172,7 @@ function webhook_notify_dead(int $deliveryId): void
             'transactional', 'webhook-dead-' . $deliveryId . '-' . (int)$r['attempts']);
     }
     $owner = (string)$r['email'];
-    if (!$skip($owner)) {
+    if ((int)$r['webhook_owner_mail'] === 1 && !$skip($owner)) {
         queue_mail((int)$r['bid'], null, $owner, 'Dein Webhook für ' . $r['name'] . ' konnte nicht zustellen',
             'Eine Webhook-Zustellung (Event ' . $r['event'] . ') an ' . $r['url'] . ' ist nach ' . (int)$r['attempts'] . ' Versuchen fehlgeschlagen. Prüfe, ob dein Server erreichbar ist und 2xx antwortet. Du kannst die Zustellung in der App unter ' . base_url() . '/business/' . (int)$r['bid'] . ' erneut senden. Diese Mail kommt höchstens einmal pro Webhook und Tag.',
             'transactional', 'webhook-dead-owner-' . (int)$r['webhook_id'] . '-' . gmdate('Y-m-d'));
@@ -322,6 +322,29 @@ function route_webhook_ack(): never
     redirect('/business/' . (int)$b['id']);
 }
 
+/** Owner: E-Mail-Hinweise fuer tote Webhooks je Unternehmen. */
+function route_webhook_notifications(): never
+{
+    $u = require_login();
+    $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
+    if (!$b) not_found();
+    $enabled = isset($_POST['webhook_owner_mail']) ? 1 : 0;
+    db()->exec('BEGIN IMMEDIATE');
+    try {
+        db()->prepare('UPDATE businesses SET webhook_owner_mail=? WHERE id=?')->execute([$enabled, $b['id']]);
+        if (!$enabled) {
+            db()->prepare("UPDATE mail_outbox SET status='skipped',body='',last_error='Webhook owner mail disabled' WHERE business_id=? AND status='queued' AND dedup_key LIKE 'webhook-dead-owner-%'")->execute([$b['id']]);
+        }
+        audit_log((int)$u['id'], 'webhook.notifications', ['business_id'=>(int)$b['id'], 'enabled'=>$enabled]);
+        db()->exec('COMMIT');
+    } catch (Throwable $e) {
+        db()->exec('ROLLBACK');
+        throw $e;
+    }
+    flash(t('Webhook-Benachrichtigung gespeichert.'));
+    redirect('/business/' . (int)$b['id']);
+}
+
 /** Speichert die Shop/POS-Integrationseinstellungen (Shopify-Secret, Auto-Punkte). */
 function route_integration_save(): never
 {
@@ -400,6 +423,12 @@ function api_html(array $b): string
       <p class="muted">' . t('Beispiel: 1 Punkt je Cent = 100 Punkte für 1 € Umsatz. Gilt für Shopify-Webhooks und den Endpunkt POST /api/v1/integrations/order (WooCommerce, eigene Plugins, Kassensysteme).') . '</p>
 
       <h3 style="margin:16px 0 8px">' . t('Webhooks') . '</h3>
+      <form method="post" action="/webhook/notifications" class="form">' . csrf_field() . '
+        <input type="hidden" name="business_id" value="' . (int)$b['id'] . '">
+        <label class="check"><input type="checkbox" name="webhook_owner_mail" value="1" style="width:auto" ' . (!empty($b['webhook_owner_mail']) ? 'checked' : '') . '> E-Mail bei endgültig fehlgeschlagenen Webhooks</label>
+        <p class="muted">An deine Konto-Adresse, höchstens einmal je Webhook und Tag, nur mit SMTP und Mail-Worker. App-Hinweise bleiben immer aktiv. Ausschalten verwirft noch wartende Hinweismails, aber keinen bereits laufenden Versand.</p>
+        <button class="btn ghost small">Benachrichtigung speichern</button>
+      </form>
       ' . $list . '
       <details class="panel">
         <summary>' . t('Webhook anlegen') . '</summary>

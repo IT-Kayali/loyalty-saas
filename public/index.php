@@ -114,6 +114,7 @@ try {
         $path === '/webhook/create' && $method === 'POST' => route_webhook_create(),
         $path === '/webhook/delete' && $method === 'POST' => route_webhook_delete(),
         $path === '/webhook/retry' && $method === 'POST' => route_webhook_retry(),
+        $path === '/webhook/notifications' && $method === 'POST' => route_webhook_notifications(),
         $path === '/webhook/ack' && $method === 'POST' => route_webhook_ack(),
         $path === '/integration/save' && $method === 'POST' => route_integration_save(),
         preg_match('#^/business/(\d+)/analytics$#', $path, $m) === 1 => route_analytics((int)$m[1]),
