@@ -40,7 +40,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | WooCommerce | Basis/Setup | Plugin und Bestellpunktpfad. Nicht gegen einen echten Shop Ende-zu-Ende abgenommen. |
 | Shopify | Basis/Setup | HMAC-Webhook und Anleitung. Kein vollständiges Widget, OAuth-App-Lifecycle oder Shop-UI. |
 | POS | Basis | Generische REST-Schnittstelle. Kein vollständiger Original-POS-Katalog oder fertige Kassengeräteanbindung. |
-| Ausgehende Webhooks | Basis | HTTPS/öffentliche IPs, HMAC und Zustellprotokoll. Neu: Backoff-Retries (6 Versuche, per Cron), Status failed/dead, Wiederholung durch Owner und Admin (WEBHOOK-RETRIES.md). Keine echte Queue, keine Worker-Sperre, kein Alarm bei dead. |
+| Ausgehende Webhooks | Basis | HTTPS/öffentliche IPs, HMAC und Zustellprotokoll. Neu: Backoff-Retries (6 Versuche, per Cron), Status failed/dead, Wiederholung durch Owner und Admin (WEBHOOK-RETRIES.md). Zustellungs-Sperre gegen parallele Läufe, Admin-Hinweis und Mail bei dead. Keine echte Queue, keine Owner-Benachrichtigung, keine Auto-Deaktivierung. |
 | REST API | Basis | Business-API-Key, Mitglieder/Karten/Bestellungen/Journal und OpenAPI. Kein gleichwertiges Session-Token-Frontend-API. |
 | Agent API | Offen | Keine granularen Scopes, Idempotency-/Approval-Workflows und separate Agent-Authentifizierung. Vorhandene REST API nicht als gleichwertig ausgeben. |
 | AI/MCP | Neu, Basis | MCP über HTTPS (JSON-RPC) mit Bearer-Schlüsseln, 12 Werkzeuge plus 2 freigabepflichtige, Freigabe in der App, Idempotenz, Audit. Kein OAuth/Browser-Login, keine Tool-Discovery-REST, keine Admin-/Mitglieder-Werkzeuge, nicht mit echten Clients getestet. Siehe AI.md. |

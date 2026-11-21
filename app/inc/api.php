@@ -98,18 +98,30 @@ const WEBHOOK_BACKOFF_MIN = [1, 5, 30, 120, 720];
  * (nur noch manuell wiederholbar). $first: erster Versuch direkt beim Ereignis.
  * Liefert den neuen Status.
  */
-function webhook_attempt(int $deliveryId, bool $first = false): string
+function webhook_attempt(int $deliveryId, bool $first = false, bool $dueOnly = false): string
 {
+    if (!$first) {
+        // Atomare Sperre: nur ein Worker/Klick darf diese Zustellung gleichzeitig senden (Lease 2 Minuten).
+        $claim = db()->prepare("UPDATE webhook_deliveries SET lock_until=? WHERE id=? AND status!='delivered' AND (lock_until IS NULL OR lock_until<?)"
+            . ($dueOnly ? " AND status='failed' AND next_attempt_at IS NOT NULL AND next_attempt_at<=?" : ''));
+        $nowS = gmdate('Y-m-d H:i:s');
+        $claim->execute(array_merge([gmdate('Y-m-d H:i:s', time() + 120), $deliveryId, $nowS], $dueOnly ? [$nowS] : []));
+        if ($claim->rowCount() !== 1) {
+            return 'locked';
+        }
+    }
     $st = db()->prepare('SELECT d.*, w.url, w.secret, w.active FROM webhook_deliveries d JOIN webhooks w ON w.id = d.webhook_id WHERE d.id = ?');
     $st->execute([$deliveryId]);
     $d = $st->fetch();
+    $st->closeCursor(); // Lesesperre sofort freigeben, sonst blockieren sich parallele Worker
     if (!$d) {
         return 'missing';
     }
     $attempts = $first ? 1 : (int)$d['attempts'] + 1;
     if (!(int)$d['active']) {
-        db()->prepare("UPDATE webhook_deliveries SET status='dead', response=?, next_attempt_at=NULL, delivered_at=datetime('now') WHERE id=?")
+        db()->prepare("UPDATE webhook_deliveries SET status='dead', response=?, next_attempt_at=NULL, lock_until=NULL, dead_ack=0, delivered_at=datetime('now') WHERE id=?")
             ->execute(['Webhook ist deaktiviert', $deliveryId]);
+        webhook_notify_dead($deliveryId);
         return 'dead';
     }
     [$status, $response] = webhook_post((string)$d['url'], (string)$d['payload'], (string)$d['secret'], [
@@ -126,9 +138,30 @@ function webhook_attempt(int $deliveryId, bool $first = false): string
             $next = gmdate('Y-m-d H:i:s', time() + $wait * 60);
         }
     }
-    db()->prepare("UPDATE webhook_deliveries SET status=?, response=?, attempts=?, next_attempt_at=?, delivered_at=datetime('now') WHERE id=?")
+    db()->prepare("UPDATE webhook_deliveries SET status=?, response=?, attempts=?, next_attempt_at=?, lock_until=NULL, dead_ack=0, delivered_at=datetime('now') WHERE id=?")
         ->execute([$status, mb_strimwidth((string)$response, 0, 500, ''), $attempts, $next, $deliveryId]);
+    if ($status === 'dead') {
+        webhook_notify_dead($deliveryId);
+    }
     return $status;
+}
+
+/** Hinweis an den Plattformbetreiber (support_email) bei endgueltig fehlgeschlagener Zustellung. Ohne Payload, URL und Secret. Eine Mail je Zustellung. */
+function webhook_notify_dead(int $deliveryId): void
+{
+    $to = (string)config('support_email', '');
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL) || preg_match('/@(example\.(com|org|net)|.*\.test|.*\.local)$/i', $to) || !function_exists('queue_mail')) {
+        return;
+    }
+    $st = db()->prepare('SELECT d.event, b.name FROM webhook_deliveries d JOIN webhooks w ON w.id=d.webhook_id JOIN businesses b ON b.id=w.business_id WHERE d.id=?');
+    $st->execute([$deliveryId]);
+    $r = $st->fetch();
+    if (!$r) {
+        return;
+    }
+    queue_mail(null, null, $to, 'Loyalty: Webhook-Zustellung endgültig fehlgeschlagen',
+        'Eine Webhook-Zustellung (Nr. ' . $deliveryId . ', Event ' . $r['event'] . ', Unternehmen ' . $r['name'] . ') ist nach allen Versuchen fehlgeschlagen. Bitte im Admin-Dashboard prüfen: ' . base_url() . '/admin',
+        'transactional', 'webhook-dead-' . $deliveryId . '-' . (int)db()->query('SELECT attempts FROM webhook_deliveries WHERE id=' . $deliveryId)->fetchColumn());
 }
 
 /** Wiederholt alle faelligen fehlgeschlagenen Zustellungen (Cron: tools/webhook-retry.php). Liefert [versucht, geliefert]. */
@@ -139,7 +172,12 @@ function webhook_retry_due(int $limit = 50): array
     $tried = $ok = 0;
     foreach ($ids->fetchAll(PDO::FETCH_COLUMN) as $id) {
         $tried++;
-        if (webhook_attempt((int)$id) === 'delivered') {
+        $r = webhook_attempt((int)$id, false, true);
+        if ($r === 'locked') {
+            $tried--;
+            continue;
+        }
+        if ($r === 'delivered') {
             $ok++;
         }
     }
@@ -251,7 +289,7 @@ function route_webhook_retry(): never
         flash(t('Zustellung nicht gefunden oder bereits zugestellt.'), 'err');
     } else {
         $r = webhook_attempt((int)$d['id']);
-        flash($r === 'delivered' ? t('Webhook zugestellt.') : t('Zustellung weiter fehlgeschlagen. Details im Protokoll.'), $r === 'delivered' ? 'ok' : 'err');
+        flash($r === 'locked' ? t('Diese Zustellung wird gerade gesendet. Bitte kurz warten.') : ($r === 'delivered' ? t('Webhook zugestellt.') : t('Zustellung weiter fehlgeschlagen. Details im Protokoll.')), $r === 'delivered' ? 'ok' : 'err');
     }
     redirect('/business/' . (int)$b['id']);
 }

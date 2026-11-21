@@ -27,14 +27,25 @@ Ohne Cron passiert nichts automatisch. Der Admin kann dann im Admin-Dashboard "F
 - Manuelle Versuche zählen mit. Schlägt der Versuch fehl, bleibt `dead` bzw. `failed` mit neuem Termin.
 - Deaktivierte Webhooks: Wiederholung endet als `dead` mit Hinweis.
 
+## Sperre gegen parallele Läufe
+
+- Jede Zustellung wird vor dem Versuch atomar in der DB reserviert (`lock_until`, Lease 2 Minuten). Cron-Lauf, Admin-Button und manueller Klick können dieselbe Zustellung nicht gleichzeitig senden. Wer verliert, überspringt (Worker) oder bekommt den Hinweis "wird gerade gesendet".
+- Stürzt ein Lauf mitten im Versand ab, läuft die Sperre nach 2 Minuten ab.
+- `tools/webhook-retry.php` hat zusätzlich eine Dateisperre (`data/webhook-retry.lock`), ein zweiter Worker bricht mit Exit 1 ab.
+
+## Hinweis bei dead
+
+- Im Admin-Dashboard erscheint oben ein roter Hinweis mit der Anzahl endgültig fehlgeschlagener Zustellungen, "Als gesehen markieren" blendet ihn aus (Aktivitätsprotokoll `webhook.ack`). Eine neue dead-Zustellung zeigt ihn wieder.
+- Ist SMTP aktiv und `support_email` gesetzt, geht außerdem eine Mail an diese Adresse (eine je Zustellung, ohne URL, Payload und Secret, nur Nummer, Event, Unternehmen und Link zum Admin). Sie läuft über die normale Mail-Queue, also braucht es den Mail-Worker.
+
 ## Grenzen
 
-- Kein Parallelbetrieb mehrerer Worker abgesichert (keine Sperre): zwei gleichzeitige Cron-Läufe können dieselbe Zustellung doppelt senden.
+- Die Sperre ist ein Lease in SQLite, keine Garantie über mehrere Datenbanken oder Hosts.
 - Versand läuft synchron im Request (Timeout 5 s je Ziel), keine echte Queue.
-- Kein Alarm per Mail bei `dead`, keine automatische Deaktivierung dauerhaft toter Ziele.
+- Keine automatische Deaktivierung dauerhaft toter Ziele, keine Mail an den Owner des Webhooks (nur an den Plattformbetreiber).
 - Alte Zustellungen vor dieser Version haben keinen Termin und werden nur manuell wiederholt.
 - Tests nutzen die Testnaht `webhook_transport` in `config.php` statt echtem Netzwerk. Echte Zielserver wurden nicht angesprochen.
 
 ## Tests
 
-`python tests/run-webhooks.py`: Backoff, Header, dead, Owner- und Admin-Wiederholung, Mandantentrennung, CSRF, Cron-CLI, Browser Desktop und Mobil.
+`python tests/run-webhooks.py`: Backoff, Header, dead, Sperre (parallele Prozesse), Banner und Hinweismail, Owner- und Admin-Wiederholung, Mandantentrennung, CSRF, Cron-CLI, Browser Desktop und Mobil.

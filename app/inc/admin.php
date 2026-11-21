@@ -40,8 +40,14 @@ function route_admin(string $method): never
         }
         if ($action==='webhook_retry') {
             $r=webhook_attempt((int)($_POST['delivery_id'] ?? 0));
+            if($r==='locked'){flash(t('Diese Zustellung wird gerade gesendet. Bitte kurz warten.'),'err');redirect('/admin');}
             audit_log((int)$u['id'],'webhook.retry',['delivery'=>(int)($_POST['delivery_id'] ?? 0),'result'=>$r]);
             flash($r==='delivered' ? t('Webhook zugestellt.') : t('Zustellung weiter fehlgeschlagen. Details im Protokoll.'), $r==='delivered' ? 'ok' : 'err');
+        }
+        if ($action==='webhook_ack') {
+            $n=db()->exec("UPDATE webhook_deliveries SET dead_ack=1 WHERE status='dead' AND dead_ack=0");
+            audit_log((int)$u['id'],'webhook.ack',['count'=>$n]);
+            flash(t('Hinweis als gesehen markiert.'));
         }
         if ($action==='webhook_run_due') {
             [$tried,$ok]=webhook_retry_due();
@@ -52,7 +58,9 @@ function route_admin(string $method): never
     }
     $stats=[];
     foreach(['users','businesses','members','programs','transactions'] as $table) $stats[$table]=(int)db()->query('SELECT COUNT(*) FROM '.$table)->fetchColumn();
-    $body='<p><a class="btn" href="/admin/support">Supporttickets</a></p><p class="eyebrow">PLATTFORM</p><h1>' . t('Admin-Dashboard') . '</h1><p class="muted">' . t('Plattformweiter Zugriff. Getrennt vom Dashboard eines einzelnen Betreibers.') . '</p><div class="grid">';
+    $dead=(int)db()->query("SELECT COUNT(*) FROM webhook_deliveries WHERE status='dead' AND dead_ack=0")->fetchColumn();
+    $body=$dead?'<section class="panel" role="alert" style="border-color:#c0392b"><strong>'.sprintf(t('%d Webhook-Zustellung(en) endgültig fehlgeschlagen'),$dead).'</strong><p class="muted">'.t('Alle Versuche sind verbraucht. Unten ansehen und wiederholen oder als gesehen markieren.').'</p><form method="post">'.csrf_field().'<input type="hidden" name="action" value="webhook_ack"><button class="btn ghost small">'.t('Als gesehen markieren').'</button></form></section>':'';
+    $body.='<p><a class="btn" href="/admin/support">Supporttickets</a></p><p class="eyebrow">PLATTFORM</p><h1>' . t('Admin-Dashboard') . '</h1><p class="muted">' . t('Plattformweiter Zugriff. Getrennt vom Dashboard eines einzelnen Betreibers.') . '</p><div class="grid">';
     foreach($stats as $key=>$value) $body.='<section class="panel"><p class="muted">'.h($key).'</p><strong class="big-number">'.$value.'</strong></section>';
     $body.='</div><h2>'.t('Unternehmen & Betreiber').'</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Unternehmen</th><th>Betreiber</th><th>Plan</th><th>Status</th><th>Mitglieder</th></tr></thead><tbody>';
     $rows=db()->query('SELECT b.id,b.name,u.email,s.plan_key,s.status,(SELECT COUNT(*) FROM members m WHERE m.business_id=b.id) AS members FROM businesses b JOIN users u ON u.id=b.user_id LEFT JOIN subscriptions s ON s.user_id=u.id ORDER BY b.id DESC LIMIT 200')->fetchAll();

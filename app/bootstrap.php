@@ -511,6 +511,8 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'programs', 'transfer_in_daily', 'INTEGER NOT NULL DEFAULT 1000');
     ensure_column($pdo, 'webhook_deliveries', 'attempts', 'INTEGER NOT NULL DEFAULT 1');
     ensure_column($pdo, 'webhook_deliveries', 'next_attempt_at', 'TEXT');
+    ensure_column($pdo, 'webhook_deliveries', 'lock_until', 'TEXT');
+    ensure_column($pdo, 'webhook_deliveries', 'dead_ack', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'programs', 'transfer_count_daily', 'INTEGER NOT NULL DEFAULT 5');
     $pdo->exec("CREATE TABLE IF NOT EXISTS point_request_links (id INTEGER PRIMARY KEY AUTOINCREMENT, member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE, program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE, token TEXT NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1, uses INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')))");
     $pdo->exec("CREATE TABLE IF NOT EXISTS point_transfers (id INTEGER PRIMARY KEY AUTOINCREMENT, op TEXT NOT NULL UNIQUE, link_id INTEGER, program_id INTEGER NOT NULL, from_card INTEGER NOT NULL, to_card INTEGER NOT NULL, amount INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')))");

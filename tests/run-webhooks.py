@@ -10,7 +10,8 @@ with tempfile.TemporaryDirectory(prefix='loyalty-wh-') as temp:
  for d in ['app','public','tools']:shutil.copytree(R/d,A/d)
  for f in ['seed.php','config.example.php']:shutil.copy(R/f,A/f)
  (A/'config.php').write_text("""<?php $c=require __DIR__.'/config.example.php';$c['platform_admin_emails']=['admin@test.local'];
-$c['webhook_transport']=function($url,$body,$secret,$h){$m=trim((string)@file_get_contents(__DIR__.'/mode.txt'));file_put_contents(__DIR__.'/hooks.log',json_encode([$url,$h,$secret!=='',$m])."\\n",FILE_APPEND);return $m==='ok'?['delivered','HTTP 200']:['failed','HTTP 500'];};return $c;""")
+$c['support_email']='ops@support-operator.invalid';$c['smtp']=['enabled'=>true,'host'=>'smtp.invalid','port'=>587,'from'=>'noreply@platform.invalid']+$c['smtp'];
+$c['webhook_transport']=function($url,$body,$secret,$h){$m=trim((string)@file_get_contents(__DIR__.'/mode.txt'));if($m==='slow'){usleep(700000);}file_put_contents(__DIR__.'/hooks.log',json_encode([$url,$h,$secret!=='',$m])."\\n",FILE_APPEND);return ($m==='ok'||$m==='slow')?['delivered','HTTP 200']:['failed','HTTP 500'];};return $c;""")
  (A/'mode.txt').write_text('fail')
  subprocess.run([PHP,'seed.php'],cwd=A,check=True,capture_output=True)
  def sql(code):return subprocess.check_output([PHP,'-r',"require 'public/index.php';"+code],cwd=A,text=True).strip()
@@ -89,6 +90,35 @@ $c['webhook_transport']=function($url,$body,$secret,$h){$m=trim((string)@file_ge
   mode('fail');d5=fire();due(d5);mode('ok')
   st,body,_=req('/admin',{'csrf':csrf(a,'/admin'),'action':'webhook_run_due'},a)
   check(row(d5)['status']=='delivered' and '1 versucht, 1 zugestellt' in body,'Admin-Button führt fällige Wiederholungen aus')
+  # 8b) Sperre gegen parallele Laeufe
+  mode('fail');d7=fire();due(d7);mode('slow');n0=len(calls())
+  ps=[subprocess.Popen([PHP,'-r',"require 'public/index.php';echo json_encode(webhook_retry_due());"],cwd=A,stdout=subprocess.PIPE,text=True) for _ in range(3)]
+  outs=[p.communicate()[0] for p in ps];res=[json.loads(o.strip().splitlines()[-1]) for o in outs]
+  check(sum(r[0] for r in res)==1 and len(calls())==n0+1 and row(d7)['status']=='delivered','Drei parallele Läufe: genau ein Versand')
+  mode('fail');d8=fire();due(d8);mode('ok');n0=len(calls())
+  sql("db()->prepare(\"UPDATE webhook_deliveries SET lock_until=? WHERE id=?\")->execute([gmdate('Y-m-d H:i:s',time()+100),%d]);"%d8)
+  check(json.loads(sql("echo json_encode(webhook_retry_due());"))==[0,0] and len(calls())==n0,'Gesperrte Zustellung wird vom Worker übersprungen')
+  st,body,_=req('/webhook/retry',{'csrf':tok(),'business_id':1,'delivery_id':d8},c)
+  check('wird gerade gesendet' in body and len(calls())==n0,'Manueller Versuch bei Sperre: Hinweis, kein Versand')
+  sql("db()->prepare(\"UPDATE webhook_deliveries SET lock_until=? WHERE id=?\")->execute(['2000-01-01 00:00:00',%d]);"%d8)
+  check(json.loads(sql("echo json_encode(webhook_retry_due());"))==[1,1] and row(d8)['status']=='delivered','Abgelaufene Sperre blockiert nicht')
+  import fcntl
+  (A/'data').mkdir(exist_ok=True);lk=open(A/'data'/'webhook-retry.lock','w');fcntl.flock(lk,fcntl.LOCK_EX)
+  r=subprocess.run([PHP,'tools/webhook-retry.php'],cwd=A,capture_output=True,text=True)
+  check(r.returncode==1 and 'laeuft bereits' in r.stderr,'CLI: zweiter Worker bricht ab');fcntl.flock(lk,fcntl.LOCK_UN);lk.close()
+  # 8c) Hinweis bei dead
+  sql("db()->exec(\"UPDATE webhook_deliveries SET dead_ack=1 WHERE status='dead'\");")
+  page=req('/admin',c=a)[1];check('endgültig fehlgeschlagen' not in page,'Kein Banner, wenn alles gesehen')
+  mode('fail');d9=fire()
+  for _ in range(5):due(d9);sql("webhook_retry_due();")
+  check(row(d9)['status']=='dead','neue Zustellung endet dead')
+  page=req('/admin',c=a)[1];check('1 Webhook-Zustellung(en) endgültig fehlgeschlagen' in page,'Admin-Banner zeigt neue dead-Zustellung')
+  mails=json.loads(sql("echo json_encode(db()->query(\"SELECT recipient,subject,body FROM mail_outbox WHERE subject LIKE '%Webhook%'\")->fetchAll(PDO::FETCH_ASSOC));"))
+  check(len(mails)>=1 and mails[-1]['recipient']=='ops@support-operator.invalid' and 'https://93.184' not in mails[-1]['body'] and 'geheim' not in mails[-1]['body'],'Hinweismail an Betreiber ohne URL und Secret')
+  nm=len(mails);sql("webhook_notify_dead(%d);"%d9)
+  check(int(sql("echo db()->query(\"SELECT COUNT(*) FROM mail_outbox WHERE subject LIKE '%%Webhook%%'\")->fetchColumn();"))==nm,'Hinweismail wird nicht doppelt angelegt')
+  req('/admin',{'csrf':csrf(a,'/admin'),'action':'webhook_ack'},a)
+  check('endgültig fehlgeschlagen' not in req('/admin',c=a)[1],'Als gesehen markieren blendet Banner aus')
   # 9) CLI
   mode('fail');d6=fire();due(d6);mode('ok')
   out=subprocess.check_output([PHP,'tools/webhook-retry.php'],cwd=A,text=True)
@@ -96,7 +126,7 @@ $c['webhook_transport']=function($url,$body,$secret,$h){$m=trim((string)@file_ge
   r=subprocess.run([PHP,'-r',"require 'public/index.php';echo json_encode(array_column(db()->query('PRAGMA table_info(webhook_deliveries)')->fetchAll(),'name'));"],cwd=A,capture_output=True,text=True)
   check('attempts' in r.stdout and 'next_attempt_at' in r.stdout,'Migration: neue Spalten vorhanden')
   # Browser
-  mode('fail');fire();fire()
+  mode('fail');fire();fire();sql("db()->exec(\"UPDATE webhook_deliveries SET status='dead',dead_ack=0 WHERE id=%d\");"%d9)
   subprocess.run(['node',str(R/'tests/webhooks-ui.cjs')],cwd=R,check=True)
  finally:s.terminate();s.wait();log.close()
  print(n,'Webhook-Prüfungen bestanden')
