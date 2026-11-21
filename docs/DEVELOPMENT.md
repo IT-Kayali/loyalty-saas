@@ -198,3 +198,7 @@ Meilenstein-Suite jetzt 50 Domänen-/HTTP-/Parallel- und 18 Browserprüfungen ei
 ### Netzwerknamen
 
 `python3 tests/run-network-edit.py`: 28 HTTP-/Domänen- und 14 Desktop-/Mobilbrowserprüfungen, einschließlich Rollen/CSRF/Plan, atomarem ID-Audit, Namensgrenzen, Parallel- und Zwei-Tab-Konflikten. [ORGANIZATION.md](ORGANIZATION.md).
+
+### Standorttexte
+
+`python3 tests/run-location-edit.py`: 32 HTTP-/Domänen- und 16 Desktop-/Mobilbrowserprüfungen für reine Textänderungen, feste Bindungen, unabhängige Aktivierung, Rechte, atomaren Audit und Parallel-/Zwei-Tab-Konflikte. [ORGANIZATION.md](ORGANIZATION.md).

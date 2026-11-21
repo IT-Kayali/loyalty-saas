@@ -556,3 +556,5 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 }
 
 .network-list,.network-editor {overflow-wrap:anywhere;}
+
+.location-editor,.organization-business {overflow-wrap:anywhere;}

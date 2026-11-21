@@ -20,7 +20,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 
 | Bereich | Lokal | Noch nicht gleichwertig / nächste Schritte |
 |---|---|---|
-| Plattform, Mandanten, Betreiberregistrierung | Basis | Neu: Netzwerke als Gruppierung eigener Unternehmen mit getrenntem konfliktsicherem Namenseditor (ORGANIZATION.md) und Standorte zur Buchungszuordnung. Keine geteilten Salden, Clubs oder fremden Betreiber. |
+| Plattform, Mandanten, Betreiberregistrierung | Basis | Neu: Netzwerke als Gruppierung eigener Unternehmen mit getrenntem konfliktsicherem Namenseditor (ORGANIZATION.md) und Standorte zur Buchungszuordnung mit getrenntem Name-/Adresseditor (Aktivierung/Zuordnung unverändert). Keine geteilten Salden, Clubs oder fremden Betreiber. |
 | Plattform-Admin | Neu, Basis | Globale Übersicht, Brandingname, Registrierungsschalter, CSV und Healthchecks vorhanden. Keine Managerdelegation, granularen Plattformrechte, Unternehmens-Sperrung oder Admin-Impersonation. |
 | Betreiber-Dashboard | Basis | Programme, Mitglieder, Designer, Analytics, Team. Neu: Standort- und Teamverwaltung, eigener Unternehmens-Anzeigename mit Konfliktschutz editierbar (BUSINESS-SETTINGS.md), kein automatischer Wallet-Push. Keine vollständigen Unternehmenseinstellungen oder monatlichen Zusammenfassungen. |
 | Analytics | Basis + Korrektur | Einlösungs-KPI und Programm-Performance zählen auch Code-Gutscheine, Stornoflags ausgeschlossen. Mobile Programmzeilen vollständig lesbar. Allzeit-Einlösungen, 30-Tage-Aktivität, kein vollständiger Analysebaukasten oder Geld-/Umsatzreport (ANALYTICS.md). |
@@ -153,4 +153,8 @@ Zusätzliche Admin-GET-Ansicht bestehender Einträge: UTC-Tage, exakte Aktion, h
 
 ## Nachtrag: Netzwerknamen
 
-Eigene Gruppierungsnamen separat editierbar, 1 bis 80 Zeichen, Eigentümer/CSRF/Plan, atomarer ID-Audit und Namenskonfliktschutz. Keine Änderung von Zuordnungen, Mitgliedern, Salden oder Rechten, kein Versand. 28 HTTP-/Domänen- und 14 Browserprüfungen. Standorteditor, Netzwerklöschung und geteilte Salden bleiben offen. [Details](ORGANIZATION.md).
+Eigene Gruppierungsnamen separat editierbar, 1 bis 80 Zeichen, Eigentümer/CSRF/Plan, atomarer ID-Audit und Namenskonfliktschutz. Keine Änderung von Zuordnungen, Mitgliedern, Salden oder Rechten, kein Versand. 28 HTTP-/Domänen- und 14 Browserprüfungen. Netzwerklöschung und geteilte Salden bleiben offen; Standorteditor im folgenden Nachtrag. [Details](ORGANIZATION.md).
+
+## Nachtrag: Standorttexte bearbeiten
+
+Eigene Standortnamen und beschreibende Adressen editierbar, Konfliktschutz und atomarer ID-Audit. Aktivierung/Unternehmensbindung/Team/Buchungskennungen bleiben unverändert, inaktive Standorte weiter inaktiv. 32 HTTP-/Domänen- und 16 Browserprüfungen. Keine geprüfte Anschrift, Geokodierung, historische Textsnapshots, Löschung oder neue Standortdatensicht. [Details](ORGANIZATION.md).

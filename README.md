@@ -225,3 +225,7 @@ Plattform-Admins können bestehende Protokolle nach UTC-Tagen, exakter Aktion un
 ## Netzwerknamen bearbeiten
 
 Organisation zeigt eigene Netzwerke samt Namenseditor mit Konfliktschutz. Nur Gruppierungsname, keine Änderung an Unternehmenszuordnung, Mitgliedern oder Salden. [Rechte, Wirkung und Grenzen](docs/ORGANIZATION.md).
+
+## Standortdaten bearbeiten
+
+Eigene Standortnamen und beschreibende Adressen lassen sich separat bearbeiten. Konfliktschutz, keine Änderung an Aktivierung, Unternehmens-/Teamzuordnung oder Salden. Keine Adressprüfung. [Wirkung und Grenzen](docs/ORGANIZATION.md).

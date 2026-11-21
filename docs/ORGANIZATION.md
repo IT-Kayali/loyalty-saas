@@ -51,7 +51,7 @@ Die neue Suite verwendet Wegwerfinstallationen und prüft Rollen/Overrides, frem
 
 ## Weiter offen
 
-Keine unternehmensübergreifenden Salden oder Clubs, keine delegierten Managerkonten, keine Standort-Datensicht oder Standortberichte, keine zeitgesteuerten Rollen, keine Staff-Einladungen/OTP/MFA und keine vollständige Audit-/Compliance-Abnahme. Eigene Netzwerknamen sind jetzt separat editierbar (siehe unten). Standortnamen/-adressen bleiben nicht editierbar; Netzwerke/Standorte nicht löschbar. Keine vollständige Funktionsgleichheit mit dem Referenzprodukt.
+Keine unternehmensübergreifenden Salden oder Clubs, keine delegierten Managerkonten, keine Standort-Datensicht oder Standortberichte, keine zeitgesteuerten Rollen, keine Staff-Einladungen/OTP/MFA und keine vollständige Audit-/Compliance-Abnahme. Eigene Netzwerknamen sind jetzt separat editierbar (siehe unten). Standortnamen/-adressen sind ebenfalls getrennt editierbar (siehe unten); Netzwerke/Standorte bleiben nicht löschbar. Keine vollständige Funktionsgleichheit mit dem Referenzprodukt.
 
 ## Eigenen Netzwerknamen ändern
 
@@ -64,3 +64,15 @@ Nur der Eigentümer, CSRF und Planfeature `locations`. Lesen bleibt bei fehlende
 Das ist ein Zustandsvergleich, keine Namenshistorie: Wird zwischenzeitlich exakt der alte Name wiederhergestellt, erkennt der Prüfsummenvergleich diese Zwischenänderung nicht. Gleichzeitige Unternehmenszuordnung ist kein Namenskonflikt und wird vom Editor nicht überschrieben. Keine Änderung von Netzwerkbesitzer, keine Fremdbetreiber-/Clubfreigabe oder geteilten Salden. Anlage und deren bisherige Begrenzungen bleiben unverändert; keine rückwirkende Bereinigung alter Namen und keine neue Eindeutigkeitsregel.
 
 `python3 tests/run-network-edit.py`: 28 HTTP-/Domänenprüfungen für Name/Unicode/Arrays/UTF-8, exakte Grenzen, Mandant/Ziel/CSRF/Plan, ausgeschlossene Seiteneffekte, Audit-Rollback, Escaping und zwei echte parallele Speicherprozesse. 14 Chromium-Prüfungen für Desktop/Mobil, echte Zwei-Tab-Konflikte, aktuellen Namen und Maximalnamen ohne Überlauf. Screenshots unter `/tmp/loyalty-network-edit/` visuell geprüft. Wegwerfdaten, keine echten Konten oder externen Dienste geändert.
+
+## Standortname und beschreibende Adresse bearbeiten
+
+Der Standort in Organisation verlinkt „Name / Adresse bearbeiten“. `/location/ID/edit` ändert ausschließlich Name (1 bis 80 UTF-8-Zeichen) und optionale Adresse (0 bis 200), nach äußeren Leerzeichen. Keine Steuerzeichen/Arrays, HTML als Text escaped. Die Adresse ist ein beschreibendes Textfeld, keine verifizierte Anschrift, Geokodierung, Kartenposition oder Rechnungsadresse. Kein automatischer Versand, externe Adressprüfung oder Wallet-Update.
+
+Zugehöriges Unternehmen, Standort-ID, Aktivierung, Teamzuordnung und Buchungskennungen bleiben unverändert. Aktuelle Organisationslisten und Team-Standortauswahlen lesen die neuen Texte beim nächsten Abruf. Historische Einträge behalten ihre Kennungen, aber Ansichten mit aktuellen Standortnamen können damit den neuen Namen anzeigen. Kein historischer Namens-/Adresssnapshot oder Umbenennen bereits exportierter Dokumente. Standortdatensicht und Salden bleiben wie bisher unternehmensweit.
+
+Nur Eigentümer, CSRF und Planfeature `locations`. Fremde/zusätzliche Formular-IDs ändern das URL-Ziel nicht. Name und Adresse mit ID-Audit `location.edit` atomar unter Schreiblock, Eigentümer/Plan darin erneut geprüft. Der Vergleich umfasst Name, Adresse und feste Kennungen. Ein alter Textstand überschreibt keine neueren Texte. Konflikt lädt den aktuellen Stand mit Hinweis, keine Entwurfserhaltung oder Zusammenführung. Keine vollständige Historie: zwischenzeitliche exakte Wiederherstellung ist im Vergleich nicht erkennbar.
+
+Aktivierung bleibt bewusst außerhalb des Textvergleichs und wird nie geschrieben. Eine parallel erfolgte Deaktivierung wird deshalb nicht rückgängig gemacht, während ein gültiger Texteditor speichern kann. Auch inaktive Standorte sind bearbeitbar, bleiben inaktiv und im Editor so beschriftet. Die bestehenden Umschalter, Anlage und SQL-Zuordnungsschutz wurden nicht umgebaut. Keine Standortlöschung oder neue Eindeutigkeitsregel, keine rückwirkende Bereinigung älterer Adressen.
+
+`python3 tests/run-location-edit.py`: 32 HTTP-/Domänen- und 16 Chromium-Prüfungen, darunter Feldgrenzen/UTF-8/Arrays, Mandanten/Ziel/CSRF/Plan, alte Tabs, zwei parallele Speicherprozesse, unveränderte Salden/Team/Mails, Audit-Rollback, aktuelle Auswahlnamen, Deaktivierung neben Textänderung, Desktop/Mobil und lange Namen/Adressen ohne Überlauf. Screenshots unter `/tmp/loyalty-location-edit/` visuell geprüft. Nur Wegwerfdaten, keine externen Dienste oder echten Konten geändert.
