@@ -506,6 +506,9 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'mail_automations', 'channel', "TEXT NOT NULL DEFAULT 'email'");
     $pdo->exec('CREATE TABLE IF NOT EXISTS automation_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, dedup_key TEXT NOT NULL UNIQUE, rule_id INTEGER NOT NULL, member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE, channel TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime(\'now\')))');
     ensure_column($pdo, 'mail_automations', 'voucher_days', 'INTEGER NOT NULL DEFAULT 30');
+    ensure_column($pdo, 'programs', 'points_transfer', 'INTEGER NOT NULL DEFAULT 0');
+    $pdo->exec("CREATE TABLE IF NOT EXISTS point_request_links (id INTEGER PRIMARY KEY AUTOINCREMENT, member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE, program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE, token TEXT NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1, uses INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS point_transfers (id INTEGER PRIMARY KEY AUTOINCREMENT, op TEXT NOT NULL UNIQUE, link_id INTEGER, program_id INTEGER NOT NULL, from_card INTEGER NOT NULL, to_card INTEGER NOT NULL, amount INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')))");
     ensure_column($pdo, 'programs', 'points_expire_days', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'cards', 'points_lifetime', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'businesses', 'referral_points_referrer', 'INTEGER NOT NULL DEFAULT 0');

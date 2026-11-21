@@ -34,6 +34,7 @@ require_once ROOT_DIR . '/app/inc/support.php';
 require_once ROOT_DIR . '/app/inc/ai.php';
 require_once ROOT_DIR . '/app/inc/templates.php';
 require_once ROOT_DIR . '/app/inc/expiry.php';
+require_once ROOT_DIR . '/app/inc/transfers.php';
 
 /* ------------------------------------------------------------------ */
 /* Router                                                              */
@@ -130,6 +131,9 @@ try {
         preg_match('#^/business/(\d+)/team$#',$path,$m)===1 => route_team((int)$m[1],$method),
         $path==='/forgot-password' => route_forgot_password($method),
         $path==='/reset-password' => route_reset_password($method),
+        $path==='/wallet/request' => route_member_requests($method),
+        preg_match('#^/send/([a-f0-9]{32})$#',$path,$m)===1 => route_send_points($m[1],$method),
+        $path==='/program/transfer' && $method==='POST' => route_program_transfer_setting(),
         $path==='/member/preferences' => route_member_preferences($method),
         $path === '/api/docs' => route_api_docs(),
         $path === '/member/create' && $method === 'POST' => route_member_create(),
@@ -621,7 +625,7 @@ function route_program(int $id): never
           <label>' . t('Bis') . ' <input type="number" name="end_hour" value="16" min="1" max="24"></label>
           <label>' . t('Multiplikator') . ' <input type="number" name="multiplier" value="2" min="2" max="10"></label>
           <button class="btn">' . t('Hinzufügen') . '</button>
-        </form>' . points_expiry_form_html($p);
+        </form>' . points_expiry_form_html($p) . points_transfer_form_html($p);
     }
 
     if($p['type']==='voucher')$body.=voucher_form_html($p);
@@ -777,7 +781,7 @@ function member_panels(int $id, array $programs, string $actionBase): string
                 $body .= '<li><span class="muted">' . h($txnRow['created_at']) . '</span> ' . h($txnRow['note']);
                 if ($txnRow['reversed_at'] ?? null) {
                     $body .= ' <span class="muted">(' . t('storniert') . ')</span>';
-                } elseif (!in_array($txnRow['kind'], ['reversal', 'reward_earned', 'points_expire'], true) && ($actionBase!=='/staff/card' || (($counterStaff=current_staff()) && in_array('reverse',staff_permissions($counterStaff),true) && (int)$txnRow['staff_id']===(int)$counterStaff['id']))) {
+                } elseif (!in_array($txnRow['kind'], ['reversal', 'reward_earned', 'points_expire', 'points_transfer_in', 'points_transfer_out'], true) && ($actionBase!=='/staff/card' || (($counterStaff=current_staff()) && in_array('reverse',staff_permissions($counterStaff),true) && (int)$txnRow['staff_id']===(int)$counterStaff['id']))) {
                     $body .= ' <form method="post" action="' . $actionBase . '/' . $cid . '/undo" class="undo-form" onsubmit="return confirm(\'' . t('Diese Aktion stornieren?') . '\')">' . csrf_field() . '<button class="undo-btn" name="txn_id" value="' . (int)$txnRow['id'] . '" title="' . t('Stornieren') . '">↩</button></form>';
                 }
                 $body .= '</li>';

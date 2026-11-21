@@ -313,7 +313,7 @@ function route_wallet(): never
     $body = '<div class="member-view">
       <p class="brand-tag">' . t('Mein Wallet') . '</p>
       <h1>' . t('Hallo, {name}!', ['name' => $firstName]) . '</h1>
-      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p><p><a href="/member/preferences">E-Mail-Einwilligung & Geburtstag</a></p>';
+      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p><p><a href="/member/preferences">E-Mail-Einwilligung & Geburtstag</a> · <a href="/wallet/request">Punkte anfordern</a></p>';
 
     $body.='<section class="panel"><h2>Karten offline vorzeigen</h2><p>Nur auf deinem eigenen Gerät speichern. Kundencodes und letzte Salden bleiben hier bis zu 24 Stunden lesbar, auch ohne Anmeldung. Keine Buchungen oder Einlösungen offline.</p><label><input id="offline-consent" type="checkbox"> Dies ist mein privates Gerät, ich möchte eine lokale Kopie.</label><p><button type="button" class="btn" id="offline-save">Karten auf diesem Gerät speichern</button> <button type="button" class="btn ghost" id="offline-clear">Lokale Kopie löschen</button></p><p id="offline-status" role="status"></p><p><a href="/offline.html">Gespeicherte Karten öffnen / Installationshilfe</a></p></section>';
 

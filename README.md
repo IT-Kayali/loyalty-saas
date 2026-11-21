@@ -22,6 +22,8 @@ Optionaler Punkteverfall bei Inaktivität pro Programm, per Cron oder Button. [R
 
 E-Mail-Automationen können einen persönlichen Einmal-Gutschein beilegen (Geburtstag, Winback, Willkommen). [Details](docs/LIFECYCLE-VOUCHERS.md).
 
+Mitglieder-Punkteanfragen per Link, opt-in je Programm. [Regeln und Grenzen](docs/POINT-REQUESTS.md).
+
 ## WordPress-Händlerdashboard
 
 Eigener WordPress-Adminbereich für Mitglieder, aktuelle Salden, Punkte/Stempel und bestätigte Prämieneinlösung, auch ohne WooCommerce. Admin-only-Verbindung, geschützter API-Schlüssel und transaktionaler Wiederholschutz. Eine Site verbindet genau ein Unternehmen. Einrichtung, echte lokale WordPress-Tests und Grenzen: [Plugin-README](integrations/woocommerce/README.md).

@@ -6,7 +6,7 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  const ctx=await b.newContext({viewport:vp});const p=await ctx.newPage();p.on('pageerror',e=>{throw e});p.on('dialog',d=>d.accept());
  await p.goto(U+'/login');await p.locator('[name=email]').fill('demo@loyalty.local');await p.locator('[name=password]').fill('demo1234');await p.locator('button').first().click();await p.waitForURL('**/dashboard');
  await p.goto(U+'/program/'+pid);
- await p.locator('[name=days]').fill(label==='desktop'?'30':'45');await p.getByRole('button',{name:'Speichern'}).click();await p.waitForLoadState();
+ await p.locator('[name=days]').fill(label==='desktop'?'30':'45');await p.locator('form:has([name=days])').getByRole('button',{name:'Speichern'}).click();await p.waitForLoadState();
  yes((await p.content()).includes('Punkteverfall nach'),label+': Einstellung gespeichert');
  yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': kein horizontaler Überlauf');
  await p.locator('h2',{hasText:'Punkteverfall'}).scrollIntoViewIfNeeded();await p.screenshot({path:`${out}/expiry-settings-${label}.png`});
