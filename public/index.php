@@ -14,6 +14,7 @@ require_once ROOT_DIR . '/app/inc/counter.php';
 require_once ROOT_DIR . '/app/inc/tiers.php';
 require_once ROOT_DIR . '/app/inc/engage.php';
 require_once ROOT_DIR . '/app/inc/segments.php';
+require_once ROOT_DIR . '/app/inc/business-settings.php';
 require_once ROOT_DIR . '/app/inc/api.php';
 require_once ROOT_DIR . '/app/inc/merchant.php';
 require_once ROOT_DIR . '/app/inc/analytics.php';
@@ -93,6 +94,7 @@ try {
         $path === '/admin' => route_admin($method),
         $path === '/admin/export' => route_admin_export(),
         $path === '/business/create' && $method === 'POST' => route_business_create(),
+        preg_match('#^/business/(\d+)/settings$#',$path,$m)===1 && in_array($method,['GET','POST'],true) => route_business_settings((int)$m[1],$method),
         preg_match('#^/business/(\d+)$#', $path, $m) === 1 => route_business((int)$m[1]),
         $path === '/program/create' && $method === 'POST' => route_program_create(),
         $path === '/program/template' && $method === 'POST' => route_program_template(),
@@ -434,6 +436,7 @@ function route_business(int $id): never
       <p><a href="/dashboard" class="muted">← ' . t('Alle Unternehmen') . '</a></p>
       <h1>' . h($b['name']) . '</h1><p><a class="btn ghost" href="/business/'.(int)$b['id'].'/mail">E-Mail & Automationen</a> <a class="btn ghost" href="/business/'.(int)$b['id'].'/team">Team & Rechte</a></p>
       <p class="btn-row">
+        <a class="btn ghost small" href="/business/' . $id . '/settings">Unternehmensname</a>
         <a class="btn ghost small" href="/business/' . $id . '/analytics">' . t('Analytics') . '</a>
         <a class="btn ghost small" href="/business/' . $id . '/design">' . t('Karten-Design') . '</a>
         <a class="btn ghost small" href="/business/' . $id . '/qr">' . t('QR-Studio') . '</a>

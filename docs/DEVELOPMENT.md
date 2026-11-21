@@ -156,3 +156,7 @@ Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Pari
 ## Segment-Editor
 
 `python3 tests/run-segments.py`: vorhandene Einzelregeln editieren, Konfliktschutz, kein Versand, Kampagnenverknüpfung/-historie und Rechte. [SEGMENTS.md](SEGMENTS.md).
+
+## Unternehmensname
+
+`python3 tests/run-business-settings.py`: Name des eigenen Unternehmens, Konfliktschutz, keine Nebenänderungen, bestehende Designertexte, Rechte/Plan und responsive Browserfälle. [BUSINESS-SETTINGS.md](BUSINESS-SETTINGS.md).
