@@ -199,3 +199,5 @@ Persönlicher QR bereits gekaufter Prepaid-Pässe mit getrennter Team-Prüfung v
 Bestätigtes Löschen nur unverknüpfter Segmente und unvorbereiteter Kampagnenentwürfe: [MARKETING-DELETE.md](docs/MARKETING-DELETE.md), Tests `python3 tests/run-marketing-delete.py`.
 
 Support-Admin-Inbox: Kanalfilter, Zuständigkeit per Name und mobile Volldatenliste, siehe [SUPPORT.md](docs/SUPPORT.md). Tests `python3 tests/run-support.py`.
+
+Eigene sichtbare Support-Threads lassen sich privat als JSON herunterladen, ohne interne Notizen: [SUPPORT.md](docs/SUPPORT.md).

@@ -84,6 +84,7 @@ try {
         $path === '/logout' => route_logout(),
         $path === '/account/password' => route_owner_password($method),
         $path === '/dashboard' => route_dashboard(),
+        preg_match('#^/support/([A-F0-9]{16})/export$#D',$path,$m)===1 && $method==='GET' => route_support_export($m[1]),
         $path === '/contact' => route_support($method,false,true),
         ($path==='/support' || preg_match('#^/support/([A-F0-9]{16})$#D',$path)) => route_support($method,false),
         ($path==='/admin/support' || preg_match('#^/admin/support/([A-F0-9]{16})$#D',$path)) => route_support($method,true),

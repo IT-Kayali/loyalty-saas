@@ -182,3 +182,5 @@ Die Gutschein-Auswertung prüft jetzt auch den aggregierten CSV-Download: 40 Dom
 `python3 tests/run-marketing-delete.py`: 23 Domänen-/HTTP- und 11 Browserprüfungen für Bestätigung, Revision, Mandant, unverknüpfte Segmente, unvorbereitete Entwürfe und Konkurrenz mit Versand. [MARKETING-DELETE.md](MARKETING-DELETE.md).
 
 Die Support-Suite prüft jetzt 23 Domänen-, 65 HTTP- und 32 Browserfälle, einschließlich Kanal-/Namensfilter, kombinierter Paginierung über 52 Datensätze und vollständig lesbarer mobiler Inbox. [SUPPORT.md](SUPPORT.md).
+
+Support-Thread-Download: Suite jetzt 23 Domänen-, 79 HTTP- und 36 Browserprüfungen. Eigenes JSON mit expliziter Feldliste, ohne interne Notizen/Metadaten, 1000-Nachrichten-/2-MiB-Grenzen, echte Browserdownloads. [SUPPORT.md](SUPPORT.md).

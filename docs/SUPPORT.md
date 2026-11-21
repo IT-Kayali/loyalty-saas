@@ -27,13 +27,13 @@ Eingebauter Helpdesk zwischen Betreibern (Partnern) und Plattform-Admins. Alles 
 
 ## Tests
 
-`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/support-images python tests/run-support.py` führt 23 Domänenprüfungen, 65 HTTP-Prüfungen (Zugriff, Mandantentrennung, CSRF, Routenbindung, interne Notizen, Filter, Planablauf, Kontakt, Rate-Limit, Ausblenden) und 32 Chromium-Prüfungen mit Screenshots (Desktop und Mobil) aus. Benachrichtigungen werden nur in die Outbox geschrieben. Es läuft kein Mail-Worker und keine SMTP-Verbindung. Chromium über `NODE_PATH` mit Playwright.
+`PHP_BIN=/pfad/php TEST_OUTPUT=/tmp/support-images python tests/run-support.py` führt 23 Domänenprüfungen, 79 HTTP-Prüfungen (Zugriff, Mandantentrennung, CSRF, Routenbindung, interne Notizen, Filter, Planablauf, Kontakt, Rate-Limit, Ausblenden) und 36 Chromium-Prüfungen mit Screenshots (Desktop und Mobil) aus. Benachrichtigungen werden nur in die Outbox geschrieben. Es läuft kein Mail-Worker und keine SMTP-Verbindung. Chromium über `NODE_PATH` mit Playwright.
 
 ## Grenzen (ehrlich)
 
 Keine vollständige Referenzparität:
 - Kein öffentlicher Kontakt-Thread und keine Antwort an Kontaktadressen (bewusst, da unbestätigt).
-- Kein E-Mail-Eingang, keine Anhänge, kein Export, keine Zuweisung an Teammitglieder oder delegierte Manager.
+- Kein E-Mail-Eingang, keine Anhänge, keine Zuweisung an Teammitglieder oder delegierte Manager.
 - Kein Snapshot von Zeitzone, Sprache oder App-Version am Ticket.
 - Keine Support-API. Nur Session-Formulare.
 - Keine Echtzeit-Aktualisierung. Veraltete Formulare werden abgelehnt und müssen neu geladen werden.
@@ -48,3 +48,15 @@ Zuständigkeit wird per Name/E-Mail aktueller Plattform-Admins gewählt, mit „
 Kanal, Status, Priorität, Zuständigkeit und Suchtext bleiben beim Link „Nächste 50“ erhalten. Ein unbekannter Kanal liefert HTTP 422. Auf Partnerseiten bewirken Admin-Filter keine Erweiterung des Zugriffs. Filter schreiben keine Nachrichten, Status, Outbox oder Auditdaten. Suchbegriffe und Filter stehen in der Browseradresse. Kein gespeicherter Filter, automatisches Aktualisieren oder Gesamtzähler. Die Listen zeigen auf Mobilgerätegröße alle Felder untereinander statt seitlichem Tabellen-Scrollen.
 
 Zusatztests: 12 HTTP-Prüfungen für Kanaltrennung, kombinierte Filter, Partnerisolation, sichere Fehler, ausgeblendete Tickets, Lesewirkung, historische Zuständigkeit und 52 passende Datensätze auf zwei Seiten ohne Überschneidung. 10 zusätzliche Browserprüfungen für beide Kanalwechsel, Namensauswahl, vollständige Tabellen und Desktop-/Mobilansicht.
+
+## Eigenen Thread herunterladen
+
+Im eigenen Betreiber-Ticket lädt „Sichtbaren Thread als JSON laden“ eine private Datei `support-REFERENZ.json`. JSON ist UTF-8, mit Formatkennung `loyalty-support-thread`, Version 1, UTC-Exportzeit, Ticketreferenz, Betreff, Thema, Status und Anlage-/Änderungszeit. Die Nachrichten enthalten die bereits in der Partneransicht sichtbaren Autorennamen, UTC-Zeiten und vollständigen Texte in Reihenfolge. Es ist keine HTML-Datei und kein wieder importierbares Backup.
+
+Interne Notizen und ihre Autorendaten, Zuständigkeit, Priorität, Absender-E-Mail, interne IDs, Vorgangskennungen und Benachrichtigungen gehören nicht zum Export. Die Ausgabe verwendet eine feste Feldliste, nicht den vollständigen Ticketdatensatz. Nur der angemeldete Eigentümer kann sein aktives Partner-Ticket exportieren. Fremde und ausgeblendete Tickets sowie Kontaktformular-Anfragen liefern 404. Kein Adminexport und keine Ausweitung von Kontaktberechtigungen. Wie Support selbst bleibt der Download ohne aktiven Bezahlplan verfügbar.
+
+Nachrichten und Ticket werden in einer kurzen Lesetransaktion gelesen. Der Download verändert keine Daten, Mail-Outbox oder Audit. Private/no-store, kein Versand per E-Mail. Maximal 1000 sichtbare Nachrichten und 2 MiB fertig kodiertes JSON, sonst HTTP 422 ohne Teildatei. Interne Nachrichten zählen nicht zur 1000er-Grenze. Fehlerhafte gespeicherte UTF-8-Daten können den Export blockieren statt still ersetzt zu werden. Kein unbegrenzter Streamingexport.
+
+Die Datei enthält private Supportinhalte, lokal sicher aufbewahren und nicht unbedacht weitergeben. Sie ist ein Datenstand beim Download, keine vollständige Änderungshistorie, Rechts-/Datenschutzzusage oder unveränderbares Archiv. Autorennamen sind die beim Download aktuellen Kontonamen, keine historischen Identitätssnapshots. Kein Sammel-/Adminexport, keine Anhänge, kein CSV/PDF, keine neue API. Die bestehenden Threadanzeigen und Ausblendungsregeln bleiben unverändert.
+
+Zusatztests für den Download: 14 HTTP-Fälle für Schema/Feldliste, Volltextreihenfolge, Ausschluss interner Daten, exakten Eigentümer, Kontakt/ausgeblendet, no-store, Lesewirkung, Aboablauf und harte Nachrichten-/UTF-8-Bytegrenzen. Vier Browserprüfungen laden die tatsächliche Datei auf Desktop und Mobil herunter und prüfen den Inhalt ohne interne Notiz. Exportlink und Thread auf beiden Größen visuell geprüft.

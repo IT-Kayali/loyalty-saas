@@ -57,7 +57,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
 | Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. Neu: Passwortreset mit Einmaltoken und Sessionwiderruf; eigenes Betreiberpasswort mit bisherigem Passwort ändern (OWNER-PASSWORD.md), beendet Websitzungen, nicht API-/Agent-Schlüssel. OTP, Geräteverwaltung und vollständiger Security-Audit fehlen. |
 | Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Getestetes Backup-/Restore-Werkzeug jetzt vorhanden. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker oder automatischer Updater. |
-| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Status/Priorität/Kanal/Namens-Zuständigkeit/Suche, filtertreuer Paginierung und mobiler Volldatenliste, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Export/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
+| Support | Neu, Basis | Partner-Tickets auf jedem Plan, Admin-Inbox mit Status/Priorität/Kanal/Namens-Zuständigkeit/Suche, filtertreuer Paginierung und mobiler Volldatenliste, interne Notizen, Ausblenden, Audit ohne Texte, öffentlicher Kontakt ohne Konto-Bindung. Neu: eigener sichtbarer Partner-Thread als privater JSON-Download, ohne interne Notizen. Kein Kontakt-Thread, kein Mail-Eingang, keine Anhänge/Support-API, keine echte SMTP-Abnahme. Siehe SUPPORT.md. |
 
 ## Empfohlene weitere Baupakete
 
@@ -125,7 +125,7 @@ Installierbare Metadaten/Icons und generische öffentliche Offline-Hülle ergän
 
 ## Nachtrag: Support-Tickets
 
-In-App-Helpdesk ergänzt (docs/SUPPORT.md): Partner-Threads auf jedem Plan, Admin-Inbox mit Filtern und Suche, unsichtbare interne Notizen, Status Offen/Wartet/Geschlossen mit Wiedereröffnung, Zuweisung, Priorität, bestätigtes Ausblenden, Audit ohne Nachrichtentexte, Vorgangs-Deduplizierung, Routenbindung, CSRF/Rate-Limits. Öffentlicher Kontakt bindet nie an ein Konto und löst keine Mail an die Absenderadresse aus. 23 Domänen-, 53 HTTP- und 22 Chromium-Prüfungen grün. Offen: Kontakt-Thread, E-Mail-Eingang, Anhänge, Export, Support-API, Teammitglieder-Zuweisung, Zeitzone/Sprache/Version-Snapshot, echte SMTP-/Geräteabnahme.
+In-App-Helpdesk ergänzt (docs/SUPPORT.md): Partner-Threads auf jedem Plan, Admin-Inbox mit Filtern und Suche, unsichtbare interne Notizen, Status Offen/Wartet/Geschlossen mit Wiedereröffnung, Zuweisung, Priorität, bestätigtes Ausblenden, Audit ohne Nachrichtentexte, Vorgangs-Deduplizierung, Routenbindung, CSRF/Rate-Limits. Öffentlicher Kontakt bindet nie an ein Konto und löst keine Mail an die Absenderadresse aus. Aktueller Ausbau: Kanal-/Namensfilter, mobile Volldatenliste und eigener sichtbarer Thread als JSON, keine internen Notizen im Partnerexport. 23 Domänen-, 79 HTTP- und 36 Chromium-Prüfungen grün. Offen: Kontakt-Thread, E-Mail-Eingang, Anhänge, Sammel-/Adminexport, Support-API, Teammitglieder-Zuweisung, Zeitzone/Sprache/Version-Snapshot, echte SMTP-/Geräteabnahme.
 
 ## Nachtrag: KI-Verbindungen (MCP)
 

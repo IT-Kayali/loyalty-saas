@@ -22,6 +22,9 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await p.goto(U+'/support/'+ref);const html=await p.content();
  yes(html.includes('wir prüfen das')&&!html.includes('Interne Einschätzung'),label+': partner sees public reply but not internal note');
  yes(html.includes('Wartet auf Antwort'),label+': status awaiting partner after admin reply');
+ const [download]=await Promise.all([p.waitForEvent('download'),p.getByRole('link',{name:'Sichtbaren Thread als JSON laden',exact:true}).click()]);const file=`${out}/support-export-${label}.json`;await download.saveAs(file);const exported=JSON.parse(fs.readFileSync(file,'utf8'));
+ yes(download.suggestedFilename()===`support-${ref}.json`,label+': privater Thread-Download');
+ yes(exported.messages.length===2 && exported.messages[1].body.includes('wir prüfen das') && !JSON.stringify(exported).includes('Interne Einschätzung'),label+': Export ohne interne Notiz');
  await p.screenshot({path:`${out}/support-partner-reply-${label}.png`,fullPage:true});
  const c=await b.newContext({viewport:vp});const cp=await c.newPage();await cp.goto(U+'/contact');
  await cp.locator('[name=name]').fill('Max Besucher');await cp.locator('[name=email]').fill('besucher@kunde.invalid');await cp.locator('[name=subject]').fill('Frage vor Registrierung');await cp.locator('[name=message]').fill('Hallo, gibt es eine Testphase?');await cp.locator('form button.btn').last().click();await cp.waitForLoadState();

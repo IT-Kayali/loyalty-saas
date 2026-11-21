@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys,subprocess,urllib.request,urllib.error,urllib.parse,http.cookiejar,re,html
+import sys,subprocess,urllib.request,urllib.error,urllib.parse,http.cookiejar,re,html,json,pathlib
 A=sys.argv[1];PHP=sys.argv[2];n=0
 def sql(code):return subprocess.check_output([PHP,'-r',"require 'public/index.php';"+code],cwd=A,text=True).strip()
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -74,6 +74,19 @@ check(r1 in req('/support?q=Rechnung',c=p1)[1],'partner search finds subject')
 check('GEHEIME' in req('/admin/support/'+r1,c=ad)[1],'admin sees internal note')
 check('GEHEIME' not in sql("echo implode('|',db()->query('SELECT details FROM audit_logs')->fetchAll(PDO::FETCH_COLUMN));"),'audit has no note text')
 check(req('/support/'+r1,dict(csrf=csrf(p1,'/support/'+r1),operation=op(),action='reply',reference=r1,version=version(r1),message='x',internal=1),p1)[0]==422,'partner cannot post internal note')
+# Partner-visible thread export must not contain private admin data.
+E='/support/'+r1+'/export'
+with p1.open('http://127.0.0.1:8099'+E) as x:
+ exported=x.read().decode();eh=x.headers;data=json.loads(exported)
+check(eh.get_content_type()=='application/json' and eh['Content-Disposition']=='attachment; filename="support-'+r1+'.json"','partner export is JSON attachment with verified reference')
+check(eh['Cache-Control']=='private, no-store','thread download is private no-store')
+check(data['format']=='loyalty-support-thread' and data['version']==1 and data['ticket']['reference']==r1,'versioned export schema identifies own ticket')
+check([m['body'] for m in data['messages']]==['Erste <script>alert(1)</script> Nachricht','Öffentliche Antwort'],'export contains complete public text in order without HTML interpretation')
+check('GEHEIME' not in exported and 'assignee' not in exported and 'requester_email' not in exported and 'priority' not in exported and 'internal' not in exported,'export excludes internal notes and admin-private fields')
+check(all(set(m)=={'author','body','created_at_utc'} for m in data['messages']) and set(data['ticket'])=={'reference','subject','topic','status','created_at_utc','updated_at_utc'},'explicit allowlist prevents future private columns leaking')
+check(req(E,c=p2)[0]==404 and '/login' in req(E,c=client())[2],'export requires exact ticket owner')
+check(req('/admin/support/'+r1+'/export',c=ad)[0]==404,'no admin export route accidentally exposes internal notes')
+check(req(E,{},p1)[0]==403,'export POST without CSRF never executes')
 # status, reopen, version conflict
 aid=sql("echo db()->query(\"SELECT id FROM users WHERE email='admin@test.local'\")->fetchColumn();")
 v=version(r1);s=dict(csrf=csrf(ad,'/admin/support/'+r1),operation=op(),action='status',reference=r1,version=v,status='closed',priority='high',assignee=aid)
@@ -94,6 +107,7 @@ cd=dict(csrf=ct,operation=op(),action='create',name='Fremder',email='demo@loyalt
 st,b,u=req('/contact',cd,c);check(st==200,'public contact accepted')
 cr=sql("echo db()->query(\"SELECT reference FROM support_tickets WHERE channel='contact'\")->fetchColumn();")
 check(sql("echo var_export(db()->query(\"SELECT user_id FROM support_tickets WHERE channel='contact'\")->fetchColumn()===null,true);")=='true','contact ticket not bound to account despite owner email')
+check(req('/support/'+cr+'/export',c=p1)[0]==404,'contact export remains unavailable even for matching email')
 check(req('/support/'+cr,c=p1)[0]==404,'owner with same email cannot open contact ticket')
 check(req('/support/'+cr,c=c)[0]in(404,302,200) and cr not in req('/support/'+cr,c=c)[1],'public visitor cannot read contact thread')
 check(req('/contact',dict(cd,operation=op(),action='reply',reference=cr,version=1),c)[0]==422,'contact cannot reply to existing ticket')
@@ -109,6 +123,7 @@ check(429 in codes,'contact rate limit triggers')
 v=version(r2);check(req('/admin/support/'+r2,dict(csrf=csrf(ad,'/admin/support/'+r2),operation=op(),action='delete',reference=r2,version=v,confirm_reference='FALSCH'),ad)[0]==422,'delete needs exact reference')
 check(req('/admin/support/'+r2,dict(csrf=csrf(ad,'/admin/support/'+r2),operation=op(),action='delete',reference=r2,version=v,confirm_reference=r2),ad)[0]==200,'admin hides ticket')
 check(req('/support/'+r2,c=p1)[0]==404 and req('/admin/support/'+r2,c=ad)[0]==404,'hidden ticket 404 for partner and admin')
+check(req('/support/'+r2+'/export',c=p1)[0]==404,'hidden thread cannot be exported')
 check(int(sql("echo db()->query('SELECT COUNT(*) FROM support_messages')->fetchColumn();"))>=2,'hidden ticket messages retained')
 # Admin inbox channel and named assignee filters, read-only.
 before=sql("echo json_encode([db()->query('SELECT * FROM support_tickets')->fetchAll(),db()->query('SELECT * FROM support_messages')->fetchAll(),db()->query('SELECT * FROM mail_outbox')->fetchAll(),db()->query('SELECT * FROM audit_logs')->fetchAll()]);")
@@ -120,7 +135,8 @@ check(r1 in req('/admin/support?channel=partner&assignee='+aid+'&priority=high',
 check(r1 in req('/support?channel=contact&assignee='+aid,c=p1)[1] and cr not in req('/support?channel=contact',c=p1)[1],'partner query parameters never expose contact or admin scope')
 check(req('/admin/support?channel=%3Cscript%3E',c=ad)[0]==422 and '<script>' not in req('/admin/support?channel=%3Cscript%3E',c=ad)[1],'unknown channel safely rejected')
 check(r2 not in contact+partner,'hidden ticket absent from both channels')
-check(before==sql("echo json_encode([db()->query('SELECT * FROM support_tickets')->fetchAll(),db()->query('SELECT * FROM support_messages')->fetchAll(),db()->query('SELECT * FROM mail_outbox')->fetchAll(),db()->query('SELECT * FROM audit_logs')->fetchAll()]);"),'filters create no messages, status, mail or audit changes')
+req(E,c=p1)
+check(before==sql("echo json_encode([db()->query('SELECT * FROM support_tickets')->fetchAll(),db()->query('SELECT * FROM support_messages')->fetchAll(),db()->query('SELECT * FROM mail_outbox')->fetchAll(),db()->query('SELECT * FROM audit_logs')->fetchAll()]);"),'filters and export create no messages, status, mail or audit changes')
 check('Ehemalige / unbekannte Admin-ID 999999' in req('/admin/support?assignee=999999',c=ad)[1],'historical or unknown assignee filter remains visible')
 sql("$q=db()->prepare(\"INSERT INTO support_tickets(reference,channel,requester_name,requester_email,topic,subject,status,priority)VALUES(?,'contact','Pagination','unverified@example.test','technical',?,'open','high')\");for($i=0;$i<52;$i++)$q->execute([strtoupper(str_pad(dechex(100000+$i),16,'0',STR_PAD_LEFT)),'Page fixture '.$i]);")
 url='/admin/support?'+urllib.parse.urlencode(dict(channel='contact',priority='high',status='open',assignee='0',q='Page fixture'))
@@ -129,4 +145,14 @@ check(qs['channel']==['contact'] and qs['priority']==['high'] and qs['status']==
 refs=lambda h:set(re.findall(r'href="/admin/support/([A-F0-9]{16})"',h))
 first=refs(h);last=refs(req(nexturl,c=ad)[1]);check(len(first)==50 and len(last)==2 and not first&last,'filtered pagination has no missing or duplicate tickets')
 check('Nächste 50' not in req(nexturl,c=ad)[1],'last filtered page ends pagination')
+# Support export is a read even when paid writes are blocked.
+configpath=pathlib.Path(A)/'config.php';original=configpath.read_text();configpath.write_text(original.replace('return $c;',"$c['stripe']['enforce_limits']=true;return $c;"))
+check(req(E,c=p1)[0]==200,'own thread export remains available without active paid plan')
+configpath.write_text(original)
+# Hard limits never return a partial JSON file. Bulk fixtures are local only.
+body='ä'*2000
+sql("$q=db()->prepare('INSERT INTO support_messages(ticket_id,author_id,internal,body)SELECT id,1,0,? FROM support_tickets WHERE reference=?');for($i=0;$i<600;$i++)$q->execute([str_repeat('ä',2000),'"+r1+"']);")
+st,h,_=req(E,c=p1);check(st==422 and '2 MiB' in h and 'loyalty-support-thread' not in h,'byte cap counts encoded UTF-8 and blocks incomplete download')
+sql("db()->exec(\"UPDATE support_messages SET body='kurz' WHERE ticket_id=(SELECT id FROM support_tickets WHERE reference='"+r1+"') AND internal=0\");$q=db()->prepare(\"INSERT INTO support_messages(ticket_id,author_id,internal,body)SELECT id,1,0,'kurz' FROM support_tickets WHERE reference=?\");for($i=0;$i<405;$i++)$q->execute(['"+r1+"']);")
+st,h,_=req(E,c=p1);check(st==422 and '1000' in h and 'loyalty-support-thread' not in h,'message cap rejects partial export')
 print(n,'support HTTP assertions passed')
