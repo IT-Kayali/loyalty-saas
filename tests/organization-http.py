@@ -41,5 +41,5 @@ owner_login(fresh);res=req('/card/1/action',{'csrf':csrf(fresh,'/member/1'),'act
 check(sql("echo db()->query(\"SELECT CASE WHEN staff_id IS NULL AND location_id IS NULL THEN 1 ELSE 0 END FROM transactions ORDER BY id DESC LIMIT 1\")->fetchColumn();")=='1','owner transaction not attributed to staff')
 loc=int(sql("db()->exec(\"INSERT INTO locations(business_id,name)VALUES(1,'Enabled')\");echo db()->lastInsertId();"))
 req('/business/1/team',dict(base,role='cashier',cap_award=1,location_id=loc),owner);check(req('/staff',c=fresh)[2].endswith('/staff'),'assigned active location usable')
-req('/organization',{'csrf':tk,'action':'location_toggle','id':loc},owner);check(req('/staff',c=fresh)[2].endswith('/staff/login'),'disabled location revokes existing access')
+req('/organization',{'csrf':tk,'action':'location_toggle','id':loc,'active':'0','state_revision':sql('echo location_state_revision(db()->query("SELECT * FROM locations WHERE id=%d")->fetch());'%loc)},owner);check(req('/staff',c=fresh)[2].endswith('/staff/login'),'disabled location revokes existing access')
 print(n,'organization HTTP assertions passed')

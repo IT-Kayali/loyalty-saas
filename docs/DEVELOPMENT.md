@@ -206,3 +206,7 @@ Meilenstein-Suite jetzt 50 Domänen-/HTTP-/Parallel- und 18 Browserprüfungen ei
 ### Unzugeordnete Netzwerke löschen
 
 `python3 tests/run-network-delete.py`: 21 HTTP-/Domänen- und 12 Browserprüfungen für Vorschau/Bestätigung, Sperre bei Zuordnung, atomaren Audit und echtes Zuordnungs-/Löschrennen. [ORGANIZATION.md](ORGANIZATION.md).
+
+### Expliziter Standortstatus
+
+`python3 tests/run-location-state.py`: 19 HTTP-/Domänen- und 10 Browserprüfungen für explizite Aktivierung, Konflikte, Rechte, atomaren Audit und zwei parallele Deaktivierungen. `run-organization.py` prüft weiterhin den Team-Sitzungsentzug am inaktiven Standort. [ORGANIZATION.md](ORGANIZATION.md).

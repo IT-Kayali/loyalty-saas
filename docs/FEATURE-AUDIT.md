@@ -162,3 +162,7 @@ Eigene Standortnamen und beschreibende Adressen editierbar, Konfliktschutz und a
 ## Nachtrag: Unzugeordnete Netzwerke löschen
 
 Getrennte Bestätigungsseite, exakter Name, Eigentümer/CSRF/Plan und Revision unter Schreiblock. Nur ohne verknüpftes Unternehmen, keine automatische Abkopplung/Kaskade. Atomarer ID-Audit, keine Unternehmens-/Standort-/Saldoänderungen. 21 HTTP-/Domänen- und 12 Browserprüfungen samt echtem Zuordnungsrennen. Kein Archiv/Restore oder Standortlöschung. [Details](ORGANIZATION.md).
+
+## Nachtrag: Expliziter Standortstatus
+
+Blindes Umschalten ersetzt durch gewünschten Aktivstatus mit Ausgangsprüfung unter Lock, atomarem Audit und sichtbarem Aktivieren/Deaktivieren. Wiederholtes/altes Formular stellt einen deaktivierten Standort nicht unbemerkt wieder her. Keine zusätzlichen Teamrechte oder Buchungsänderungen. 19 HTTP-/Domänen- und 10 Browserprüfungen. Zustandsvergleich ohne dauerhafte Versionshistorie, weitere Grenzen in [ORGANIZATION.md](ORGANIZATION.md).

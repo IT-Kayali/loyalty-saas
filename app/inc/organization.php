@@ -57,8 +57,7 @@ function route_organization(string $method): never
                 $b=own_business((int)$u['id'],(int)($_POST['business_id'] ?? 0));if(!$b)not_found();$name=mb_substr(trim((string)($_POST['name'] ?? '')),0,80);if($name==='')throw new InvalidArgumentException('Name fehlt.');
                 db()->prepare('INSERT INTO locations(business_id,name,address)VALUES(?,?,?)')->execute([$b['id'],$name,mb_substr(trim((string)($_POST['address'] ?? '')),0,200)]);audit_log((int)$u['id'],'location.create',['business_id'=>$b['id']]);
             }elseif($action==='location_toggle') {
-                $q=db()->prepare('SELECT l.id,l.business_id FROM locations l JOIN businesses b ON b.id=l.business_id WHERE l.id=? AND b.user_id=?');$q->execute([(int)($_POST['id'] ?? 0),$u['id']]);$l=$q->fetch();if(!$l)not_found();
-                db()->prepare('UPDATE locations SET active=1-active WHERE id=?')->execute([$l['id']]);audit_log((int)$u['id'],'location.toggle',['location_id'=>$l['id']]);
+                location_set_active((int)$u['id'],(int)($_POST['id'] ?? 0),$_POST);
             }
             flash('Organisation gespeichert.');
         }catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
@@ -70,7 +69,7 @@ function route_organization(string $method): never
     $q=db()->prepare('SELECT b.*,n.name AS network_name FROM businesses b LEFT JOIN networks n ON n.id=b.network_id WHERE b.user_id=? ORDER BY b.name');$q->execute([$u['id']]);
     foreach($q->fetchAll() as $b) {
         $bid=(int)$b['id'];$body.='<section class="panel organization-business"><h2>'.h($b['name']).'</h2><form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="assign"><input type="hidden" name="business_id" value="'.$bid.'"><label>Netzwerk<select name="network_id">'.network_options((int)$u['id'],$b['network_id']!==null?(int)$b['network_id']:null).'</select></label><button class="btn ghost">Zuordnen</button></form><p><a href="/business/'.$bid.'/team">Team & Rechte verwalten</a></p><h3>Standorte</h3>';
-        $l=db()->prepare('SELECT * FROM locations WHERE business_id=? ORDER BY name');$l->execute([$bid]);foreach($l->fetchAll() as $loc)$body.='<p><strong>'.h($loc['name']).'</strong> · '.h($loc['address']).' · '.($loc['active']?'aktiv':'inaktiv').' · <a href="/location/'.(int)$loc['id'].'/edit">Name / Adresse bearbeiten</a><form method="post" class="undo-form">'.csrf_field().'<input type="hidden" name="action" value="location_toggle"><button class="btn ghost small" name="id" value="'.(int)$loc['id'].'">Umschalten</button></form></p>';
+        $l=db()->prepare('SELECT * FROM locations WHERE business_id=? ORDER BY name');$l->execute([$bid]);foreach($l->fetchAll() as $loc)$body.='<p><strong>'.h($loc['name']).'</strong> · '.h($loc['address']).' · '.($loc['active']?'aktiv':'inaktiv').' · <a href="/location/'.(int)$loc['id'].'/edit">Name / Adresse bearbeiten</a><form method="post" class="undo-form">'.csrf_field().'<input type="hidden" name="action" value="location_toggle"><input type="hidden" name="state_revision" value="'.location_state_revision($loc).'"><input type="hidden" name="active" value="'.($loc['active']?'0':'1').'"><button class="btn ghost small" name="id" value="'.(int)$loc['id'].'">'.($loc['active']?'Standort deaktivieren':'Standort aktivieren').'</button></form></p>';
         $body.='<form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="location"><input type="hidden" name="business_id" value="'.$bid.'"><label>Standortname<input name="name" maxlength="80" required></label><label>Adresse<input name="address" maxlength="200"></label><button class="btn">Standort anlegen</button></form></section>';
     }
     page('Netzwerke & Standorte',$body,$u);exit;
@@ -193,4 +192,22 @@ function route_network_delete(int $id,string $method): never
     if($count)$body.='<p>Gesperrt: Noch Unternehmen zugeordnet. Nichts wird gelöscht. Zuordnungen bei Bedarf zuerst bewusst über Organisation ändern.</p>';
     else $body.='<form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.network_revision($n).'"><label>Netzwerkname exakt bestätigen<input name="confirm_name" required autocomplete="off"></label><button class="btn">Unzugeordnetes Netzwerk endgültig löschen</button></form>';
     $body.='<p><a href="/organization">Abbrechen, nichts löschen</a></p></section>';page('Netzwerk löschen prüfen',$body,$u);exit;
+}
+
+/** Text edits are independent, only the activation state is compared and written. */
+function location_state_revision(array $l): string
+{
+    return hash('sha256',json_encode([(int)$l['id'],(int)$l['business_id'],(int)$l['active']],JSON_THROW_ON_ERROR));
+}
+function location_set_active(int $uid,int $id,array $input): void
+{
+    if(!isset($input['active'],$input['state_revision']) || !is_string($input['active']) || !in_array($input['active'],['0','1'],true) || !is_string($input['state_revision']))throw new InvalidArgumentException('Aktivstatus und Prüfstand fehlen oder sind ungültig. Organisation neu laden.');
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try{
+        $q=$db->prepare('SELECT l.* FROM locations l JOIN businesses b ON b.id=l.business_id WHERE l.id=? AND b.user_id=?');$q->execute([$id,$uid]);$l=$q->fetch();if(!$l)throw new InvalidArgumentException('Standort nicht verfügbar.');
+        if(($err=plan_policy($uid,'locations'))!==null)throw new InvalidArgumentException($err);
+        if(!hash_equals(location_state_revision($l),$input['state_revision']))throw new InvalidArgumentException('Standortstatus wurde inzwischen geändert. Aktuellen Stand prüfen.');
+        if((int)$l['active']===(int)$input['active'])throw new InvalidArgumentException('Standort hat bereits den gewünschten Status. Nichts geändert.');
+        $db->prepare('UPDATE locations SET active=? WHERE id=?')->execute([(int)$input['active'],$id]);audit_log($uid,'location.state',['location_id'=>$id,'active'=>(int)$input['active']]);$db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
 }

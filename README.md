@@ -233,3 +233,7 @@ Eigene Standortnamen und beschreibende Adressen lassen sich separat bearbeiten. 
 ## Leere Netzwerkgruppen entfernen
 
 Eigene Netzwerke ohne zugeordnetes Unternehmen lassen sich nach getrennter Prüfung und exakter Namensbestätigung endgültig entfernen. Keine automatische Abkopplung oder Saldoänderung. [Schutz und Grenzen](docs/ORGANIZATION.md).
+
+## Standortstatus bewusst ändern
+
+Organisation bietet explizites Aktivieren/Deaktivieren mit geprüftem Ausgangsstatus statt blindem Umschalten. Alte/doppelte Formulare kippen den unmittelbar geänderten Zustand nicht zurück. [Rechte, Wirkung und Grenzen](docs/ORGANIZATION.md).
