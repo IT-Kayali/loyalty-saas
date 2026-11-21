@@ -147,6 +147,7 @@ try {
         $path==='/wallet/claim' && $method==='POST' => route_wallet_claim(),
         preg_match('#^/claim/([A-Za-z0-9-]{8,12})$#',$path,$m)===1 && $method==='GET' => route_claim_entry($m[1]),
         preg_match('#^/(?:staff/)?business/(\d+)/claim-counter$#',$path,$m)===1 => route_claim_counter((int)$m[1],$method),
+        $path==='/member/password' => route_member_password($method),
         $path==='/member/preferences' => route_member_preferences($method),
         $path === '/api/docs' => route_api_docs(),
         $path === '/member/create' && $method === 'POST' => route_member_create(),

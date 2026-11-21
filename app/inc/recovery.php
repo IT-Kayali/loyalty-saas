@@ -37,3 +37,40 @@ function route_reset_password(string $method): never
     }
     page('Neues Passwort','<div class="auth-box"><h1>Neues Passwort</h1><form method="post" class="form">'.csrf_field().'<input type="hidden" name="token" value="'.h($token).'"><label>Passwort (12–200 Zeichen)<input type="password" name="password" minlength="12" maxlength="200" autocomplete="new-password" required></label><button class="btn">Passwort speichern</button></form></div>');exit;
 }
+
+/** Shared-Wallet-Passwort mit bisherigem Passwort aendern, alle Sitzungen abmelden. */
+function route_member_password(string $method): never
+{
+    $email = require_member();
+    header('Cache-Control: no-store');
+    if ($method === 'POST') {
+        if (!rate_limit_take('member-password', strtolower($email), 10, 900)) rate_limit_stop();
+        $old = (string)($_POST['current_password'] ?? '');
+        $pw = (string)($_POST['password'] ?? '');
+        if (strlen($old)>200 || strlen($pw)<12 || strlen($pw)>72 || str_contains($pw, "\0") || !hash_equals($pw,(string)($_POST['password_confirm'] ?? ''))) {
+            flash('Neues Passwort mit 12 bis 72 Byte (Umlaute zählen mehrfach) wählen und identisch wiederholen.','err');redirect('/member/password');
+        }
+        db()->exec('BEGIN IMMEDIATE');
+        try {
+            $q=db()->prepare('SELECT password_hash,session_version FROM members WHERE lower(email)=lower(?)');$q->execute([$email]);$rows=$q->fetchAll();
+            $valid=false; $version=-1;
+            foreach ($rows as $r) {
+                $version=max($version,(int)$r['session_version']);
+                if ($r['password_hash']!==null && password_verify($old,$r['password_hash'])) $valid=true;
+            }
+            if (!$valid || $version!==(int)($_SESSION['member_session_version'] ?? -2)) throw new InvalidArgumentException('Bisheriges Passwort stimmt nicht oder die Sitzung ist abgelaufen.');
+            if (hash_equals($old,$pw)) throw new InvalidArgumentException('Bitte ein anderes neues Passwort wählen.');
+            $GLOBALS['password_change_authorized']=true;
+            db()->prepare('UPDATE members SET password_hash=?,session_version=? WHERE lower(email)=lower(?)')->execute([password_hash($pw,PASSWORD_DEFAULT),$version+1,$email]);
+            db()->prepare("UPDATE password_resets SET used_at=datetime('now') WHERE lower(email)=lower(?) AND kind='member' AND used_at IS NULL")->execute([$email]);
+            db()->exec('COMMIT');
+        } catch (Throwable $e) {
+            db()->exec('ROLLBACK');
+            if ($e instanceof InvalidArgumentException) {flash($e->getMessage(),'err');redirect('/member/password');}
+            throw $e;
+        } finally { $GLOBALS['password_change_authorized']=false; }
+        unset($_SESSION['member_email'],$_SESSION['member_session_version']);session_regenerate_id(true);
+        flash('Passwort geändert. Alle Wallet-Sitzungen sind abgemeldet. Bitte neu anmelden.');redirect('/member/login');
+    }
+    page('Passwort ändern','<div class="auth-box"><p><a href="/wallet">← Meine Karten</a></p><h1>Passwort ändern</h1><p class="muted">Gilt für deine gemeinsame Wallet mit '.h($email).', über alle Unternehmen hinweg. Nach dem Speichern werden alle Wallet-Sitzungen abgemeldet. Bereits gespeicherte Offline-Karten auf anderen Geräten bleiben bis zu ihrem Ablauf sichtbar (höchstens 24 Stunden).</p><form method="post" class="form">'.csrf_field().'<label>Bisheriges Passwort<input type="password" name="current_password" autocomplete="current-password" maxlength="200" required></label><label>Neues Passwort (12 bis 72 Byte (Umlaute zählen mehrfach))<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="72" required></label><label>Neues Passwort wiederholen<input type="password" name="password_confirm" autocomplete="new-password" minlength="12" maxlength="72" required></label><button class="btn">Passwort ändern und abmelden</button></form><p><a href="/forgot-password">Passwort vergessen?</a></p></div>');exit;
+}
