@@ -202,3 +202,7 @@ Meilenstein-Suite jetzt 50 Domänen-/HTTP-/Parallel- und 18 Browserprüfungen ei
 ### Standorttexte
 
 `python3 tests/run-location-edit.py`: 32 HTTP-/Domänen- und 16 Desktop-/Mobilbrowserprüfungen für reine Textänderungen, feste Bindungen, unabhängige Aktivierung, Rechte, atomaren Audit und Parallel-/Zwei-Tab-Konflikte. [ORGANIZATION.md](ORGANIZATION.md).
+
+### Unzugeordnete Netzwerke löschen
+
+`python3 tests/run-network-delete.py`: 21 HTTP-/Domänen- und 12 Browserprüfungen für Vorschau/Bestätigung, Sperre bei Zuordnung, atomaren Audit und echtes Zuordnungs-/Löschrennen. [ORGANIZATION.md](ORGANIZATION.md).

@@ -153,8 +153,12 @@ Zusätzliche Admin-GET-Ansicht bestehender Einträge: UTC-Tage, exakte Aktion, h
 
 ## Nachtrag: Netzwerknamen
 
-Eigene Gruppierungsnamen separat editierbar, 1 bis 80 Zeichen, Eigentümer/CSRF/Plan, atomarer ID-Audit und Namenskonfliktschutz. Keine Änderung von Zuordnungen, Mitgliedern, Salden oder Rechten, kein Versand. 28 HTTP-/Domänen- und 14 Browserprüfungen. Netzwerklöschung und geteilte Salden bleiben offen; Standorteditor im folgenden Nachtrag. [Details](ORGANIZATION.md).
+Eigene Gruppierungsnamen separat editierbar, 1 bis 80 Zeichen, Eigentümer/CSRF/Plan, atomarer ID-Audit und Namenskonfliktschutz. Keine Änderung von Zuordnungen, Mitgliedern, Salden oder Rechten, kein Versand. 28 HTTP-/Domänen- und 14 Browserprüfungen. Geteilte Salden bleiben offen, unzugeordnete Netzwerklöschung im späteren Nachtrag; Standorteditor im folgenden Nachtrag. [Details](ORGANIZATION.md).
 
 ## Nachtrag: Standorttexte bearbeiten
 
 Eigene Standortnamen und beschreibende Adressen editierbar, Konfliktschutz und atomarer ID-Audit. Aktivierung/Unternehmensbindung/Team/Buchungskennungen bleiben unverändert, inaktive Standorte weiter inaktiv. 32 HTTP-/Domänen- und 16 Browserprüfungen. Keine geprüfte Anschrift, Geokodierung, historische Textsnapshots, Löschung oder neue Standortdatensicht. [Details](ORGANIZATION.md).
+
+## Nachtrag: Unzugeordnete Netzwerke löschen
+
+Getrennte Bestätigungsseite, exakter Name, Eigentümer/CSRF/Plan und Revision unter Schreiblock. Nur ohne verknüpftes Unternehmen, keine automatische Abkopplung/Kaskade. Atomarer ID-Audit, keine Unternehmens-/Standort-/Saldoänderungen. 21 HTTP-/Domänen- und 12 Browserprüfungen samt echtem Zuordnungsrennen. Kein Archiv/Restore oder Standortlöschung. [Details](ORGANIZATION.md).

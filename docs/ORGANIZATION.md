@@ -51,7 +51,7 @@ Die neue Suite verwendet Wegwerfinstallationen und prüft Rollen/Overrides, frem
 
 ## Weiter offen
 
-Keine unternehmensübergreifenden Salden oder Clubs, keine delegierten Managerkonten, keine Standort-Datensicht oder Standortberichte, keine zeitgesteuerten Rollen, keine Staff-Einladungen/OTP/MFA und keine vollständige Audit-/Compliance-Abnahme. Eigene Netzwerknamen sind jetzt separat editierbar (siehe unten). Standortnamen/-adressen sind ebenfalls getrennt editierbar (siehe unten); Netzwerke/Standorte bleiben nicht löschbar. Keine vollständige Funktionsgleichheit mit dem Referenzprodukt.
+Keine unternehmensübergreifenden Salden oder Clubs, keine delegierten Managerkonten, keine Standort-Datensicht oder Standortberichte, keine zeitgesteuerten Rollen, keine Staff-Einladungen/OTP/MFA und keine vollständige Audit-/Compliance-Abnahme. Eigene Netzwerknamen sind jetzt separat editierbar (siehe unten). Standortnamen/-adressen sind ebenfalls getrennt editierbar (siehe unten); Unzugeordnete Netzwerke sind nach Bestätigung löschbar (siehe unten), Standorte bleiben nicht löschbar. Keine vollständige Funktionsgleichheit mit dem Referenzprodukt.
 
 ## Eigenen Netzwerknamen ändern
 
@@ -76,3 +76,15 @@ Nur Eigentümer, CSRF und Planfeature `locations`. Fremde/zusätzliche Formular-
 Aktivierung bleibt bewusst außerhalb des Textvergleichs und wird nie geschrieben. Eine parallel erfolgte Deaktivierung wird deshalb nicht rückgängig gemacht, während ein gültiger Texteditor speichern kann. Auch inaktive Standorte sind bearbeitbar, bleiben inaktiv und im Editor so beschriftet. Die bestehenden Umschalter, Anlage und SQL-Zuordnungsschutz wurden nicht umgebaut. Keine Standortlöschung oder neue Eindeutigkeitsregel, keine rückwirkende Bereinigung älterer Adressen.
 
 `python3 tests/run-location-edit.py`: 32 HTTP-/Domänen- und 16 Chromium-Prüfungen, darunter Feldgrenzen/UTF-8/Arrays, Mandanten/Ziel/CSRF/Plan, alte Tabs, zwei parallele Speicherprozesse, unveränderte Salden/Team/Mails, Audit-Rollback, aktuelle Auswahlnamen, Deaktivierung neben Textänderung, Desktop/Mobil und lange Namen/Adressen ohne Überlauf. Screenshots unter `/tmp/loyalty-location-edit/` visuell geprüft. Nur Wegwerfdaten, keine externen Dienste oder echten Konten geändert.
+
+## Unzugeordnetes Netzwerk entfernen
+
+„Löschen prüfen“ in der eigenen Netzwerkliste öffnet eine getrennte private/no-store Prüfseite mit aktuellem Namen und Zahl der Zuordnungen. Reines Öffnen löscht und protokolliert nichts. Abbrechen kehrt zur Organisation zurück. Erst der exakte aktuelle Name im Bestätigungsfeld plus „Unzugeordnetes Netzwerk endgültig löschen“ entfernt die Gruppierung. Keine Wiederherstellung, kein Versand oder Rückruf.
+
+Ein Netzwerk mit irgendeinem verknüpften Unternehmen bleibt gesperrt, auch bei direktem POST oder einer Zuordnung nach Öffnen der Prüfseite. Keine automatische Abkopplung oder Kaskade. Unternehmens-, Standort-, Mitglieder-, Team-, Karten-/Saldo- und Buchungsdaten bleiben bestehen. Bestehende Zuordnungen bei Bedarf zuerst separat und bewusst in Organisation ändern. Der Editor nimmt diese Entscheidung nicht vor.
+
+Eigentümer, CSRF, Planfeature `locations`, exakter Name und Namensprüfstand werden kontrolliert, zuletzt unter `BEGIN IMMEDIATE`. Löschung und ID-Audit `network.delete` sind atomar. Neue Namen oder Zuordnungen blockieren einen alten Bestätigungsstand. Ein gleichzeitig gestartetes Zuordnen/Löschen kann nur eine sichere Reihenfolge gewinnen: Zuordnung zuerst sperrt Löschen, Löschen zuerst lässt keine neue Zuordnung auf die fehlende ID zu. Nach Löschung liefern alte Prüf-/Editorlinks 404. Kein neuer API-/MCP-Pfad.
+
+Keine historische Namenskopie: zwischenzeitliche exakte Wiederherstellung desselben Namens ist im Vergleich nicht erkennbar. Keine Soft-Delete-/Archivfunktion, kein Löschbeleg im Nutzerthread, kein Schutz vor beliebigen administrativen Datenbankeingriffen. Konto-/Unternehmenslöschung und deren bestehende Regeln bleiben getrennt. Standortlöschung bleibt offen.
+
+`python3 tests/run-network-delete.py`: 21 HTTP-/Domänenprüfungen, darunter reine Vorschau, Name/Revision, Plan/Eigentum/CSRF, feste Ziele, Zuordnung nach Vorschau, Audit-Rollback, unveränderte Unternehmens-/Saldo-/Maildaten und echtes Zuordnungs-/Lösch-Prozessrennen ohne verwaiste Zuordnung. 12 Chromium-Prüfungen für Desktop/Mobil, Abbrechen, Sperre, falsche und erfolgreiche Bestätigung. Screenshots unter `/tmp/loyalty-network-delete/` visuell geprüft. Nur lokale Wegwerfdaten.

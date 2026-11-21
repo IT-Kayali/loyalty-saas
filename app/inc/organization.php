@@ -66,7 +66,7 @@ function route_organization(string $method): never
     }
     $body='<h1>Netzwerke & Standorte</h1><p class="muted">Netzwerke ordnen deine eigenen Unternehmen. Mitglieder, Programme und Guthaben bleiben strikt beim Unternehmen. Standorte teilen dessen Mitglieder, aber Teamaktionen tragen die Standortkennung.</p><section class="panel"><h2>Netzwerk anlegen</h2><form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="network"><label>Name<input name="name" maxlength="80" required></label><button class="btn">Anlegen</button></form></section>';
     $q=db()->prepare('SELECT n.id,n.name,(SELECT COUNT(*) FROM businesses b WHERE b.network_id=n.id AND b.user_id=n.user_id) AS companies FROM networks n WHERE n.user_id=? ORDER BY n.name,n.id');$q->execute([$u['id']]);$networks=$q->fetchAll();$body.='<section class="panel network-list"><h2>Eigene Netzwerke</h2>';
-    if(!$networks)$body.='<p>Noch keine Netzwerke.</p>';else{$body.='<ul>';foreach($networks as $n)$body.='<li><strong>'.h($n['name']).'</strong> · '.(int)$n['companies'].' Unternehmen · <a href="/network/'.(int)$n['id'].'/edit">Name bearbeiten</a></li>';$body.='</ul>';}$body.='</section>';
+    if(!$networks)$body.='<p>Noch keine Netzwerke.</p>';else{$body.='<ul>';foreach($networks as $n)$body.='<li><strong>'.h($n['name']).'</strong> · '.(int)$n['companies'].' Unternehmen · <a href="/network/'.(int)$n['id'].'/edit">Name bearbeiten</a> · <a href="/network/'.(int)$n['id'].'/delete">Löschen prüfen</a></li>';$body.='</ul>';}$body.='</section>';
     $q=db()->prepare('SELECT b.*,n.name AS network_name FROM businesses b LEFT JOIN networks n ON n.id=b.network_id WHERE b.user_id=? ORDER BY b.name');$q->execute([$u['id']]);
     foreach($q->fetchAll() as $b) {
         $bid=(int)$b['id'];$body.='<section class="panel organization-business"><h2>'.h($b['name']).'</h2><form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="assign"><input type="hidden" name="business_id" value="'.$bid.'"><label>Netzwerk<select name="network_id">'.network_options((int)$u['id'],$b['network_id']!==null?(int)$b['network_id']:null).'</select></label><button class="btn ghost">Zuordnen</button></form><p><a href="/business/'.$bid.'/team">Team & Rechte verwalten</a></p><h3>Standorte</h3>';
@@ -169,4 +169,28 @@ function route_location_edit(int $id,string $method): never
     if($method==='POST'){require_plan_write((int)$u['id'],'locations');try{location_edit((int)$u['id'],$id,$_POST);flash('Standortname und Adresse gespeichert. Aktivierung und Zuordnungen unverändert.');}catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}redirect('/location/'.$id.'/edit');}
     if($method!=='GET'){http_response_code(405);exit;}
     page('Standort bearbeiten','<p><a href="/organization">← Organisation</a></p><h1>Standort bearbeiten</h1><section class="panel location-editor"><h2>'.h($l['name']).'</h2><p>Unternehmen: '.h($l['business_name']).' · '.($l['active']?'Aktiv':'Inaktiv').'. Nur Name und beschreibende Adresse ändern. Unternehmensbindung, Aktivierung, Teamzuordnung, Buchungen und Salden bleiben unverändert.</p><form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.location_revision($l).'"><label>Name (1 bis 80 Zeichen)<input name="name" maxlength="80" value="'.h($l['name']).'" required></label><label>Adresse (optional, bis 200 Zeichen)<input name="address" maxlength="200" value="'.h($l['address']).'"></label><button class="btn">Standortdaten speichern</button></form><p>Keine Adressprüfung oder Geokodierung, kein Versand oder Wallet-Update. Ein älterer Tab kann inzwischen geänderte Standortdaten nicht überschreiben. Keine historische Namens-/Adresskopie.</p></section>',$u);exit;
+}
+
+function network_delete(int $uid,int $id,array $input): void
+{
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try{
+        $q=$db->prepare('SELECT * FROM networks WHERE id=? AND user_id=?');$q->execute([$id,$uid]);$network=$q->fetch();if(!$network)throw new InvalidArgumentException('Netzwerk nicht verfügbar.');
+        if(($err=plan_policy($uid,'locations'))!==null)throw new InvalidArgumentException($err);
+        if(!isset($input['revision'],$input['confirm_name']) || !is_string($input['revision']) || !is_string($input['confirm_name']) || !hash_equals(network_revision($network),$input['revision']))throw new InvalidArgumentException('Netzwerk wurde inzwischen geändert. Aktuellen Stand prüfen.');
+        if($input['confirm_name']!==$network['name'])throw new InvalidArgumentException('Den aktuellen Netzwerknamen exakt bestätigen.');
+        $q=$db->prepare('SELECT 1 FROM businesses WHERE network_id=? LIMIT 1');$q->execute([$id]);if($q->fetchColumn())throw new InvalidArgumentException('Noch Unternehmen zugeordnet. Keine Löschung und keine automatische Abkopplung.');
+        $db->prepare('DELETE FROM networks WHERE id=?')->execute([$id]);audit_log($uid,'network.delete',['network_id'=>$id]);$db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+}
+function route_network_delete(int $id,string $method): never
+{
+    $u=require_login();header('Cache-Control: private, no-store');$q=db()->prepare('SELECT * FROM networks WHERE id=? AND user_id=?');$q->execute([$id,$u['id']]);$n=$q->fetch();if(!$n)not_found();
+    if($method==='POST'){require_plan_write((int)$u['id'],'locations');try{network_delete((int)$u['id'],$id,$_POST);flash('Unzugeordnetes Netzwerk gelöscht. Keine Unternehmen oder Salden verändert.');redirect('/organization');}catch(InvalidArgumentException $e){flash($e->getMessage(),'err');redirect('/network/'.$id.'/delete');}}
+    if($method!=='GET'){http_response_code(405);exit;}
+    $q=db()->prepare('SELECT COUNT(*) FROM businesses WHERE network_id=?');$q->execute([$id]);$count=(int)$q->fetchColumn();
+    $body='<p><a href="/organization">← Organisation</a></p><h1>Netzwerk löschen prüfen</h1><section class="panel network-editor"><h2>'.h($n['name']).'</h2><p>Zugeordnete Unternehmen: '.$count.'. Es wird nur die unzugeordnete Gruppierung endgültig gelöscht. Keine Unternehmens-, Standort-, Mitglieder- oder Saldolöschung, keine automatische Abkopplung. Nicht wiederherstellbar, kein Versand.</p>';
+    if($count)$body.='<p>Gesperrt: Noch Unternehmen zugeordnet. Nichts wird gelöscht. Zuordnungen bei Bedarf zuerst bewusst über Organisation ändern.</p>';
+    else $body.='<form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.network_revision($n).'"><label>Netzwerkname exakt bestätigen<input name="confirm_name" required autocomplete="off"></label><button class="btn">Unzugeordnetes Netzwerk endgültig löschen</button></form>';
+    $body.='<p><a href="/organization">Abbrechen, nichts löschen</a></p></section>';page('Netzwerk löschen prüfen',$body,$u);exit;
 }

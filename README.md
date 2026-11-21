@@ -229,3 +229,7 @@ Organisation zeigt eigene Netzwerke samt Namenseditor mit Konfliktschutz. Nur Gr
 ## Standortdaten bearbeiten
 
 Eigene Standortnamen und beschreibende Adressen lassen sich separat bearbeiten. Konfliktschutz, keine Änderung an Aktivierung, Unternehmens-/Teamzuordnung oder Salden. Keine Adressprüfung. [Wirkung und Grenzen](docs/ORGANIZATION.md).
+
+## Leere Netzwerkgruppen entfernen
+
+Eigene Netzwerke ohne zugeordnetes Unternehmen lassen sich nach getrennter Prüfung und exakter Namensbestätigung endgültig entfernen. Keine automatische Abkopplung oder Saldoänderung. [Schutz und Grenzen](docs/ORGANIZATION.md).
