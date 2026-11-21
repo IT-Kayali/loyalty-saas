@@ -421,7 +421,7 @@ function route_business(int $id): never
             . '<input type="hidden" name="achievement_id" value="' . (int)$a['id'] . '">'
             . '<button class="btn ghost small">' . t('Löschen') . '</button></form></li>';
     }
-    $achList = $achList ? '<ul>' . $achList . '</ul>' : '<p class="muted">' . t('Noch keine Meilensteine.') . '</p>';
+    $achList = $achList ? '<ul class="achievement-list">' . $achList . '</ul>' : '<p class="muted">' . t('Noch keine Meilensteine.') . '</p>';
     $metricOpts = '';
     foreach (METRIC_LABELS as $key => $label) {
         $metricOpts .= '<option value="' . $key . '">' . h(metric_label($key)) . '</option>';
@@ -504,13 +504,13 @@ function route_business(int $id): never
       <h2>' . t('Meilensteine (Achievements)') . '</h2>
       ' . $achList . '
       <details class="panel">
-        <summary>' . t('Neuen Meilenstein anlegen') . '</summary>
+        <summary>' . t('Neuen Meilenstein anlegen') . '</summary><p>Name: 1 bis 80 Zeichen. Schwelle: 1 bis 100000, Bonus: 0 bis 100000, jeweils ganze Zahlen. Anlegen vergibt nichts rückwirkend; erst die nächste unterstützte Kartenaktion prüft die Regel. Bonus nur mit vorhandener Punktekarte.</p>
         <form method="post" action="/achievement/create" class="form inline-form">' . csrf_field() . '
           <input type="hidden" name="business_id" value="' . $id . '">
           <label>' . t('Name') . ' <input name="name" required maxlength="80" placeholder="' . t('Stammkunde') . '"></label>
           <label>' . t('Messgröße') . ' <select name="metric">' . $metricOpts . '</select></label>
-          <label>' . t('Schwelle') . ' <input type="number" name="threshold" value="10" min="1" max="100000"></label>
-          <label>' . t('Bonus-Punkte (optional)') . ' <input type="number" name="reward_points" value="0" min="0" max="100000"></label>
+          <label>' . t('Schwelle') . ' <input type="number" name="threshold" value="10" min="1" max="100000" step="1" required></label>
+          <label>' . t('Bonus-Punkte, 0 = kein Bonus') . ' <input type="number" name="reward_points" value="0" min="0" max="100000" step="1" required></label>
           <button class="btn">' . t('Anlegen') . '</button>
         </form>
       </details>

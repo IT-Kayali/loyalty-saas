@@ -96,14 +96,9 @@ function route_achievement_create(): never
 {
     $u = require_login();
     $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
-    $metric = $_POST['metric'] ?? '';
-    if (!$b || !isset(METRIC_LABELS[$metric]) || trim($_POST['name'] ?? '') === '') {
-        flash(t('Ungültige Eingabe.'), 'err');
-        redirect('/dashboard');
-    }
-    db()->prepare('INSERT INTO achievements (business_id, name, metric, threshold, reward_points) VALUES (?,?,?,?,?)')
-        ->execute([$b['id'], trim($_POST['name']), $metric, max(1, (int)$_POST['threshold']), max(0, (int)$_POST['reward_points'])]);
-    flash(t('Meilenstein angelegt.'));
+    if(!$b)not_found();
+    try{achievement_create((int)$u['id'],(int)$b['id'],$_POST);flash('Meilenstein angelegt. Keine Punkte oder Nachrichten vergeben.');}
+    catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
     redirect('/business/' . (int)$b['id']);
 }
 
@@ -178,11 +173,28 @@ function achievement_has_awards(int $id): bool
 {
     $q=db()->prepare('SELECT 1 FROM member_achievements WHERE achievement_id=? LIMIT 1');$q->execute([$id]);return (bool)$q->fetchColumn();
 }
+/** Same strict input boundary for new rules and edits; never coerce decimals or arrays. */
+function achievement_fields(array $in): array
+{
+    foreach(['name','metric','threshold','reward_points'] as $key)if(!isset($in[$key]) || (!is_string($in[$key]) && !is_int($in[$key])))throw new InvalidArgumentException('Alle Regelfelder als einzelne Werte angeben.');
+    $raw=(string)$in['name'];$name=trim($raw);$metric=(string)$in['metric'];$threshold=(string)$in['threshold'];$reward=(string)$in['reward_points'];
+    if($name==='' || !mb_check_encoding($raw,'UTF-8') || mb_strlen($name)>80 || preg_match('/[\x00-\x1f\x7f]/u',$raw) || !isset(METRIC_LABELS[$metric]) || !preg_match('/^[0-9]{1,6}$/D',$threshold) || (int)$threshold<1 || (int)$threshold>100000 || !preg_match('/^[0-9]{1,6}$/D',$reward) || (int)$reward>100000)throw new InvalidArgumentException('Name (1 bis 80 Zeichen), gültige Messgröße, Schwelle 1 bis 100000 und Bonus 0 bis 100000 angeben.');
+    return [$name,$metric,(int)$threshold,(int)$reward];
+}
+function achievement_create(int $uid,int $bid,array $in): int
+{
+    [$name,$metric,$threshold,$reward]=achievement_fields($in);$db=db();$db->exec('BEGIN IMMEDIATE');
+    try{
+        $q=$db->prepare('SELECT id FROM businesses WHERE id=? AND user_id=?');$q->execute([$bid,$uid]);if(!$q->fetchColumn())throw new InvalidArgumentException('Unternehmen nicht verfügbar.');
+        if(($err=plan_policy($uid,'achievements'))!==null)throw new InvalidArgumentException($err);
+        $db->prepare('INSERT INTO achievements(business_id,name,metric,threshold,reward_points)VALUES(?,?,?,?,?)')->execute([$bid,$name,$metric,$threshold,$reward]);$id=(int)$db->lastInsertId();
+        audit_log($uid,'achievement.create',['achievement_id'=>$id,'business_id'=>$bid]);$db->exec('COMMIT');return $id;
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+}
 function achievement_change(int $uid,int $id,array $in,string $action='update'): void
 {
     if(!in_array($action,['update','delete','state'],true))throw new InvalidArgumentException('Ungültige Aktion.');
-    $name=trim((string)($in['name'] ?? ''));$metric=(string)($in['metric'] ?? '');$threshold=(string)($in['threshold'] ?? '');$reward=(string)($in['reward_points'] ?? '');
-    if($action==='update' && ($name==='' || !mb_check_encoding($name,'UTF-8') || mb_strlen($name)>80 || preg_match('/[\x00-\x1f\x7f]/u',$name) || !isset(METRIC_LABELS[$metric]) || !preg_match('/^[0-9]{1,6}$/D',$threshold) || (int)$threshold<1 || (int)$threshold>100000 || !preg_match('/^[0-9]{1,6}$/D',$reward) || (int)$reward>100000))throw new InvalidArgumentException('Name (1–80 Zeichen), gültige Messgröße, Schwelle 1–100000 und Bonus 0–100000 angeben.');
+    if($action==='update')[$name,$metric,$threshold,$reward]=achievement_fields($in);
     $db=db();$db->exec('BEGIN IMMEDIATE');
     try {
         $q=$db->prepare('SELECT a.* FROM achievements a JOIN businesses b ON b.id=a.business_id WHERE a.id=? AND b.user_id=?');$q->execute([$id,$uid]);$a=$q->fetch();if(!$a)throw new InvalidArgumentException('Meilenstein nicht verfügbar.');

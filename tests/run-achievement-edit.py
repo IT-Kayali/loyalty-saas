@@ -118,6 +118,42 @@ with tempfile.TemporaryDirectory(prefix='loyalty-campaign-edit-') as temp:
   check(all(w.returncode==0 for w in workers) and sql('echo db()->query(\"SELECT active FROM achievements WHERE id=%d\")->fetchColumn();'%race)=='0','Pause und Vergabe ohne Wettlauffehler')
   before=effects();sql('check_achievements(%d,1);'%mid);check(effects()==before,'Nach Pause kein späterer Bonus bei Wiederholung')
   check(sql("echo db()->query(\"SELECT COUNT(*) FROM audit_logs WHERE action='achievement.state'\")->fetchColumn();")=='5','Statusaktionen mit ID-Audit protokolliert')
+  # Legacy creation now uses the editor's strict value boundary and own locked checks.
+  def count():return int(sql("echo db()->query('SELECT COUNT(*) FROM achievements')->fetchColumn();"))
+  def create(extra=None,token=True,c=None):
+   c=c or o;d={'business_id':'1','name':'Neue Regel','metric':'visits_total','threshold':'10','reward_points':'0'}
+   if token:d['csrf']=csrf(c,'/business/1' if c is o else '/dashboard')
+   if extra:d.update(extra)
+   return req('/achievement/create',d,c)
+  before=effects();total=count()
+  invalid=[{'name':''},{'name':'x'*81},{'name':'Test\x00Name'},{'name':'Test\nName'},{'metric':'not_valid'},{'threshold':'0'},{'threshold':'-1'},{'threshold':'100001'},{'threshold':'1.5'},{'threshold':'1e3'},{'threshold':' 1'},{'reward_points':'-1'},{'reward_points':'100001'},{'reward_points':'2.9'},{'reward_points':'99999999999999999999999999'},{'metric[]':'visits_total','metric':None}]
+  for bad in invalid:
+   if bad.get('metric','') is None:
+    d={'csrf':csrf(o,'/business/1'),'business_id':1,'name':'Array','metric[]':'visits_total','threshold':1,'reward_points':0};res=req('/achievement/create',d,o)
+   else:res=create(bad)
+   check(res[0]==200 and count()==total and effects()==before,'Anlage lehnt ungültige Regelfelder ohne Nebenwirkung ab')
+  for key in ['name','threshold','reward_points']:
+   d={'csrf':csrf(o,'/business/1'),'business_id':1,'name':'Array','metric':'visits_total','threshold':1,'reward_points':0};d[key+'[]']=d.pop(key)
+   check(req('/achievement/create',d,o)[0]==200 and count()==total and effects()==before,'Anlage lehnt Arrayfeld ohne Serverfehler ab')
+  check(create(token=False)[0]==403 and count()==total,'Anlage benötigt CSRF')
+  check(create({'business_id':999999})[0]==404 and count()==total,'Unbekanntes Anlageziel abgelehnt')
+  check(create(c=outsider)[0]==404 and count()==total,'Fremder Betreiber kann keinen Meilenstein anlegen')
+  check('/login' in req('/achievement/create',{'business_id':1},mk())[2] or req('/achievement/create',{'business_id':1},mk())[0]==403,'Gast kann keinen Meilenstein anlegen')
+  (A/'config.php').write_text("<?php $c=require __DIR__.'/config.example.php';$c['stripe']['enforce_limits']=true;return $c;")
+  check(create()[0]==402 and count()==total,'Plan blockiert Anlage')
+  check(sql("try{achievement_create(1,1,['name'=>'Domain','metric'=>'visits_total','threshold'=>1,'reward_points'=>0]);}catch(InvalidArgumentException $e){echo 'blocked';}")=='blocked' and count()==total,'Direkte Anlagefunktion prüft Plan ebenfalls')
+  (A/'config.php').write_text("<?php return require __DIR__.'/config.example.php';")
+  check(sql("try{achievement_create(2,1,['name'=>'Domain','metric'=>'visits_total','threshold'=>1,'reward_points'=>0]);}catch(InvalidArgumentException $e){echo 'blocked';}")=='blocked' and count()==total,'Direkte Anlagefunktion prüft Eigentum ebenfalls')
+  check(sql("try{achievement_fields(['name'=>chr(255),'metric'=>'visits_total','threshold'=>1,'reward_points'=>0]);}catch(InvalidArgumentException $e){echo 'blocked';}")=='blocked','Ungültiges UTF-8 abgelehnt')
+  check(sql("try{achievement_fields(['name'=>'Domain','metric'=>'visits_total','threshold'=>1.5,'reward_points'=>0]);}catch(InvalidArgumentException $e){echo 'blocked';}")=='blocked','Direkte Floatwerte werden nicht still gekürzt')
+  for fields in [{'name':'  '+'ä'*80+'  ','threshold':'100000','reward_points':'100000'},{'name':'<script>nur Text</script>','threshold':'1','reward_points':'0'}]:
+   res=create(fields);total+=1;last=json.loads(sql("echo json_encode(db()->query('SELECT * FROM achievements ORDER BY id DESC LIMIT 1')->fetch());"))
+   check(res[0]==200 and count()==total and last['name']==fields['name'].strip() and last['threshold']==int(fields['threshold']) and last['reward_points']==int(fields['reward_points']) and effects()==before,'Anlage speichert exakte Grenzen ohne Punkte oder Inbox')
+  check('<script>nur Text</script>' not in req('/business/1',c=o)[1] and '&lt;script&gt;'+ 'nur Text' in req('/business/1',c=o)[1],'Angelegter Name wird escaped')
+  check(sql("echo db()->query(\"SELECT COUNT(*) FROM audit_logs WHERE action='achievement.create'\")->fetchColumn();")=='2','Erfolgreiche Anlagen mit ID-Audit ohne Regeltexte')
+  sql("db()->exec(\"CREATE TRIGGER fail_achievement_audit BEFORE INSERT ON audit_logs WHEN NEW.action='achievement.create' BEGIN SELECT RAISE(ABORT,'TEST_FAIL'); END\");")
+  check(sql("try{achievement_create(1,1,['name'=>'Rollback','metric'=>'visits_total','threshold'=>1,'reward_points'=>0]);}catch(Throwable $e){echo 'rolled';}")=='rolled' and count()==total and effects()==before,'Auditfehler rollt Anlage vollständig zurück')
+  sql("db()->exec('DROP TRIGGER fail_achievement_audit');")
   # New untouched draft for UI.
   ui=int(sql("db()->exec(\"INSERT INTO achievements(business_id,name,metric,threshold,reward_points)VALUES(1,'Browser','visits_total',100000,0)\");echo db()->lastInsertId();"))
   subprocess.run(['node',str(R/'tests/achievement-edit-ui.cjs'),str(ui),str(aid)],cwd=R,check=True)

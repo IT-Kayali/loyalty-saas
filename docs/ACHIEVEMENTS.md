@@ -18,11 +18,11 @@ Vier vorhandene Messgrößen: Stempel gesamt, Lifetime-Punkte, Besuche gesamt, E
 
 Bonuspunkte gehen wie bisher auf die erste gefundene Punktekarte des Mitglieds im Unternehmen, ohne Wahl des Programms und ohne neu eingeführte Aktivstatusprüfung. Ohne Punktekarte kann ein Meilenstein erreicht werden, ohne Bonusbuchung oder späteren Nachtrag. Die Prüfseite sagt nicht zu, dass ein Bonus jedem Mitglied gutgeschrieben werden kann. Vergabeboni beeinflussen Lifetime-Punkte; weitere Bedingungen werden innerhalb einer Prüfung nicht rekursiv neu berechnet.
 
-Kein dauerhaftes historisches Regel-Snapshot: Löschen eines Mitglieds kann Vergabebelege entfernen und damit später die Bearbeitung wieder ermöglichen. Unternehmens-/Kontolöschung und direkte Datenbankeingriffe sind nicht neu geschützt. Vorhandene Anlagevalidierung und sofortiges Löschen noch nie erreichter Regeln wurden nicht neu entworfen. Kein neuer API-/MCP-Editor, keine echte Wallet-Geräte-/Lastabnahme.
+Kein dauerhaftes historisches Regel-Snapshot: Löschen eines Mitglieds kann Vergabebelege entfernen und damit später die Bearbeitung wieder ermöglichen. Unternehmens-/Kontolöschung und direkte Datenbankeingriffe sind nicht neu geschützt. Sofortiges Löschen noch nie erreichter Regeln wurde nicht neu entworfen. Anlagevalidierung siehe unten. Kein neuer API-/MCP-Editor, keine echte Wallet-Geräte-/Lastabnahme.
 
 ## Tests
 
-`python3 tests/run-achievement-edit.py`: 50 Domänen-/HTTP-/Parallelprüfungen, darunter Feldgrenzen, Mandant/CSRF/Plan, Nebenwirkungsfreiheit, alte Tabs, drei echte Edit-/Vergabe-Prozesspaare, konkurrierende genau-einmal-Vergabe, historischer Löschschutz und erzwungener Fehler mit vollständigem lokalem Rollback. Dazu 18 Chromium-Prüfungen für Desktop/Mobil, Speichern, Konflikt, Nur-Lesen und Überlauf. Screenshots unter `/tmp/loyalty-achievement-edit/` visuell geprüft. Nur Wegwerfdaten, keine echten Bonuspunkte oder Webhooks an externe Systeme.
+`python3 tests/run-achievement-edit.py`: 83 Domänen-/HTTP-/Parallelprüfungen, darunter Feldgrenzen, Mandant/CSRF/Plan, Nebenwirkungsfreiheit, alte Tabs, drei echte Edit-/Vergabe-Prozesspaare, konkurrierende genau-einmal-Vergabe, historischer Löschschutz und erzwungener Fehler mit vollständigem lokalem Rollback. Dazu 24 Chromium-Prüfungen für Desktop/Mobil, Speichern, Konflikt, Nur-Lesen und Überlauf. Screenshots unter `/tmp/loyalty-achievement-edit/` visuell geprüft. Nur Wegwerfdaten, keine echten Bonuspunkte oder Webhooks an externe Systeme.
 
 ## Pausieren und fortsetzen
 
@@ -33,3 +33,13 @@ Die Betreiberliste zeigt aktive und pausierte Regeln. Die angemeldete Wallet zei
 Der Schalter verlangt Eigentümer, CSRF, Plan, exakten Status 0/1 und passende Revision. Status und Vergabe werden unter demselben Schreiblock geprüft. Wenn eine Vergabe vor der Pause gewinnt, bleibt sie bestehen; nach der Pause erfolgen keine neuen Vergaben dieser Regel. Ein alter Editor oder Schalter kann den neuen Status nicht überschreiben. Audit `achievement.state` mit IDs, keine Nachrichtentexte. Kein automatisches Wiederaufnehmen, kein Zeitplan. Pausieren macht eine erreichte Regel weder editierbar noch löschbar.
 
 Zusätzlich getestet: 16 Domänen-/HTTP-/Parallelfälle für Pause/Fortsetzen, Rechte/Plan/CSRF, Wallet-Ziel-/Erfolgsanzeige, keine Vergabe beim Schalten, spätere Prüfung, Statuskonflikt, Audit und Rennen gegen Vergabe. Sechs Browserprüfungen für Desktop/Mobil zu Fortsetzen, Pause und weiterhin gesperrter Regel. Screenshots des pausierten Zustands visuell geprüft.
+
+## Gleiche Grenzen für Anlage und Bearbeitung
+
+Die Anlage verwendet dieselbe serverseitige Feldprüfung wie der Editor: Name 1 bis 80 UTF-8-Zeichen nach äußeren Leerzeichen, keine Steuerzeichen, bekannte Messgröße, Schwelle 1 bis 100000 und Bonus 0 bis 100000. Zahlen sind ganze Dezimalwerte, keine Kommazahlen, Exponenten, Vorzeichen oder still abgeschnittenen Werte. Fehlende Felder und Formulararrays werden abgelehnt. HTML im Namen bleibt Text. Das Formular nennt Grenzen und Wirkung, verlangt Zahlenfelder und ganze Schritte.
+
+Neue Anlagefunktion prüft Eigentümer und Plan erneut unter `BEGIN IMMEDIATE`. Regel und ID-Audit `achievement.create` werden zusammen gespeichert oder gemeinsam zurückgenommen. Ein Auditfehler hinterlässt keine Regel. Keine Punkte, Freischaltungen, Nachrichten oder externen Aufrufe beim Anlegen. Die neue Regel ist wie bisher sofort aktiv und wird bei der nächsten unterstützten Kartenaktion geprüft. Ein Bonus ist weiterhin nur mit vorhandener Punktekarte möglich.
+
+Fehler zeigen einen Hinweis auf der Unternehmensseite, nicht die verworfenen Eingaben. Es gibt keinen neuen Anlageentwurf und keine Vorgangskennung: bewusst erneut abgesendete Anlagen können weiterhin mehrere Regeln erzeugen. Die Grenzen gelten für neue Anlagen und Änderungen, nicht rückwirkend als Datenmigration. Direkte Datenbankeingriffe bleiben außerhalb dieser Formularregeln. Lange gültige Namen umbrechen in Betreiberliste und Editor, ohne die mobile Seite zu verbreitern.
+
+Zusätzlich 33 Domänen-/HTTP-Fälle prüfen ungültige Werte/Arrays/UTF-8, exakte Grenzen, keine Vergabe, Eigentum/CSRF/Plan auch in der Funktion, Escaping und atomaren Audit-Rollback. Sechs weitere Browserprüfungen zeigen Anlageformular und Erfolg auf Desktop/Mobil. Ein Maximalname ohne Leerzeichen liegt dabei als Umbruchtest in der Liste. Keine neuen Messgrößen, Wochenregeln, echten Geräte- oder Providerprüfungen.

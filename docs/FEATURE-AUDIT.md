@@ -138,3 +138,7 @@ Nur Tests/Dokumentation: Nach aktiver Root-Registrierung erfolgt vor dem Offline
 ## Nachtrag: Support-Themen
 
 Bereits gespeicherte Themen sind in Thread und Listen sichtbar, Betreiber und Admin können sie zusätzlich zu ihren bestehenden Filtern eingrenzen. Filtertreue Paginierung und sichere Ablehnung unbekannter Themen. Keine Bearbeitung/Automatik und keine Erweiterung von Kontakt- oder internen Notizrechten. Tests: 23 Domänen-, 91 HTTP- und 48 Browserprüfungen. [Details und Grenzen](SUPPORT.md).
+
+## Nachtrag: Meilenstein-Anlagegrenzen
+
+Anlage und Editor verwenden dieselbe serverseitige Prüfung für Namen/Messgröße/Schwelle/Bonus. Keine still gekürzten Dezimalwerte oder übergroßen Boni. Eigentümer/Plan unter Schreiblock, Regel und ID-Audit atomar. Keine Vergabe bei Anlage; neue Regel weiterhin aktiv, keine neue Deduplizierung. Lange Namen umbrechen mobil. 83 Domänen-/HTTP-/Parallel- und 24 Browserprüfungen. [Details und Grenzen](ACHIEVEMENTS.md).

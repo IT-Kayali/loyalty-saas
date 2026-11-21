@@ -209,3 +209,7 @@ Meilensteine können ohne Entzug bestehender Freischaltungen pausiert und fortge
 ## Support nach Thema
 
 Supportlisten für Betreiber und Admin zeigen das Ticketthema und lassen sich danach filtern, mit den vorhandenen Filtern kombinierbar und über Folgeseiten erhalten. Keine neue Kontaktfreigabe oder automatische Kategorisierung. [Support, Rechte und Grenzen](docs/SUPPORT.md).
+
+## Meilenstein-Anlage prüfen
+
+Neue Meilensteine und Bearbeitungen verwenden dieselben Grenzen für Namen, Schwelle und Bonus. Ungültige Zahlen werden abgelehnt statt still gekürzt. Anlage vergibt keine Punkte; die nächste unterstützte Kartenaktion prüft die aktive Regel. [Regeln und verbleibende Grenzen](docs/ACHIEVEMENTS.md).

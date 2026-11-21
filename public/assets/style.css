@@ -536,3 +536,6 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 }
 .support-inbox-table table { table-layout:fixed; }
 .support-inbox-table th,.support-inbox-table td { white-space:normal; overflow-wrap:anywhere; }
+
+/* Long valid rule names must not widen the business page. */
+.achievement-list, .achievement-review { overflow-wrap: anywhere; }
