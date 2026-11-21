@@ -18,6 +18,8 @@ return [
     'demo_banner' => false,
     // Betreiber-Support: leer = nur in der App, keine Support-Benachrichtigung.
     'support_email' => '',
+    // KI-Verbindungen (MCP unter /mcp). Aus, bis du sie bewusst einschaltest. Siehe docs/AI.md.
+    'ai_enabled' => false,
     'session_idle_seconds' => 7200,
 
     // Pfad zur SQLite-Datei. Standard: data/app.sqlite (AUSSERHALB von public/).

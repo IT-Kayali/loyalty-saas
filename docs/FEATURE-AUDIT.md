@@ -43,7 +43,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Ausgehende Webhooks | Basis | HTTPS/öffentliche IPs, HMAC und Zustellprotokoll. Automatische Queue-Retries und Admin-Wiederholungsworkflow fehlen. |
 | REST API | Basis | Business-API-Key, Mitglieder/Karten/Bestellungen/Journal und OpenAPI. Kein gleichwertiges Session-Token-Frontend-API. |
 | Agent API | Offen | Keine granularen Scopes, Idempotency-/Approval-Workflows und separate Agent-Authentifizierung. Vorhandene REST API nicht als gleichwertig ausgeben. |
-| AI/MCP | Offen | Keine OAuth-AI-Verbindungen, Streamable-HTTP-MCP, Tool Discovery, Freigabewarteschlange oder AI-Schreibassistenz. |
+| AI/MCP | Neu, Basis | MCP über HTTPS (JSON-RPC) mit Bearer-Schlüsseln, 12 Werkzeuge plus 2 freigabepflichtige, Freigabe in der App, Idempotenz, Audit. Kein OAuth/Browser-Login, keine Tool-Discovery-REST, keine Admin-/Mitglieder-Werkzeuge, nicht mit echten Clients getestet. Siehe AI.md. |
 | Stripe | Neu/Setup | Checkout, Portal, signierte Webhooks, Zustände und neue-Unternehmen-Limit. Preise/Konto/Keys und echter Testkauf fehlen. Zentrale Schreibprüfung und Limits jetzt vorhanden, noch keine editierbare vollständige Planfeature-Matrix. |
 | PayPal | Neu/Setup | SDK-v6-SaaS-Abos, verifizierte Webhooks, Statusabgleich und explizite Kündigung. Keine echte Sandbox-/Live-Abnahme, Proration oder vollständiger Planwechsel-/Reconciliation-Workflow. |
 | Pläne verwalten | Basis | Serverkonfiguration statt editierbarer Admin-Planverwaltung; keine Planmigrationen/Feature-Toggles pro Mandant. |
@@ -124,3 +124,7 @@ Installierbare Metadaten/Icons und generische öffentliche Offline-Hülle ergän
 ## Nachtrag: Support-Tickets
 
 In-App-Helpdesk ergänzt (docs/SUPPORT.md): Partner-Threads auf jedem Plan, Admin-Inbox mit Filtern und Suche, unsichtbare interne Notizen, Status Offen/Wartet/Geschlossen mit Wiedereröffnung, Zuweisung, Priorität, bestätigtes Ausblenden, Audit ohne Nachrichtentexte, Vorgangs-Deduplizierung, Routenbindung, CSRF/Rate-Limits. Öffentlicher Kontakt bindet nie an ein Konto und löst keine Mail an die Absenderadresse aus. 23 Domänen-, 53 HTTP- und 22 Chromium-Prüfungen grün. Offen: Kontakt-Thread, E-Mail-Eingang, Anhänge, Export, Support-API, Teammitglieder-Zuweisung, Zeitzone/Sprache/Version-Snapshot, echte SMTP-/Geräteabnahme.
+
+## Nachtrag: KI-Verbindungen (MCP)
+
+Optionaler MCP-Endpunkt (docs/AI.md): Schlüsselverwaltung unter /ai (gehasht, Ablauf, Widerruf), JSON-RPC mit tools/prompts, 7 Lese- und 5 Änderungswerkzeuge, Idempotenz, Rate-Limit, Origin-Sperre, Audit ohne Mitgliedsdaten, Freigabe-Workflow (10 Minuten, nur Eigentümer, genau einmal, Datensatzprüfung) für Löschen von Mitgliedern und Programmen. 61 HTTP- und 20 Chromium-Prüfungen grün. Offen: echte Client-Abnahme (Claude, ChatGPT, Cursor), OAuth/Browser-Login, Plattform-/Admin- und Mitglieder-Werkzeuge, Kampagnen-/E-Mail-/Tier-/Gutschein-/Support-Werkzeuge, feinere Scopes, Tool-Discovery-Endpunkt, MCP-Apps-Ansichten, Streaming.

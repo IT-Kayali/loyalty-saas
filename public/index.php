@@ -31,6 +31,7 @@ require_once ROOT_DIR . '/app/inc/organization.php';
 require_once ROOT_DIR . '/app/inc/qr.php';
 require_once ROOT_DIR . '/app/inc/pwa.php';
 require_once ROOT_DIR . '/app/inc/support.php';
+require_once ROOT_DIR . '/app/inc/ai.php';
 
 /* ------------------------------------------------------------------ */
 /* Router                                                              */
@@ -47,6 +48,9 @@ $path = rtrim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/') ?: '/';
 /* Kanäle ohne Session-CSRF (eigene Auth): REST API, Pass-Web-Service, Shop-Webhooks */
 if (str_starts_with($path, '/api/v1/')) {
     route_api($path, $method);
+}
+if ($path === '/mcp') {
+    route_mcp($method);
 }
 if (str_starts_with($path, '/api/pass/')) {
     route_pass_service($path, $method);
@@ -75,6 +79,8 @@ try {
         $path === '/contact' => route_support($method,false,true),
         ($path==='/support' || preg_match('#^/support/([A-F0-9]{16})$#D',$path)) => route_support($method,false),
         ($path==='/admin/support' || preg_match('#^/admin/support/([A-F0-9]{16})$#D',$path)) => route_support($method,true),
+        $path === '/ai' => route_ai($method),
+        (bool)preg_match('#^/ai/approval/([a-f0-9]{24})$#D',$path,$aim) => route_ai_approval($aim[1],$method),
         $path === '/billing' => route_billing($method),
         $path === '/admin' => route_admin($method),
         $path === '/admin/export' => route_admin_export(),

@@ -1,0 +1,25 @@
+const {chromium}=require('playwright'),fs=require('fs');
+(async()=>{let n=0;const yes=(v,s)=>{if(!v)throw Error(s);n++;console.log('PASS '+s)};
+const out=process.env.TEST_OUTPUT||'/tmp/loyalty-ai';fs.mkdirSync(out,{recursive:true});const U='http://127.0.0.1:8099';
+const b=await chromium.launch({headless:true,args:['--no-sandbox']});
+for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:390,height:844}]]){
+ const ctx=await b.newContext({viewport:vp});const p=await ctx.newPage();p.on('pageerror',e=>{throw e});
+ await p.goto(U+'/login');await p.locator('[name=email]').fill('demo@loyalty.local');await p.locator('[name=password]').fill('demo1234');await p.locator('button').first().click();await p.waitForURL('**/dashboard');
+ await p.goto(U+'/ai');yes(await p.locator('h1').textContent()==='KI-Verbindungen',label+': AI page');
+ await p.locator('[name=name]').fill('Claude '+label);await p.locator('[name=scope]').selectOption('write');await p.locator('form .btn').last().click();
+ const secret=(await p.locator('code').filter({hasText:'rl_ai_'}).first().textContent()).trim();yes(/^rl_ai_[a-f0-9]{48}$/.test(secret),label+': key shown once after creation');
+ await p.goto(U+'/ai');yes(!(await p.content()).includes(secret),label+': key not shown again');
+ const call=async(name,args)=>(await (await fetch(U+'/mcp',{method:'POST',headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})})).json()).result.structuredContent;
+ const m=await call('create_member',{business_id:1,name:'Max Test '+label,email:label+'@kunde.invalid'});
+ const prep=await call('delete_member',{business_id:1,member_code:m.code});
+ await p.goto(U+'/ai');yes((await p.content()).includes('Wartet auf deine Entscheidung'),label+': pending request listed');
+ await p.screenshot({path:`${out}/ai-connections-${label}.png`,fullPage:true});
+ await p.goto(prep.review_url);yes((await p.content()).includes('Max Test'),label+': review page names the change');
+ yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': review page has no horizontal overflow');
+ await p.screenshot({path:`${out}/ai-approval-${label}.png`,fullPage:true});
+ await p.getByRole('button',{name:'Freigeben'}).click();await p.waitForLoadState();yes((await p.content()).includes('Freigegeben'),label+': approval confirmed in browser');
+ const done=await call('run_approved_change',{request_id:prep.request_id,nonce:prep.nonce});yes(done.deleted===true,label+': approved change runs');
+ await p.goto(prep.review_url);yes((await p.content()).includes('Ausgeführt'),label+': page shows done');
+ await p.goto(U+'/ai');await p.getByRole('button',{name:'Widerrufen'}).first().click();await p.waitForLoadState();yes((await p.content()).includes('inaktiv'),label+': key revoked in browser');
+ await ctx.close();}
+await b.close();console.log(n+' AI browser assertions passed');})().catch(e=>{console.error(e);process.exit(1)});

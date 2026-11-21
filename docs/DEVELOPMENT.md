@@ -85,6 +85,7 @@ python tests/run-merchant.py
 python tests/run-demo.py
 python tests/run-pwa.py
 python tests/run-support.py
+python tests/run-ai.py
 python tests/run-backup.py
 python tests/run-browser.py
 ```
@@ -108,8 +109,9 @@ Das WordPress-Testfixture blockiert E-Mail und externe Requests. Nur seine feste
 - [Programme, Gutscheine und verkaufte Pässe](PROGRAMS.md)
 - [Offline-Wallet und PWA](PWA.md)
 - [Support-Tickets](SUPPORT.md)
+- [KI-Verbindungen und MCP](AI.md)
 - [Organisation, Standorte und Team](ORGANIZATION.md)
 - [SMTP, Outbox, Automationen und Recovery](MAIL.md)
 - [Stripe](STRIPE.md), [PayPal](PAYPAL.md), [Wallet](WALLET.md)
 
-Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Parität (siehe SUPPORT.md), AI/MCP, Geldguthabenpässe, vollständige Original-Detailregeln, mehrere Delegations-/Mitglieder-Authentifizierungsfunktionen sowie echte Hosting-/Provider-/Geräteabnahmen. Die Liste im Feature-Audit ist maßgeblich. Vor einer Produktionseinführung unabhängige Sicherheits-/Betriebsprüfung einplanen.
+Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Parität (siehe SUPPORT.md), volle AI/MCP-Parität (siehe AI.md), Geldguthabenpässe, vollständige Original-Detailregeln, mehrere Delegations-/Mitglieder-Authentifizierungsfunktionen sowie echte Hosting-/Provider-/Geräteabnahmen. Die Liste im Feature-Audit ist maßgeblich. Vor einer Produktionseinführung unabhängige Sicherheits-/Betriebsprüfung einplanen.

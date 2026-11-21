@@ -12,6 +12,10 @@ Installierbare Web-App-Basis mit ausdrücklich gespeicherten Karten, QR, Suche u
 
 Partner-Tickets auf jedem Plan, Admin-Inbox mit Status/Priorität/Zuständigkeit/Suche, unsichtbare interne Notizen, Ausblenden, Audit ohne Texte und ein öffentliches Kontaktformular ohne Konto-Zuordnung. [Funktionen und Grenzen](docs/SUPPORT.md).
 
+## KI-Verbindungen (MCP)
+
+Optionaler MCP-Endpunkt `/mcp` mit Bearer-Schlüsseln (Lesen oder Lesen und ändern), Idempotenz, Audit und Freigabe in der App für Löschungen. Standardmäßig aus. [Funktionen und Grenzen](docs/AI.md).
+
 ## WordPress-Händlerdashboard
 
 Eigener WordPress-Adminbereich für Mitglieder, aktuelle Salden, Punkte/Stempel und bestätigte Prämieneinlösung, auch ohne WooCommerce. Admin-only-Verbindung, geschützter API-Schlüssel und transaktionaler Wiederholschutz. Eine Site verbindet genau ein Unternehmen. Einrichtung, echte lokale WordPress-Tests und Grenzen: [Plugin-README](integrations/woocommerce/README.md).
