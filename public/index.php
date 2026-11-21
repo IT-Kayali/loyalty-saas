@@ -21,6 +21,8 @@ require_once ROOT_DIR . '/app/inc/images.php';
 require_once ROOT_DIR . '/app/inc/billing.php';
 require_once ROOT_DIR . '/app/inc/admin.php';
 require_once ROOT_DIR . '/app/inc/designer.php';
+require_once ROOT_DIR . '/app/inc/vouchers.php';
+require_once ROOT_DIR . '/app/inc/prepaid.php';
 require_once ROOT_DIR . '/app/inc/qr.php';
 
 /* ------------------------------------------------------------------ */
@@ -85,12 +87,20 @@ try {
         $path === '/webhook/delete' && $method === 'POST' => route_webhook_delete(),
         $path === '/integration/save' && $method === 'POST' => route_integration_save(),
         preg_match('#^/business/(\d+)/analytics$#', $path, $m) === 1 => route_analytics((int)$m[1]),
+        preg_match('#^/program/(\d+)/design$#', $path, $m) === 1 => route_program_design((int)$m[1],$method),
         preg_match('#^/business/(\d+)/design$#', $path, $m) === 1 => route_design((int)$m[1], $method),
         preg_match('#^/business/(\d+)/qr$#', $path, $m) === 1 => route_qr_studio((int)$m[1]),
         preg_match('#^/uploads/([A-Za-z0-9._-]+)$#', $path, $m) === 1 => route_upload($m[1]),
         preg_match('#^/pass/apple/([A-F0-9]{10})\.pkpass$#', $path, $m) === 1 => route_pass_apple($m[1]),
         preg_match('#^/pass/google/([A-F0-9]{10})$#', $path, $m) === 1 => route_pass_google($m[1]),
         preg_match('#^/pass/stamps/([A-F0-9]{10})/([a-f0-9]{64})\.png$#', $path, $m) === 1 => route_stamp_strip($m[1], $m[2]),
+        preg_match('#^/program/(\d+)/vouchers$#',$path,$m)===1 && $method==='POST' => route_voucher_program((int)$m[1]),
+        preg_match('#^/program/(\d+)/voucher-export$#',$path,$m)===1 => route_voucher_export((int)$m[1]),
+        preg_match('#^/business/(\d+)/voucher-counter$#',$path,$m)===1 => route_voucher_counter((int)$m[1],$method),
+        preg_match('#^/program/(\d+)/prepaid-settings$#',$path,$m)===1 && $method==='POST' => route_prepaid_settings((int)$m[1]),
+        preg_match('#^/business/(\d+)/prepaid-export$#',$path,$m)===1 => route_prepaid_export((int)$m[1]),
+        preg_match('#^/(?:staff/)?prepaid/sell$#',$path)===1 && $method==='POST' => route_prepaid_action('sell'),
+        preg_match('#^/(?:staff/)?prepaid/(\d+)/(use|reverse)$#',$path,$m)===1 && $method==='POST' => route_prepaid_action($m[2],(int)$m[1]),
         $path === '/api/docs' => route_api_docs(),
         $path === '/member/create' && $method === 'POST' => route_member_create(),
         preg_match('#^/member/(\d+)$#', $path, $m) === 1 => route_member((int)$m[1]),
@@ -517,6 +527,7 @@ function route_program(int $id): never
       <h1><span class="badge">' . h(type_label($p['type'])) . '</span> ' . h($p['name']) . '</h1>
       <p class="muted">' . h($p['description']) . '</p>';
 
+    $body.='<p><a class="btn ghost" href="/program/'.$id.'/design">Programmdesign</a></p>';
     if ($p['type'] === 'stamps') {
         $body .= '<p>' . t('Ziel:') . ' <strong>' . (int)$p['stamps_required'] . ' ' . t('Stempel') . '</strong> · ' . t('Belohnung:') . ' <strong>' . h($p['reward_text']) . '</strong></p>';
     } elseif ($p['type'] === 'voucher') {
@@ -581,6 +592,8 @@ function route_program(int $id): never
         </form>';
     }
 
+    if($p['type']==='voucher')$body.=voucher_form_html($p);
+    if($p['type']==='pass')$body.=prepaid_program_html($p);
     $cards = db()->prepare(
         'SELECT c.*, m.name AS member_name, m.code FROM cards c JOIN members m ON m.id = c.member_id
          WHERE c.program_id = ? ORDER BY c.created_at DESC LIMIT 100'
@@ -741,6 +754,7 @@ function member_panels(int $id, array $programs, string $actionBase): string
         }
         $body .= '</section>';
     }
+    $body.=prepaid_member_html($id,$actionBase==='/staff/card'?'/staff':'');
     return $body;
 }
 

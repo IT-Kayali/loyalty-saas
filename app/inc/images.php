@@ -47,6 +47,7 @@ function stamp_html(array $design, bool $filled): string
     if (($design['stamp_image'] ?? '') !== '') {
         return '<span class="' . $class . ' custom-stamp"><img alt="' . ($filled ? 'Stempel gesammelt' : 'Stempel offen') . '" src="' . h(upload_url($design['stamp_image'])) . '"></span>';
     }
+    if(!empty($design['stamp_icon']))return '<span class="'.$class.' emoji-stamp">'.h($design['stamp_icon']).'</span>';
     return '<span class="' . $class . '" aria-label="' . ($filled ? 'Stempel gesammelt' : 'Stempel offen') . '"></span>';
 }
 

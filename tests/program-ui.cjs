@@ -1,0 +1,23 @@
+const {chromium}=require('playwright');const fs=require('fs');
+(async()=>{
+ const out=process.env.TEST_OUTPUT || '/tmp/loyalty-program-results';fs.mkdirSync(out,{recursive:true});const b=await chromium.launch({headless:true,args:['--no-sandbox']});const p=await b.newPage({viewport:{width:1440,height:1050}});let n=0;
+ const yes=(x,s)=>{if(!x)throw new Error(s);n++;console.log('PASS '+s)};
+ await p.goto('http://127.0.0.1:8099/login');await p.locator('[name=email]').fill('demo@loyalty.local');await p.locator('[name=password]').fill('demo1234');await p.locator('button').first().click();await p.waitForURL('**/dashboard');
+ await p.goto('http://127.0.0.1:8099/program/1/design');await p.locator('[name=header]').fill('Espresso Club');await p.locator('[name=stamp_icon]').selectOption('☕');await p.locator('button').filter({hasText:'Speichern'}).click();await p.waitForLoadState();
+ yes((await p.locator('.cp-header').textContent())==='Espresso Club','program design saved');yes(await p.locator('.cp-dot.emoji-stamp').count()===6,'emoji preview renders');
+ await p.screenshot({path:out+'/program-designer-desktop.png',fullPage:true});
+ await p.goto('http://127.0.0.1:8099/business/1/design');yes((await p.locator('[name=header]').inputValue())==='Foundry Coffee','program design does not overwrite business');
+ await p.goto('http://127.0.0.1:8099/program/3');
+ const rules=p.locator('form[action="/program/3/vouchers"]').first();await rules.locator('[name=type]').selectOption('percent');await rules.locator('[name=value]').fill('20.00');await rules.locator('[name=max_discount]').fill('5.00');await rules.locator('button').click();await p.waitForLoadState();
+ const batch=p.locator('form[action="/program/3/vouchers"]').last();await batch.locator('[name=name]').fill('Launch');await batch.locator('[name=count]').fill('3');await batch.locator('button').click();await p.waitForLoadState();yes((await p.locator('body').textContent()).includes('Launch'),'voucher batch created');
+ await p.screenshot({path:out+'/voucher-settings-desktop.png',fullPage:true});
+ const csv=await (await p.request.get('http://127.0.0.1:8099/program/3/voucher-export')).text();const code=csv.trim().split('\n')[1].split(',')[1];
+ await p.goto('http://127.0.0.1:8099/business/1/voucher-counter');await p.locator('[name=code]').fill(code);await p.locator('[name=member_id]').selectOption('1');await p.locator('[name=spend]').fill('100.00');await p.locator('[type=checkbox]').check();await p.getByRole('button',{name:'Einlösung prüfen',exact:true}).click();await p.waitForLoadState();yes((await p.locator('body').textContent()).includes('5,00 EUR'),'voucher discount preview uses cap');await p.screenshot({path:out+'/voucher-preview.png',fullPage:true});await p.getByRole('button',{name:'Verbindlich einlösen',exact:true}).click();await p.waitForLoadState();yes((await p.locator('.flash').textContent()).includes('Gutschein eingelöst'),'voucher redeem through HTTP form');
+ await p.goto('http://127.0.0.1:8099/member/1');await p.locator('[name=paid]').fill('50.00');await p.locator('[name=receipt]').fill('browser-receipt-1');await p.locator('[name=payment_confirmed]').check();await p.getByRole('button',{name:'Verkauf prüfen',exact:true}).click();await p.waitForLoadState();yes((await p.locator('h1').textContent())==='Verkauf prüfen','pass sale confirmation shown');
+ await p.screenshot({path:out+'/prepaid-sale-preview.png',fullPage:true});await p.getByRole('button',{name:'Verkauf verbindlich dokumentieren'}).click();await p.waitForLoadState();yes((await p.locator('body').textContent()).includes('Pass #'),'pass sale recorded');
+ const use=p.locator('form[action$="/use"]').first();await use.locator('[name=quantity]').fill('2');await use.locator('button').click();await p.waitForLoadState();yes((await p.locator('body').textContent()).includes('8 / 10 Besuche'),'specific sold pass decremented');
+ await p.setViewportSize({width:390,height:844});await p.screenshot({path:out+'/prepaid-member-mobile.png',fullPage:true});yes(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'prepaid mobile no overflow');
+ await p.goto('http://127.0.0.1:8099/program/1/design');await p.screenshot({path:out+'/program-designer-mobile.png',fullPage:true});yes(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'program designer mobile no overflow');
+ await p.goto('http://127.0.0.1:8099/business/1/voucher-counter');await p.screenshot({path:out+'/voucher-counter-mobile.png',fullPage:true});yes(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'voucher counter mobile no overflow');
+ await b.close();console.log(n+' browser assertions passed');
+})().catch(e=>{console.error(e);process.exit(1)});

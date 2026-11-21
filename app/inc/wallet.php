@@ -25,13 +25,13 @@ function pass_member(string $code): ?array
     if (!$m) {
         return null;
     }
-    $cards = db()->prepare('SELECT c.*, p.type, p.name AS program_name, p.stamps_required, p.reward_text, p.voucher_value
+    $cards = db()->prepare('SELECT c.*, p.type, p.name AS program_name, p.stamps_required, p.reward_text, p.voucher_value,p.card_design
         FROM cards c JOIN programs p ON p.id = c.program_id
         WHERE c.member_id = ? AND p.active = 1 ORDER BY
           CASE p.type WHEN \'stamps\' THEN 0 WHEN \'points\' THEN 1 ELSE 2 END, c.id');
     $cards->execute([$m['id']]);
     $m['cards'] = $cards->fetchAll();
-    $m['design'] = business_design($m);
+    $m['design'] = isset($m['cards'][0]) ? program_design($m['cards'][0],$m) : business_design($m);
     return $m;
 }
 

@@ -4,6 +4,10 @@ Digitale Stempelkarten, Punkte, Gutscheine und Mehrfachkarten für lokale Gesch�
 
 Reines PHP + SQLite, keine Composer-Abhängigkeiten, keine Build-Tools. Ein Binary reicht.
 
+## Programm-Ausbau
+
+Eigener Designer pro Programm mit Hintergrundfoto, Overlay und Emoji; Code-Gutscheine mit Rabattregeln und Batches; separat verkaufte Besuchs-/Zeitpässe mit Ledger, Idempotency und Storno. Bisherige einfache Karten bleiben erhalten. Grenzen, Geldguthaben-Lücke und Tests: [docs/PROGRAMS.md](docs/PROGRAMS.md).
+
 ## Produktionsgrundlage und Planberechtigungen
 
 Die nächste Etappe ergänzt zentrale Planprüfungen über Betreiber, Staff, Join, REST-API und Shopify, Mengenlimits, sichere Sessions, Rate Limits sowie Backup/Restore. Aktivierung, geprüfte Grenzen und alle Betriebsbefehle: [docs/OPERATIONS.md](docs/OPERATIONS.md). Prüfung ist im Beispiel für lokale Demos weiterhin bewusst ausgeschaltet, `stripe.enforce_limits=true` schaltet sie ein.
@@ -118,6 +122,7 @@ npx playwright install chromium
 python3 tests/run-browser.py
 python3 tests/run-policy.py
 python3 tests/run-backup.py
+python3 tests/run-programs.py
 ```
 
 Browser-Tests benötigen Port 8099 und erzeugen nur lokale Testdaten. Ausgaben standardmäßig unter dem temporären Verzeichnis `loyalty-browser-results`; mit `TEST_OUTPUT` änderbar, PHP-Binary mit `PHP_BIN`. Das sind lokale Tests, kein echter Stripe-Testkauf oder Geräte-Wallet-Test.

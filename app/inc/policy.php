@@ -68,6 +68,10 @@ function install_plan_guards(PDO $pdo): void
         'cards'=>[$program,'programs',''],
         'transactions'=>[$card,'programs',''],
         'rewards'=>[$program,'programs',''],
+        'voucher_codes'=>[$program,'vouchers',''],
+        'prepaid_issues'=>[$direct,'prepaid',''],
+        'prepaid_ledger'=>[$direct,'prepaid',''],
+        'voucher_redemptions'=>[$direct,'vouchers',''],
         'tiers'=>[$program,'tiers',''],
         'bonus_hours'=>[$program,'bonus_hours',''],
         'achievements'=>[$direct,'achievements',''],
@@ -84,7 +88,7 @@ function install_plan_guards(PDO $pdo): void
         foreach(['INSERT'=>'NEW','UPDATE'=>'NEW','DELETE'=>'OLD'] as $op=>$ref) {
             $expr=sprintf($owner,$ref);$create=$op==='INSERT'?$capacity:'';
             // GDPR deletion cascades are allowed only inside the authenticated delete handler.
-            $privacy=$op==='DELETE'?'loyalty_privacy_delete()=0 AND ':'';
+            $privacy=($op==='DELETE' || ($table==='prepaid_issues' && $op==='UPDATE'))?'loyalty_privacy_delete()=0 AND ':'';
             $pdo->exec("CREATE TEMP TRIGGER IF NOT EXISTS plan_{$table}_{$op} BEFORE {$op} ON main.{$table} WHEN {$privacy}loyalty_plan_ok({$expr},'{$feature}','{$create}')=0 BEGIN SELECT RAISE(ABORT,'PLAN_RESTRICTED'); END");
         }
     }

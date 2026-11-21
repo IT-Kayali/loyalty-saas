@@ -239,16 +239,18 @@ function route_member_logout(): never
 function wallet_cards_html(int $memberId): string
 {
     $stmt = db()->prepare('SELECT c.*, p.type, p.name AS program_name, p.description, p.stamps_required,
-        p.reward_text, p.voucher_value, p.pass_visits
+        p.reward_text, p.voucher_value, p.pass_visits,p.card_design
         FROM cards c JOIN programs p ON p.id = c.program_id
         WHERE c.member_id = ? AND p.active = 1 ORDER BY c.created_at');
     $stmt->execute([$memberId]);
     $designQ = db()->prepare('SELECT b.* FROM businesses b JOIN members m ON m.business_id=b.id WHERE m.id=?');
     $designQ->execute([$memberId]);
-    $design = business_design($designQ->fetch() ?: []);
+    $business=$designQ->fetch() ?: [];
+    $design=business_design($business);
     $body = '';
     foreach ($stmt->fetchAll() as $c) {
-        $body .= '<section class="loyal-card">';
+        $design=program_design($c,$business);
+        $body .= '<section class="loyal-card designed-card" style="'.h(card_face_style($design)).'">';
         if ($c['type'] === 'stamps') {
             $req = (int)$c['stamps_required'];
             $dots = '';
@@ -281,6 +283,7 @@ function wallet_cards_html(int $memberId): string
         }
         $body .= '</section>';
     }
+    $body.=prepaid_member_html($memberId,'',true);
     return $body;
 }
 

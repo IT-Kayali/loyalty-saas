@@ -26,9 +26,9 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Staff-Kasse | Basis | PIN-Login, Suche, QR-Scan, vergeben/einlösen, Undo. Keine Clubberechtigungen, vollständige Mitarbeiter-Kontoverwaltung oder rollenfeine Operationen. |
 | Mitglieder-Wallet | Basis | Login, mehrere Unternehmen, Karten, Inbox, Export/Löschung. Kein OTP-Login, anonyme Mitglieder, umfassendes Profil-/Passwortmanagement, Offlineinstallation oder Live-Event-Updates. |
 | Punkte & Prämien | Basis | Punkte, Prämien, Lifetime-Punkte, Stufen und Bonusstunden. Punkteanfragen zwischen Mitgliedern, Punkteverfall, individuelle Einlösecodes und zeitlich begrenzte Reward-QRs fehlen. |
-| Stempelkarten | Basis + Neu | Stempel/Rollover/Belohnungen, eigener Bildupload, Vorschau. Original hat programmbezogene Logos, Hintergrundbilder/Deckkraft und Emoji-Picker. Unser Design gilt derzeit pro Unternehmen und bietet kein Hintergrundbild. |
-| Gutscheine | Basis | Fester Wert und begrenzte Nutzungen. Prozent-/Festbetrag-Rabattregeln, Eligibility-Engine, Batch-Erzeugung, Geburtstags-/Winback-Kampagnen und eigene Voucher-Auswertungen fehlen. |
-| Prepaid | Basis | Ein einfaches Besuchskontingent pro Mitglied/Programm. Kein Verkauf mehrerer separater Pässe, Zeit-Zutritt, Geldguthaben, Verfall, Umsatzledger, Rückzahlung oder Transfer. |
+| Stempelkarten | Basis + Neu | Stempel/Rollover/Belohnungen, eigener Bildupload, Vorschau. Neu: eigenes Programmdesign, Hintergrundfoto/Deckkraft und kuratierte Emoji-Auswahl. Nativer Wallet-Pass bleibt ein Sammelpass, Fotos/Emoji nur im Web. |
+| Gutscheine | Basis | Fester Wert und begrenzte Nutzungen. Neu: Code-Batches, Prozent/Festbetrag/Produkt/Punkte, einfache Eligibility und Limits. Geburtstags-/Winback-Automation, Claim-QR, Batchstorno und eigene Analysen fehlen. |
+| Prepaid | Basis | Neu: getrennt verkaufte Besuchs-/unbegrenzte Zeitpässe, Snapshots, Ablaufprüfung, Ledger/CSV und Storno. Geldguthaben, Refunds, Kauf-QR und Reminder fehlen. |
 | Achievements | Basis | Schwellen/Metriken und Punktebonus. Keine wöchentlichen Läufe und vollständige Reward-/Limitkonfiguration. |
 | Empfehlungen | Basis | Empfehlungslink, Prämien für Werber/Geworbenen. Kein detailliertes Missbrauchs-/Kampagnenmanagement. |
 | Segmente | Basis | Gespeicherte regelbasierte Zielgruppen. Kein vollständiger verschachtelter Segment-Builder. |
@@ -92,3 +92,8 @@ Die Pakete sind offene Implementierung, keine Funktionen, die ein vorhandenes Ge
 ## Nachtrag Etappe Produktionsgrundlage
 
 Zentrale Planberechtigung über bestehende Schreibkanäle, atomare Mengenlimits, Rate Limits, sichere Sessions/Response-Header, Bestellbeleg-Deduplizierung, frisch gelesene Staff-/Owner-Kartenbuchungen und Backup-/Restore-CLI ergänzt. Tests und weiterhin offene Produktionspunkte: [OPERATIONS.md](OPERATIONS.md). Keine Aussage, dass damit alle Sicherheits-/Betriebsanforderungen oder Referenzfunktionen erledigt wären.
+
+
+## Nachtrag Etappe Programme
+
+Programmspezifischer Designer mit Hintergrundfoto/Deckkraft und Emoji, Code-Gutscheinregeln/Batches/Kassenprüfung sowie verkaufte Besuchs-/unbegrenzte Pässe mit separatem Ledger ergänzt. Das ist ein weiterer Teil der Parität, kein Abschluss. Insbesondere Geldguthabenpässe, Kauf-QR, Geburtstags-/Winback-Flows und einige Original-Detailregeln bleiben offen. Details: [PROGRAMS.md](PROGRAMS.md).

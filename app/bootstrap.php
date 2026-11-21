@@ -303,6 +303,73 @@ function init_schema(PDO $pdo): void
     SQL);
 
     $pdo->exec(<<<'SQL'
+    CREATE TABLE IF NOT EXISTS prepaid_issues (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE RESTRICT,
+        program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE RESTRICT,
+        member_id INTEGER REFERENCES members(id) ON DELETE SET NULL,
+        code TEXT NOT NULL UNIQUE,
+        operation TEXT NOT NULL,
+        receipt TEXT NOT NULL,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK(kind IN ('visits','unlimited')),
+        remaining INTEGER,
+        original_visits INTEGER,
+        paid_cents INTEGER NOT NULL CHECK(paid_cents>=0),
+        currency TEXT NOT NULL,
+        expires_at TEXT,
+        terms TEXT NOT NULL,
+        actor_kind TEXT NOT NULL,
+        actor_id INTEGER NOT NULL,
+        version INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(business_id,operation),
+        UNIQUE(business_id,receipt)
+    );
+    CREATE TABLE IF NOT EXISTS prepaid_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        issue_id INTEGER NOT NULL REFERENCES prepaid_issues(id) ON DELETE RESTRICT,
+        business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE RESTRICT,
+        kind TEXT NOT NULL CHECK(kind IN ('sale','visit','reversal')),
+        quantity INTEGER NOT NULL,
+        amount_cents INTEGER NOT NULL DEFAULT 0,
+        operation TEXT NOT NULL,
+        actor_kind TEXT NOT NULL,
+        actor_id INTEGER NOT NULL,
+        reverses_id INTEGER UNIQUE REFERENCES prepaid_ledger(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(issue_id,operation)
+    );
+    CREATE TRIGGER IF NOT EXISTS prepaid_ledger_no_update BEFORE UPDATE ON prepaid_ledger BEGIN SELECT RAISE(ABORT,'Ledger is append-only'); END;
+    CREATE TRIGGER IF NOT EXISTS prepaid_ledger_no_delete BEFORE DELETE ON prepaid_ledger BEGIN SELECT RAISE(ABORT,'Ledger is append-only'); END;
+    CREATE TABLE IF NOT EXISTS voucher_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+        member_id INTEGER REFERENCES members(id) ON DELETE CASCADE,
+        batch TEXT NOT NULL,
+        code TEXT NOT NULL UNIQUE,
+        rules_snapshot TEXT NOT NULL,
+        used INTEGER NOT NULL DEFAULT 0,
+        max_uses INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS voucher_redemptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+        program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+        code_id INTEGER NOT NULL REFERENCES voucher_codes(id),
+        member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+        operation TEXT NOT NULL,
+        spend_cents INTEGER NOT NULL,
+        discount_cents INTEGER NOT NULL,
+        actor_kind TEXT NOT NULL,
+        actor_id INTEGER NOT NULL,
+        snapshot TEXT NOT NULL,
+        reversed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (business_id,operation)
+    );
     CREATE TABLE IF NOT EXISTS order_receipts (
         business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
         reference TEXT NOT NULL,
@@ -341,6 +408,12 @@ function init_schema(PDO $pdo): void
 
     /* Migrationen für bestehende Datenbanken */
     ensure_column($pdo, 'members', 'password_hash', 'TEXT');
+    ensure_column($pdo, 'programs', 'card_design', 'TEXT');
+    ensure_column($pdo, 'programs', 'voucher_rules', 'TEXT');
+    ensure_column($pdo, 'programs', 'pass_kind', "TEXT NOT NULL DEFAULT 'visits'");
+    ensure_column($pdo, 'programs', 'pass_valid_days', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'programs', 'pass_price_cents', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'programs', 'pass_currency', "TEXT NOT NULL DEFAULT 'EUR'");
     ensure_column($pdo, 'businesses', 'join_code', 'TEXT');
     ensure_column($pdo, 'transactions', 'reversed_at', 'TEXT');
     ensure_column($pdo, 'cards', 'points_lifetime', 'INTEGER NOT NULL DEFAULT 0');
@@ -528,6 +601,9 @@ function design_defaults(): array
         'text_color'   => '#FAF7F2',   // Haupttext auf der Karte
         'accent_color' => '',          // leer = Markenfarbe
         'stamp_image'  => '',
+        'background_image' => '',
+        'overlay_opacity' => 75,
+        'stamp_icon' => '',
         'logo'         => '',          // /uploads/... (PNG/JPEG/WebP)
         'header'       => '',          // Zeile über dem Namen (leer = Business-Name)
         'footer'       => '',          // kleine Zeile unten (z.B. Adresse/Webseite)
@@ -555,7 +631,25 @@ function business_design(array $b): array
             $d[$c] = design_defaults()[$c] ?: '#1C1A17';
         }
     }
+    $d['overlay_opacity']=max(0,min(100,(int)$d['overlay_opacity']));
+    if(!in_array($d['stamp_icon'],['','⭐','☕','🍕','🎁','✂️','💎','🏆','🌿'],true))$d['stamp_icon']='';
     return $d;
+}
+
+function program_design(array $program,array $business): array
+{
+    if(!empty($program['card_design']))return business_design(['card_design'=>$program['card_design'],'brand_color'=>$business['brand_color'] ?? '#E4572E']);
+    return business_design($business);
+}
+
+function card_face_style(array $d): string
+{
+    $style='--card-bg:'.$d['bg_color'].';--card-text:'.$d['text_color'].';--brand:'.$d['accent_color'].';';
+    if($d['background_image']!=='') {
+        $rgb=sscanf($d['bg_color'],'#%02x%02x%02x');$overlay='rgba('.implode(',',$rgb).','.($d['overlay_opacity']/100).')';
+        $style.='background-image:linear-gradient('.$overlay.','.$overlay.'),url('.upload_url($d['background_image']).');background-size:cover;background-position:center;';
+    }
+    return $style;
 }
 
 /** Öffentliche URL eines hochgeladenen Logos (wird über /uploads/ ausgeliefert). */

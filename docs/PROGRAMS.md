@@ -1,0 +1,59 @@
+# Programm-Ausbau: Designer, Gutscheine und Prepaid
+
+## Designer pro Programm
+
+Unter `/program/ID/design` gibt es jetzt ein eigenes Design. Ohne eigenes Design erbt ein Programm das Unternehmensdesign. Die Webkarte nutzt das jeweilige Programmdesign, einschließlich Farben, Hintergrundfoto mit Farbüberlagerung (0–100 %), Logo-/Stempel-Bild, Texten und einer kleinen kuratierten Emoji-Auswahl. Das Speichern ändert keine gesammelten Punkte/Stempel.
+
+Die Kunden-Wallet bleibt ein Sammelpass pro Mitglied/Unternehmen. Dessen Farben/Logo/Stempelgrafik kommen vom ersten aktiven Programm, bevorzugt Stempel. Es ist **noch nicht** je Programm ein separat installierbarer nativer Wallet-Pass. Hintergrundfotos/Emoji werden derzeit nur in der Webkarte und Vorschau gezeigt, Wallets verwenden weiterhin Farben, Logo und Raster-Stempelbild. QR-Studio bleibt beim Unternehmensdesign. Designänderungen stoßen noch keinen eigenen Wallet-Push an.
+
+Uploads haben dieselbe strikte Prüfung und PNG-Neukodierung wie die Unternehmensbilder. PNG/JPEG/WebP bis 2 MB, keine SVGs oder GIFs. Alte, ersetzte Bilddateien werden nicht automatisch bereinigt, damit bestehende Pass-URLs nicht brechen; Speicherbereinigung ist ein Betriebspunkt.
+
+## Code-Gutscheine
+
+Zusätzlich zu den bisherigen einfachen Gutscheinkarten:
+
+- Vier Rabattarten: Prozent, Festbetrag, Gratisprodukt, Bonuspunkte.
+- Prozentberechnung mit Integer-Cents und optionalem Maximalrabatt.
+- Mindestkaufbetrag, UTC-Gültigkeitsdaten, maximales Kampagnenkontingent, Einlösungen pro Mitglied und Mindest-Lifetime-Punkte.
+- Batch-Erzeugung bis 500 zufällige Codes pro Vorgang, CSV-Export bis 10.000 Codes.
+- Regeln werden beim Erzeugen im Code gespeichert. Spätere Regeländerungen gelten für neue Codes, nicht still für bereits verteilte.
+- Owner-/Staff-Kassenformular mit Prüfseite und ausdrücklicher Bestätigung. Endgültige Berechtigung/Restnutzung wird innerhalb der DB-Transaktion erneut geprüft.
+- Einlösungen sind durch Vorgangskennung wiederholbar, ohne doppelt zu buchen.
+- Gratisprodukt bestätigt die Ausgabe eines benannten Artikels, Bonuspunkte brauchen eine bereits bestehende aktive Punktekarte.
+- Keine Zahlung oder automatische POS-Rabattierung. Externen Kaufbetrag und Gutscheinwährung an der Kasse prüfen.
+
+Noch offen: Gutschein-Claimseite/QR, gezielter Versand von Codes, Deaktivierung/Stornierung von Batches, rückgängig machen einer Einlösung, verschachtelte Eligibility-Regeln, Geburtstags-/Winback-Automation, eigene Gutscheine je Mitglied und vollständige Berichte. Bestehende einfache Gutscheinkarten verwenden weiterhin ihre eigenen Regeln, sie sind nicht nachträglich an die Code-Regeln gebunden.
+
+## Prepaid-Besuchspässe
+
+Zusätzlich zur bisherigen einfachen Mehrfachkarte gibt es getrennte **verkaufte Pässe**:
+
+- Produktart „Besuchspaket“ oder „Unbegrenzt mit Laufzeit“.
+- Besuchsanzahl, Gültigkeit ab Verkauf, Standardpreis und Währung konfigurierbar.
+- Verkauf an ein bekanntes Mitglied, tatsächlicher externer Zahlbetrag, eindeutige Belegreferenz und Prüfschritt vor dem endgültigen Dokumentieren.
+- Mehrere Verkäufe desselben Produkts an dasselbe Mitglied ergeben getrennte Pässe.
+- Jeder Pass speichert seine zum Verkauf geltenden Bedingungen. Produktänderungen wirken nur auf zukünftige Verkäufe. Ändert sich das Produkt zwischen Prüfschritt und Bestätigung, wird neu geprüft statt still andere Bedingungen zu verkaufen.
+- Besuche verbrauchen eine definierte Menge, unbegrenzte Pässe protokollieren einzelne Besuche bis zum Ablauf.
+- Versionsprüfung schützt vor einem zwischenzeitlich geänderten Stand. Wiederholte Vorgänge mit derselben Kennung buchen nicht doppelt.
+- Owner kann Besuche stornieren; Staff nur eigene. Ein Besuch kann einmal storniert werden.
+- Append-only-Ledger für Verkauf/Besuch/Storno und CSV-Export. Falsche Buchungen werden durch Gegenbuchung berichtigt, nicht gelöscht.
+- Kundenkarte zeigt gekaufte Pässe und Verlauf. Kein externer Zahlungsverkehr in der App.
+
+**Keine monetären Guthabenpässe in dieser Etappe.** Dafür braucht es getrennte Salden-, Refund-, Reconciliation-, Integritäts- und Berechtigungspfade sowie geklärte Geschäftsbedingungen. Ein einfaches Feld „Guthaben“ wäre dafür kein sicherer Ersatz. Ebenfalls offen: Verkauf per kurzlebigem Kauf-QR ohne Mitgliedersuche, Reminder/Expiry-Job, private Notizen/Fotos, alle API-/MCP-Passoperationen und ausführliche Umsatz-/Breakage-Analytics.
+
+Bestehende einfache Mehrfachkarten bleiben separat bestehen und werden nicht still als bezahlte Verkäufe interpretiert. Keine Demo-Bestandskarte wird rückwirkend als Kauf gebucht.
+
+## Datenschutz und Buchhaltungsgrenzen
+
+Bei der Löschung eines Mitglieds werden die Identitätsverknüpfungen verkaufter Pässe auf NULL gesetzt. Das finanzielle Ledger bleibt erhalten. Externe Belegreferenzen können selbst personenbezogen sein: keine Namen/E-Mails als Belegreferenz verwenden. Aufbewahrung, Auskunft, Löschung gesetzlich nicht mehr benötigter Daten und externe Buchhaltung müssen vor Produktivstart geregelt werden. Es werden keine Steuerbelege erstellt und keine Rechtskonformität zugesagt.
+
+## Tests
+
+`python3 tests/run-programs.py` erzeugt eine Wegwerf-Installation und prüft 23 isolierte Regeln/Transaktionen sowie 12 echte Browserfälle: Geldparser, Prozentcap, Kontingente, wiederholte Einlösung, Ablauf, mehrfache Verkäufe, unveränderliche Verkaufsbedingungen, doppelte Besuchsbuchung, Konfliktversionen, Storno, Staff-Grenzen, Ledger-Schutz, Datenschutzverknüpfung und mobile Oberfläche. Bestehende Browser-, Policy-, Stripe- und Backup-Tests bleiben zusätzlich erforderlich.
+
+## Quellen
+
+- https://rewardloyalty.co/docs/5.x/stamp-cards/designing-cards
+- https://rewardloyalty.co/docs/5.x/vouchers/partner-discount-types
+- https://rewardloyalty.co/docs/5.x/prepaid-passes/overview
+- https://rewardloyalty.co/docs/5.x/prepaid-passes/staff-selling-and-scanning
