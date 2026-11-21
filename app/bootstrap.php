@@ -303,6 +303,40 @@ function init_schema(PDO $pdo): void
     SQL);
 
     $pdo->exec(<<<'SQL'
+    CREATE TABLE IF NOT EXISTS mail_outbox (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        business_id INTEGER REFERENCES businesses(id) ON DELETE CASCADE,
+        member_id INTEGER REFERENCES members(id) ON DELETE SET NULL,
+        recipient TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        category TEXT NOT NULL CHECK(category IN ('marketing','transactional')),
+        dedup_key TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'queued',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        claimed_at TEXT,
+        sent_at TEXT,
+        last_error TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS mail_automations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+        event TEXT NOT NULL,
+        days INTEGER NOT NULL DEFAULT 30,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS password_resets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK(kind IN ('owner','member')),
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        used_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS prepaid_issues (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE RESTRICT,
@@ -408,6 +442,12 @@ function init_schema(PDO $pdo): void
 
     /* Migrationen für bestehende Datenbanken */
     ensure_column($pdo, 'members', 'password_hash', 'TEXT');
+    ensure_column($pdo, 'members', 'marketing_consent', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'members', 'consent_at', 'TEXT');
+    ensure_column($pdo, 'members', 'consent_source', 'TEXT');
+    ensure_column($pdo, 'members', 'birthday', 'TEXT');
+    ensure_column($pdo, 'members', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'programs', 'card_design', 'TEXT');
     ensure_column($pdo, 'programs', 'voucher_rules', 'TEXT');
     ensure_column($pdo, 'programs', 'pass_kind', "TEXT NOT NULL DEFAULT 'visits'");
@@ -517,7 +557,9 @@ function current_user(): ?array
     }
     $stmt = db()->prepare('SELECT * FROM users WHERE id = ?');
     $stmt->execute([$_SESSION['user_id']]);
-    return $stmt->fetch() ?: null;
+    $u=$stmt->fetch();
+    if($u && (int)($u['session_version'] ?? 0)!==(int)($_SESSION['user_session_version'] ?? 0)){unset($_SESSION['user_id']);return null;}
+    return $u ?: null;
 }
 
 function require_login(): array

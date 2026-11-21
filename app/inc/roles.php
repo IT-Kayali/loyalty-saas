@@ -27,7 +27,10 @@ function require_staff(): array
 
 function current_member_email(): ?string
 {
-    return $_SESSION['member_email'] ?? null;
+    $email=$_SESSION['member_email'] ?? null;if(!$email)return null;
+    $q=db()->prepare('SELECT MAX(session_version) FROM members WHERE lower(email)=lower(?)');$q->execute([$email]);$version=$q->fetchColumn();
+    if($version===null || (int)$version!==(int)($_SESSION['member_session_version'] ?? 0)){unset($_SESSION['member_email']);return null;}
+    return $email;
 }
 
 function require_member(): string
@@ -226,6 +229,7 @@ function route_member_login(string $method): never
     }
     session_regenerate_id(true);
     $_SESSION['member_email'] = $email;
+    $versionQ=db()->prepare('SELECT MAX(session_version) FROM members WHERE lower(email)=lower(?)');$versionQ->execute([$email]);$_SESSION['member_session_version']=(int)$versionQ->fetchColumn();
     redirect('/wallet');
 }
 
@@ -302,7 +306,7 @@ function route_wallet(): never
     $body = '<div class="member-view">
       <p class="brand-tag">' . t('Mein Wallet') . '</p>
       <h1>' . t('Hallo, {name}!', ['name' => $firstName]) . '</h1>
-      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p>';
+      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p><p><a href="/member/preferences">E-Mail-Einwilligung & Geburtstag</a></p>';
 
     /* Inbox: Meilensteine, Referral-Boni etc. (letzte 5 je Konto) */
     $msgQ = db()->prepare('SELECT mm.text, mm.created_at FROM member_messages mm
@@ -403,6 +407,8 @@ function route_member_export(): never
 function route_member_delete(): never
 {
     $email = require_member();
+    $cleanup=db()->prepare('DELETE FROM mail_outbox WHERE member_id IN (SELECT id FROM members WHERE lower(email)=lower(?))');$cleanup->execute([$email]);
+    db()->prepare("DELETE FROM password_resets WHERE email=? AND kind='member'")->execute([$email]);
     $GLOBALS['privacy_delete_authorized']=true;
     $stmt = db()->prepare('DELETE FROM members WHERE lower(email) = lower(?)');
     $stmt->execute([$email]);
@@ -435,6 +441,7 @@ function route_join(string $joinCode, string $method): never
             <label>' . t('Name') . ' <input name="name" required maxlength="80"></label>
             <label>' . t('E-Mail (für dein Wallet)') . ' <input type="email" name="email" maxlength="190"></label>
             <label>' . t('Passwort (für dein Wallet, min. 8 Zeichen)') . ' <input type="password" name="password" required minlength="8"></label>
+            <label class="check"><input type="checkbox" name="marketing_consent" value="1"> Ich möchte Marketing-E-Mails dieses Unternehmens erhalten. Jederzeit abbestellbar, freiwillig.</label>
             <button class="btn">' . t('Jetzt beitreten') . '</button>
           </form>
           ' . lang_switcher() . '
@@ -451,6 +458,7 @@ function route_join(string $joinCode, string $method): never
     db()->prepare('INSERT INTO members (business_id, name, email, code, password_hash) VALUES (?,?,?,?,?)')
         ->execute([$b['id'], $name, $email, member_code(), password_hash($pw, PASSWORD_DEFAULT)]);
     $memberId = (int)db()->lastInsertId();
+    if(!empty($_POST['marketing_consent']))db()->prepare("UPDATE members SET marketing_consent=1,consent_source='join-v1',consent_at=datetime('now') WHERE id=?")->execute([$memberId]);
 
     /* Alle aktiven Programme direkt in die Wallet legen */
     $programs = db()->prepare('SELECT * FROM programs WHERE business_id = ? AND active = 1');
@@ -470,6 +478,7 @@ function route_join(string $joinCode, string $method): never
     if ($email !== '') {
         session_regenerate_id(true);
     $_SESSION['member_email'] = $email;
+    $versionQ=db()->prepare('SELECT MAX(session_version) FROM members WHERE lower(email)=lower(?)');$versionQ->execute([$email]);$_SESSION['member_session_version']=(int)$versionQ->fetchColumn();
         flash(t('Willkommen bei {business}! Deine Karten sind bereit.', ['business' => $b['name']]));
         redirect('/wallet');
     }

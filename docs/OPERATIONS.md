@@ -31,7 +31,7 @@ Die Pläne im Beispiel sind Vorschläge, keine gesetzten Verkaufspreise. Produkt
 - Grund-Response-Header gegen Framing, MIME-Sniffing und externe Formularziele. Die CSP erlaubt für den vorhandenen Bestand weiterhin Inline-Skripte/-Styles; eine nonce-basierte CSP ist offen.
 - Interne Fehler geben keine SQL-/Dateipfade im Browser aus. Das Serverlog erhält eine Referenz und die Fehlerklasse, keine rohen Requestdaten oder Secrets.
 
-Rate Limits sind Basismaßnahmen, kein Ersatz für Monitoring, WAF oder einen unabhängigen Sicherheitsaudit. OTP, Konto-/Passwortwiederherstellung und MFA sind in dieser Etappe **noch nicht** implementiert. Passwortwiederherstellung wird erst mit dem verifizierten Mailpfad sinnvoll freigeschaltet.
+Rate Limits sind Basismaßnahmen, kein Ersatz für Monitoring, WAF oder einen unabhängigen Sicherheitsaudit. Passwortwiederherstellung wurde inzwischen mit der Mail-Etappe ergänzt, siehe MAIL.md; sie erfordert eingerichtetes SMTP und zeitnahen Worker. OTP und MFA bleiben offen.
 
 ## Punkte- und Bestellkonsistenz
 

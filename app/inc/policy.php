@@ -55,6 +55,7 @@ function install_plan_guards(PDO $pdo): void
     $pdo->sqliteCreateFunction('loyalty_plan_ok', static function($uid,$feature,$create): int {
         return plan_policy((int)$uid,(string)$feature,(string)$create)===null ? 1 : 0;
     },3);
+    $pdo->sqliteCreateFunction('loyalty_account_change',static fn():int=>(!empty($GLOBALS['consent_update_authorized'])||!empty($GLOBALS['password_reset_authorized']))?1:0,0);
     $pdo->sqliteCreateFunction('loyalty_privacy_delete',static fn():int=>!empty($GLOBALS['privacy_delete_authorized'])?1:0,0);
     $direct='(SELECT user_id FROM businesses WHERE id=%s.business_id)';
     $program='(SELECT b.user_id FROM programs p JOIN businesses b ON b.id=p.business_id WHERE p.id=%s.program_id)';
@@ -79,6 +80,7 @@ function install_plan_guards(PDO $pdo): void
         'member_messages'=>[$member,'core',''],
         'segments'=>[$direct,'campaigns',''],
         'campaigns'=>[$direct,'campaigns',''],
+        'mail_automations'=>[$direct,'campaigns',''],
         'campaign_sends'=>[$member,'campaigns',''],
         'webhooks'=>[$direct,'webhooks',''],
         'order_receipts'=>[$direct,'integrations',''],
@@ -88,7 +90,8 @@ function install_plan_guards(PDO $pdo): void
         foreach(['INSERT'=>'NEW','UPDATE'=>'NEW','DELETE'=>'OLD'] as $op=>$ref) {
             $expr=sprintf($owner,$ref);$create=$op==='INSERT'?$capacity:'';
             // GDPR deletion cascades are allowed only inside the authenticated delete handler.
-            $privacy=($op==='DELETE' || ($table==='prepaid_issues' && $op==='UPDATE'))?'loyalty_privacy_delete()=0 AND ':'';
+            $privacy=($table==='members' && $op==='UPDATE')?'loyalty_account_change()=0 AND ':'';
+            $privacy.=($op==='DELETE' || ($table==='prepaid_issues' && $op==='UPDATE'))?'loyalty_privacy_delete()=0 AND ':'';
             $pdo->exec("CREATE TEMP TRIGGER IF NOT EXISTS plan_{$table}_{$op} BEFORE {$op} ON main.{$table} WHEN {$privacy}loyalty_plan_ok({$expr},'{$feature}','{$create}')=0 BEGIN SELECT RAISE(ABORT,'PLAN_RESTRICTED'); END");
         }
     }
@@ -99,6 +102,7 @@ function policy_browser_guard(string $path,string $method): void
 {
     if($method!=='POST')return;
     // Auth, billing and privacy are not paid features. The admin allowlist is separate.
+    if(str_starts_with($path,'/unsubscribe/') || $path==='/member/preferences')return;
     if(in_array($path,['/login','/register','/staff/login','/member/login','/billing','/member/delete','/forgot-password','/reset-password'],true) || str_starts_with($path,'/admin'))return;
     if(preg_match('#^/join/([A-F0-9]{8})$#',$path,$m)) {
         $q=db()->prepare('SELECT user_id FROM businesses WHERE join_code=?');$q->execute([$m[1]]);$uid=$q->fetchColumn();
@@ -111,6 +115,7 @@ function policy_browser_guard(string $path,string $method): void
     $u=current_user();if(!$u)return;
     $feature=match(true) {
         str_contains($path,'/design')=>'designer',
+        str_ends_with($path,'/mail')=>'campaigns',
         str_starts_with($path,'/campaign/') || str_starts_with($path,'/segment/')=>'campaigns',
         str_starts_with($path,'/webhook/')=>'webhooks',
         str_starts_with($path,'/integration/')=>'integrations',

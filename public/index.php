@@ -23,6 +23,8 @@ require_once ROOT_DIR . '/app/inc/admin.php';
 require_once ROOT_DIR . '/app/inc/designer.php';
 require_once ROOT_DIR . '/app/inc/vouchers.php';
 require_once ROOT_DIR . '/app/inc/prepaid.php';
+require_once ROOT_DIR . '/app/inc/mail.php';
+require_once ROOT_DIR . '/app/inc/recovery.php';
 require_once ROOT_DIR . '/app/inc/qr.php';
 
 /* ------------------------------------------------------------------ */
@@ -101,6 +103,11 @@ try {
         preg_match('#^/business/(\d+)/prepaid-export$#',$path,$m)===1 => route_prepaid_export((int)$m[1]),
         preg_match('#^/(?:staff/)?prepaid/sell$#',$path)===1 && $method==='POST' => route_prepaid_action('sell'),
         preg_match('#^/(?:staff/)?prepaid/(\d+)/(use|reverse)$#',$path,$m)===1 && $method==='POST' => route_prepaid_action($m[2],(int)$m[1]),
+        preg_match('#^/business/(\d+)/mail$#',$path,$m)===1 => route_mail_admin((int)$m[1],$method),
+        preg_match('#^/unsubscribe/(\d+)/([a-f0-9]{64})$#',$path,$m)===1 => route_unsubscribe((int)$m[1],$m[2],$method),
+        $path==='/forgot-password' => route_forgot_password($method),
+        $path==='/reset-password' => route_reset_password($method),
+        $path==='/member/preferences' => route_member_preferences($method),
         $path === '/api/docs' => route_api_docs(),
         $path === '/member/create' && $method === 'POST' => route_member_create(),
         preg_match('#^/member/(\d+)$#', $path, $m) === 1 => route_member((int)$m[1]),
@@ -220,7 +227,7 @@ function route_login(string $method): never
             <button class="btn">' . t('Anmelden') . '</button>
           </form>
           <p class="muted">' . t('Noch kein Konto?') . ' <a href="/register">' . t('Registrieren') . '</a></p>
-          <p class="muted"><a href="/staff/login">' . t('Staff-Login') . '</a> · <a href="/member/login">' . t('Kunden-Login') . '</a></p>
+          <p><a href="/forgot-password">Passwort vergessen?</a></p><p class="muted"><a href="/staff/login">' . t('Staff-Login') . '</a> · <a href="/member/login">' . t('Kunden-Login') . '</a></p>
           ' . lang_switcher() . '
         </div>');
         exit;
@@ -235,6 +242,7 @@ function route_login(string $method): never
     }
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)$u['id'];
+    $_SESSION['user_session_version']=(int)$u['session_version'];
     audit_log((int)$u['id'], 'auth.login');
     redirect('/dashboard');
 }
@@ -378,7 +386,7 @@ function route_business(int $id): never
 
     page($b['name'], '
       <p><a href="/dashboard" class="muted">← ' . t('Alle Unternehmen') . '</a></p>
-      <h1>' . h($b['name']) . '</h1>
+      <h1>' . h($b['name']) . '</h1><p><a class="btn ghost" href="/business/'.(int)$b['id'].'/mail">E-Mail & Automationen</a></p>
       <p class="btn-row">
         <a class="btn ghost small" href="/business/' . $id . '/analytics">' . t('Analytics') . '</a>
         <a class="btn ghost small" href="/business/' . $id . '/design">' . t('Karten-Design') . '</a>

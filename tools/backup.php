@@ -37,6 +37,7 @@ try {
         $zip=new ZipArchive();if($zip->open($archive,ZipArchive::CREATE|ZipArchive::EXCL)!==true)throw new RuntimeException('Cannot create backup');
         $manifest=['version'=>1,'created_at'=>gmdate('c'),'files'=>[]];
         $files=['app.sqlite'=>$snapshot];
+        if(is_file($data.'/mail-signing.key'))$files['mail-signing.key']=$data.'/mail-signing.key';
         if(is_file($root.'/config.php'))$files['config.php']=$root.'/config.php';
         foreach(['uploads','apple','google'] as $folder) {
             $dir=$folder==='uploads'?(string)config('upload_dir',$data.'/uploads'):$data.'/'.$folder;
@@ -61,7 +62,7 @@ try {
             $stat=$zip->statIndex($i);$name=$stat['name'];$total+=(int)$stat['size'];
             if($total>1024*1024*1024 || (int)$stat['size']>512*1024*1024)throw new RuntimeException('Backup exceeds safety limits');
             if($name==='manifest.json')continue;
-            if(!preg_match('#^(app\.sqlite|config\.php|(?:uploads|apple|google)/[A-Za-z0-9_./-]+)$#D',$name) || str_contains($name,'..') || !isset($manifest['files'][$name]))throw new RuntimeException('Unsafe backup member');
+            if(!preg_match('#^(app\.sqlite|config\.php|mail-signing\.key|(?:uploads|apple|google)/[A-Za-z0-9_./-]+)$#D',$name) || str_contains($name,'..') || !isset($manifest['files'][$name]))throw new RuntimeException('Unsafe backup member');
             $bytes=$zip->getFromIndex($i);if(!is_string($bytes)||!hash_equals($manifest['files'][$name],hash('sha256',$bytes)))throw new RuntimeException('Backup checksum mismatch');
             $dest=$stage.'/new/'.$name;if(!is_dir(dirname($dest)))mkdir(dirname($dest),0700,true);file_put_contents($dest,$bytes);chmod($dest,0600);
         }
@@ -76,6 +77,7 @@ try {
         // The application lock excludes HTTP requests. Preserve an automatic rollback bundle.
         $rollback=$data.'/restore-rollback-'.gmdate('Ymd-His').'-'.bin2hex(random_bytes(4));mkdir($rollback,0700);
         if(is_file($dbPath))private_copy($dbPath,$rollback.'/app.sqlite');
+        $hadMailKey=is_file($data.'/mail-signing.key');if($hadMailKey)private_copy($data.'/mail-signing.key',$rollback.'/mail-signing.key');
         $targets=['uploads'=>$uploads,'apple'=>$data.'/apple','google'=>$data.'/google'];$moved=[];$touched=[];
         try {
             foreach($targets as $kind=>$target) {
@@ -86,9 +88,12 @@ try {
             foreach(['-wal','-shm'] as $suffix)if(file_exists($dbPath.$suffix))throw new RuntimeException('WAL files present. Checkpoint and shut down external writers first.');
             private_copy($stage.'/new/app.sqlite',$dbPath.'.restore-tmp');
             if(!rename($dbPath.'.restore-tmp',$dbPath))throw new RuntimeException('Cannot install restored database');
+            if(is_file($stage.'/new/mail-signing.key'))private_copy($stage.'/new/mail-signing.key',$data.'/mail-signing.key');
             if(is_file($stage.'/new/config.php'))private_copy($stage.'/new/config.php',$data.'/restored-config.php');
         }catch(Throwable $e) {
             foreach($targets as $kind=>$target){if(!isset($touched[$kind]))continue;clean_tree($target);if(isset($moved[$kind]))rename($rollback.'/'.$kind,$target);}
+            if($hadMailKey)private_copy($rollback.'/mail-signing.key',$data.'/mail-signing.key');
+            elseif(is_file($data.'/mail-signing.key'))unlink($data.'/mail-signing.key');
             if(is_file($rollback.'/app.sqlite'))private_copy($rollback.'/app.sqlite',$dbPath);
             throw $e;
         }

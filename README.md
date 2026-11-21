@@ -4,6 +4,10 @@ Digitale Stempelkarten, Punkte, Gutscheine und Mehrfachkarten für lokale Gesch�
 
 Reines PHP + SQLite, keine Composer-Abhängigkeiten, keine Build-Tools. Ein Binary reicht.
 
+## E-Mail & Automationen
+
+TLS-SMTP, geprüfte Outbox-/Workerzustände, Einwilligung und Abmeldelinks, Welcome/Birthday/Winback-Textregeln und Einmal-Passwortreset mit Sessionwiderruf ergänzt. Ohne aktivierte SMTP-Konfiguration kein E-Mail-Versand. Echte Providerzustellung ist noch nicht abgenommen. Setup und Grenzen: [docs/MAIL.md](docs/MAIL.md).
+
 ## Programm-Ausbau
 
 Eigener Designer pro Programm mit Hintergrundfoto, Overlay und Emoji; Code-Gutscheine mit Rabattregeln und Batches; separat verkaufte Besuchs-/Zeitpässe mit Ledger, Idempotency und Storno. Bisherige einfache Karten bleiben erhalten. Grenzen, Geldguthaben-Lücke und Tests: [docs/PROGRAMS.md](docs/PROGRAMS.md).
@@ -123,6 +127,7 @@ python3 tests/run-browser.py
 python3 tests/run-policy.py
 python3 tests/run-backup.py
 python3 tests/run-programs.py
+python3 tests/run-mail.py
 ```
 
 Browser-Tests benötigen Port 8099 und erzeugen nur lokale Testdaten. Ausgaben standardmäßig unter dem temporären Verzeichnis `loyalty-browser-results`; mit `TEST_OUTPUT` änderbar, PHP-Binary mit `PHP_BIN`. Das sind lokale Tests, kein echter Stripe-Testkauf oder Geräte-Wallet-Test.

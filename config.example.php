@@ -81,7 +81,9 @@ return [
      * Leer lassen = Zustellung lokal in die Wallet-Inbox.
      * -------------------------------------------------------------- */
     'smtp' => [
-        'host' => '', 'port' => 587, 'user' => '', 'pass' => '',
-        'from' => '', 'from_name' => '',
+        'enabled' => false,
+        'host' => getenv('SMTP_HOST') ?: '', 'port' => 587,
+        'user' => getenv('SMTP_USER') ?: '', 'pass' => getenv('SMTP_PASSWORD') ?: '',
+        'from' => getenv('SMTP_FROM') ?: '', 'from_name' => 'Loyalty',
     ],
 ];

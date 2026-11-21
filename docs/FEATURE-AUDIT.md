@@ -32,8 +32,8 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Achievements | Basis | Schwellen/Metriken und Punktebonus. Keine wöchentlichen Läufe und vollständige Reward-/Limitkonfiguration. |
 | Empfehlungen | Basis | Empfehlungslink, Prämien für Werber/Geworbenen. Kein detailliertes Missbrauchs-/Kampagnenmanagement. |
 | Segmente | Basis | Gespeicherte regelbasierte Zielgruppen. Kein vollständiger verschachtelter Segment-Builder. |
-| Kampagnen | Basis | Segmentauswahl, Inbox und vorhandener optionaler Mailpfad. Die SMTP-Konfiguration allein ist kein Nachweis einer produktionsreifen SMTP-Zustellung; Provider-Anbindung, Queue, Bounces, Abmeldung und Zustelltests fehlen. |
-| Automatische Nachrichten | Offen | Aktivierung, Lifecycle, Geburtstags-/Winback-Zeitpläne und Zustellmonitoring fehlen. Bestehende Ereignis-Inbox ist kein gleichwertiger Ersatz. |
+| Kampagnen | Basis | Segmentauswahl, Inbox und vorhandener optionaler Mailpfad. Die SMTP-Konfiguration allein ist kein Nachweis einer produktionsreifen SMTP-Zustellung; Neu: TLS-SMTP, Queue/Worker und Abmeldung. Echte Providerzustellung, Bounces und Double-Opt-In fehlen. |
+| Automatische Nachrichten | Offen | Neu: Welcome/Birthday/Winback-Textregeln mit Deduplizierung. Kein vollständiger Lifecycle-Katalog und noch keine automatischen Gutscheine. |
 | Karten-/QR-Studio | Basis | QR für Join/Staff/Karten, Logo und Druck/PNG. Keine trackbaren Kartenbatches, Batchinventar oder Hardwareverwaltung. |
 | Apple Wallet | Setup + Neu | Passsignatur, PassKit-Webservice und APNs-Code vorhanden, Stempelbild als strip.png. Apple-Zertifikate/Konto fehlen. Geräteprüfung und echte Updates nicht abgenommen. |
 | Google Wallet | Setup + Neu | JWT/API-Code, Stempelgrafik als GenericObject heroImage. Issuer/Service-Account fehlen, keine echte Geräteprüfung. Google steuert die tatsächliche Darstellung. |
@@ -53,7 +53,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Datenschutz | Basis | Datenexport/-löschung. Kein vollständiges Consent-/Cookie-Management, Aufbewahrungsjobs, Abmeldeverwaltung, Rechtstexte oder AVV. Keine DSGVO-Konformitätszusage. |
 | Aktivitätsprotokoll | Neu, Basis | Login und Admin-Einstellungen/Export protokolliert. Keine lückenlose Security-/Änderungshistorie für alle Module. |
 | System Health | Neu, Basis | DB, Extensions, HTTPS, externe Setups und Webhook-Zähler. Backup-/Restore-CLI jetzt vorhanden und getestet, aber keine automatische Planung, Queuekontrollen oder Security-Anomalieerkennung. |
-| Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. OTP, Password-Reset, Geräteverwaltung und vollständiger Security-Audit fehlen. |
+| Auth/Sicherheit | Basis | Passwort-Hash, CSRF, Ownership-Checks, Session-Login, sichere Bilduploads. Rate Limits, sichere Cookieparameter und Idle-Timeout jetzt vorhanden. Neu: Passwortreset mit Einmaltoken und Sessionwiderruf. OTP, Geräteverwaltung und vollständiger Security-Audit fehlen. |
 | Installation/Betrieb | Basis | PHP/SQLite-Schnellstart und additive Migrationen. Getestetes Backup-/Restore-Werkzeug jetzt vorhanden. Kein Browserinstaller, One-command-Ubuntu-Installer, Docker oder automatischer Updater. |
 | Support | Offen | Keine Tickets, Partner-Einladungen oder eingebauter Helpdesk. |
 
@@ -97,3 +97,8 @@ Zentrale Planberechtigung über bestehende Schreibkanäle, atomare Mengenlimits,
 ## Nachtrag Etappe Programme
 
 Programmspezifischer Designer mit Hintergrundfoto/Deckkraft und Emoji, Code-Gutscheinregeln/Batches/Kassenprüfung sowie verkaufte Besuchs-/unbegrenzte Pässe mit separatem Ledger ergänzt. Das ist ein weiterer Teil der Parität, kein Abschluss. Insbesondere Geldguthabenpässe, Kauf-QR, Geburtstags-/Winback-Flows und einige Original-Detailregeln bleiben offen. Details: [PROGRAMS.md](PROGRAMS.md).
+
+
+## Nachtrag Etappe E-Mail
+
+TLS-SMTP, Outbox, Worker, Einwilligung/Abmeldung, drei Textautomationen und Passwortwiederherstellung mit Sessionwiderruf ergänzt. Echte Providerzustellung bleibt extern ungeprüft. Details: [MAIL.md](MAIL.md).

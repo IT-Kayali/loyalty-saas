@@ -148,15 +148,17 @@ function route_campaign_send(): never
     $memberIds = $segment ? segment_members($segment) : [];
 
     $send = db()->prepare('INSERT INTO campaign_sends (campaign_id, member_id) VALUES (?,?)');
-    $sent = 0;
+    $sent = 0;$emailQueued=0;
     foreach ($memberIds as $mid) {
         $send->execute([$campaign['id'], $mid]);
         member_message($mid, 'campaign', '✉️ ' . $campaign['subject'] . ' - ' . mb_strimwidth($campaign['body'], 0, 120, '…'));
+        $mq=db()->prepare('SELECT email FROM members WHERE id=?');$mq->execute([$mid]);
+        $emailQueued+=(int)queue_mail((int)$b['id'],$mid,(string)$mq->fetchColumn(),$campaign['subject'],$campaign['body'],'marketing','campaign:'.$campaign['id'].':'.$mid);
         $sent++;
     }
     db()->prepare("UPDATE campaigns SET status = 'sent', sent_at = datetime('now') WHERE id = ?")
         ->execute([$campaign['id']]);
-    flash(t('Kampagne an {n} Mitglieder zugestellt (lokal, in die Wallet-Inbox).', ['n' => $sent]));
+    flash(t('Kampagne an {n} Mitglieder in die Wallet-Inbox gelegt.', ['n'=>$sent]).' '.$emailQueued.' E-Mails in der Warteschlange, noch nicht zugestellt.');
     redirect('/business/' . (int)$b['id']);
 }
 
