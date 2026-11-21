@@ -215,7 +215,7 @@ function route_claim_counter(int $bid, string $method): never
     foreach ($r->fetchAll() as $x) {
         $rows .= '<tr><td data-label="Code"><code>' . h(claim_format($x['code'])) . '</code></td><td data-label="Mitglied">' . h($x['member_name']) . '</td><td data-label="Prämie">' . h($x['reward_name']) . '</td><td data-label="Status">' . h(claim_state_label(claim_state($x))) . '</td><td data-label="Erzeugt">' . h(tz_local((string)$x['created_at'], $btz, 'd.m.Y H:i')) . '</td></tr>';
     }
-    $body .= '<h2>Letzte Codes</h2>' . ($rows ? '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Mitglied</th><th>Prämie</th><th>Status</th><th>Erzeugt</th></tr></thead><tbody>' . $rows . '</tbody></table></div>' : '<p class="muted">Noch keine Codes.</p>');
+    $body .= '<h2>Letzte Codes</h2>' . ($rows ? '<div class="table-wrap claim-history"><table><thead><tr><th>Code</th><th>Mitglied</th><th>Prämie</th><th>Status</th><th>Erzeugt</th></tr></thead><tbody>' . $rows . '</tbody></table></div>' : '<p class="muted">Noch keine Codes.</p>');
     page('Prämien-Code einlösen', $body, $a['kind'] === 'owner' ? $a['user'] : null);
     exit;
 }

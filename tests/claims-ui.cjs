@@ -27,6 +27,11 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await scan.route('**/assets/jsQR.js',route=>route.fulfill({contentType:'application/javascript',body:'window.jsQR=function(){return {data:'+JSON.stringify(U+'/claim/'+code.replace('-',''))+'}};'}));
  await scan.goto(U+'/staff/scan');await scan.waitForURL('**/staff/business/1/claim-counter?code=*');
  yes((await scan.content()).includes('Einlösen und 50 Punkte'),label+': erkannter Prämien-QR öffnet Team-Vorschau');
+ yes(await scan.locator('.claim-history').evaluate(e=>e.scrollWidth<=e.clientWidth+1),label+': vollständige Claim-Historie ohne seitlichen Überlauf');
+ yes(await scan.locator('.claim-history tbody tr').first().locator('td[data-label=Status]').isVisible(),label+': Status in der Historie sichtbar');
+ await scan.locator('.claim-history tbody tr').first().scrollIntoViewIfNeeded();
+ await scan.locator('.claim-history tbody tr').first().screenshot({path:`${out}/claims-history-row-${label}.png`});
+ await scan.evaluate(()=>window.scrollTo(0,0));
  await scan.screenshot({path:`${out}/claims-scan-preview-${label}.png`,fullPage:true});
  await p.reload();yes(await p.locator('.claim-code').count()===1,label+': Scan bucht noch keine Punkte, Code bleibt aktiv');
  // Fallback entry and denied camera must remain usable.

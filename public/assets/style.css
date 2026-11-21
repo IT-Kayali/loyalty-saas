@@ -490,3 +490,12 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
   .voucher-batches td::before { content: attr(data-label); font-weight: 600; flex-shrink: 0; }
   .voucher-batches .inline-action { margin: 0; }
 }
+
+/* Claim history: keep status and time visible without sideways scrolling. */
+@media (max-width: 640px) {
+  .claim-history table, .claim-history tbody, .claim-history tr, .claim-history td { display: block; width: 100%; }
+  .claim-history thead { display: none; }
+  .claim-history tr + tr { border-top: 1px solid var(--line); }
+  .claim-history td { display: flex; gap: 12px; justify-content: space-between; white-space: normal; overflow-wrap: anywhere; border: 0; padding: 8px 12px; }
+  .claim-history td::before { content: attr(data-label); font-weight: 600; flex-shrink: 0; }
+}

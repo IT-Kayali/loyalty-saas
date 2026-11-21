@@ -43,3 +43,7 @@ Die Kamera übergibt das Ergebnis an die lokale Prüfung. Sie öffnet keine QR-Z
 Prämien öffnen immer die Team-Kasse des aktuell angemeldeten Unternehmens. Die Kasse prüft erneut Einlöse-Recht, Unternehmen, Codezustand, Punkte und Zeitfenster. Ein Scan selbst bucht nichts. Viewer dürfen keine Prämienvorschau öffnen, vorhandene Kundenkarten-Suche bleibt erhalten.
 
 Testgrenze: Browser automatisiert mit simulierten Kameraframes und vorgegebenem Decoder-Ergebnis, um Weiterleitung, Vorschau und Kameraablehnung reproduzierbar zu prüfen. Keine echte Kamera-, Beleuchtungs- oder QR-Decoder-Abnahme auf Geräten. Der vorhandene jsQR-Decoder ist unverändert.
+
+## Historie auf kleinen Bildschirmen
+
+Die letzten 20 Codes stehen auf Desktop als Tabelle und bis 640 Pixel Breite als beschriftete Zeilenkarten (Code, Mitglied, Prämie, Status, Erzeugt). Status und Zeit bleiben so ohne seitliches Scrollen sichtbar. Das ändert weder Reihenfolge, Auswahl noch Berechtigungen. Keine Suche/Seitenwechsel und keine neue Exportfunktion. Browserprüfung Desktop/Mobil, keine echte Geräteabnahme.
