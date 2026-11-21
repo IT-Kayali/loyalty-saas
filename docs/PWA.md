@@ -56,3 +56,9 @@ Noch offen: echte Smartphone-/Installations-/Storage-Eviction-Tests, konfigurier
 - https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers
 - https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable
 - https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Caching
+
+## Reproduzierbarer Kaltstart im Browser-Test
+
+Der lokale Chromium-Test wartet beim ersten Start auf eine aktive Root-Registrierung und lädt die Wallet einmal online neu. Erst danach prüft er den Controller des erwarteten `/sw.js` und geht offline. Grund: `serviceWorker.ready` bestätigt eine aktive Registrierung, aber die parallel zum Login ausgetauschte Seite muss noch keinen Controller erhalten haben. Das frühere unmittelbare Warten auf dieser Seite konnte zeitlich auslaufen. Der Test erhöht keine Wartezeit und wiederholt fehlgeschlagene Assertions nicht automatisch.
+
+Keine Änderung an Registrierung, Cache, Snapshot oder produktivem Offlineverhalten. Alle bisherigen Datenschutz-, QR-, Ablauf-, Logout- und Offline-Schreibprüfungen bleiben bestehen; zusätzlich aktive Root-Registrierung und exakter Controller geprüft. Dies ist eine lokale Teststabilisierung, kein Nachweis für alle Browser-/Geräte-Lebenszyklen. Ein erster Offlineaufruf vor abgeschlossener Installation ist weiterhin nicht garantiert.

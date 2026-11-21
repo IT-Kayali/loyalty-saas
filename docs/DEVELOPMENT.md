@@ -83,7 +83,7 @@ python tests/run-organization.py
 python tests/run-paypal.py
 python tests/run-merchant.py
 python tests/run-demo.py
-python tests/run-pwa.py
+python tests/run-pwa.py  # 23 Assertions, Kaltstart mit Aktivierung + Online-Neuladen
 python tests/run-support.py
 python tests/run-ai.py
 python tests/run-templates.py

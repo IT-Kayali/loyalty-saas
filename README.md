@@ -6,7 +6,7 @@ Reines PHP + SQLite, keine Composer-Abhängigkeiten, keine Build-Tools. Ein Bina
 
 ## Offline-Wallet / PWA
 
-Installierbare Web-App-Basis mit ausdrücklich gespeicherten Karten, QR, Suche und letzter Saldoansicht. Keine Offline-Buchungen oder -Einlösungen. Nur auf privaten Geräten speichern, 24-Stunden-Ansicht und lokale Löschung/Logout-Cleanup. [Setup, Datenschutz und Grenzen](docs/PWA.md).
+Installierbare Web-App-Basis mit ausdrücklich gespeicherten Karten, QR, Suche und letzter Saldoansicht. Keine Offline-Buchungen oder -Einlösungen. Nur auf privaten Geräten speichern, 24-Stunden-Ansicht und lokale Löschung/Logout-Cleanup. [Setup, Datenschutz und Grenzen](docs/PWA.md). Der lokale Kaltstart-Test prüft aktive Registrierung und Controller vor dem Offlinewechsel.
 
 ## Support-Tickets
 

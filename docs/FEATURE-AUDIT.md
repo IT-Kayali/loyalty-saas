@@ -130,3 +130,7 @@ In-App-Helpdesk ergänzt (docs/SUPPORT.md): Partner-Threads auf jedem Plan, Admi
 ## Nachtrag: KI-Verbindungen (MCP)
 
 Optionaler MCP-Endpunkt (docs/AI.md): Schlüsselverwaltung unter /ai (gehasht, Ablauf, Widerruf), JSON-RPC mit tools/prompts, 7 Lese- und 5 Änderungswerkzeuge, Idempotenz, Rate-Limit, Origin-Sperre, Audit ohne Mitgliedsdaten, Freigabe-Workflow (10 Minuten, nur Eigentümer, genau einmal, Datensatzprüfung) für Löschen von Mitgliedern und Programmen. 86 HTTP- und 28 Chromium-Prüfungen grün. Offen: echte Client-Abnahme (Claude, ChatGPT, Cursor), OAuth/Browser-Login, Plattform-/Admin- und Mitglieder-Werkzeuge, Kampagnen-/E-Mail-/Tier-/Gutschein-/Support-Werkzeuge, Scopes je Objekt oder Menge (Unternehmen und Werkzeuggruppen sind da), Tool-Discovery-Endpunkt, MCP-Apps-Ansichten, Streaming.
+
+## Nachtrag: PWA-Test-Kaltstart
+
+Nur Tests/Dokumentation: Nach aktiver Root-Registrierung erfolgt vor dem Offlinewechsel ein Online-Neuladen samt Prüfung des erwarteten Controllers. Die 23 Chromium-Prüfungen bestehen in drei voneinander getrennten Kaltstart-Läufen. Desktop-/Mobilansicht geprüft. Keine produktive PWA-Änderung und kein Nachweis echter Geräte-/Browser-Parität; alle bisherigen PWA-Grenzen bleiben offen. Siehe [PWA-Testablauf](PWA.md).
