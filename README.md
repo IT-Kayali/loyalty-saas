@@ -181,3 +181,5 @@ Eigenes Betreiber-Passwort ohne SMTP ändern: [docs/OWNER-PASSWORD.md](docs/OWNE
 Persönliche Gutschein-QRs: [Ablauf und Grenzen](docs/VOUCHER-QR.md), Tests `python3 tests/run-voucher-qr.py`.
 
 Code-Gutschein-Auswertung pro Programm: [Umfang und Zahlengrenzen](docs/VOUCHER-REPORT.md), Tests `python3 tests/run-voucher-report.py`.
+
+Analytics-Einlösungszahlen und mobile Programm-Performance: [ANALYTICS.md](docs/ANALYTICS.md), Tests `python3 tests/run-analytics.py`.

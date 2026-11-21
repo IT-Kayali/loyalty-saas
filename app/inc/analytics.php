@@ -13,6 +13,7 @@ function route_analytics(int $businessId): never
     if (!$b) {
         not_found();
     }
+    header('Cache-Control: private, no-store');
     $db = db();
 
     /* KPI-Karten */
@@ -31,7 +32,7 @@ function route_analytics(int $businessId): never
         JOIN programs p ON c.program_id = p.id WHERE p.business_id = ? AND t.kind = 'points_add' AND t.reversed_at IS NULL", [$businessId]);
     $redeems = $kpi("SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id
         JOIN programs p ON c.program_id = p.id WHERE p.business_id = ?
-        AND t.kind IN ('reward_redeem','points_redeem','voucher_use') AND t.reversed_at IS NULL", [$businessId]);
+        AND t.kind IN ('reward_redeem','points_redeem','voucher_use','voucher_code_use') AND t.reversed_at IS NULL", [$businessId]);
     $undos = $kpi("SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id
         JOIN programs p ON c.program_id = p.id WHERE p.business_id = ? AND t.reversed_at IS NOT NULL", [$businessId]);
     $campaignSent = $kpi('SELECT COUNT(*) FROM campaign_sends cs JOIN campaigns c2 ON cs.campaign_id = c2.id WHERE c2.business_id = ?', [$businessId]);
@@ -49,7 +50,7 @@ function route_analytics(int $businessId): never
     ];
     $kpiHtml = '';
     foreach ($kpis as $label => $value) {
-        $kpiHtml .= '<div class="panel" style="text-align:center;padding:14px">
+        $kpiHtml .= '<div class="panel" data-analytics-kpi="' . h($label) . '" style="text-align:center;padding:14px">
           <div style="font-size:26px;font-weight:700">' . $value . '</div>
           <div class="muted" style="font-size:13px">' . h($label) . '</div></div>';
     }
@@ -89,16 +90,16 @@ function route_analytics(int $businessId): never
         (SELECT COUNT(*) FROM cards c WHERE c.program_id = p.id) AS cards,
         (SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id WHERE c.program_id = p.id AND t.reversed_at IS NULL) AS actions,
         (SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id WHERE c.program_id = p.id
-            AND t.kind IN ('reward_redeem','points_redeem','voucher_use') AND t.reversed_at IS NULL) AS redeems
+            AND t.kind IN ('reward_redeem','points_redeem','voucher_use','voucher_code_use') AND t.reversed_at IS NULL) AS redeems
         FROM programs p WHERE p.business_id = ? ORDER BY p.id");
     $prog->execute([$businessId]);
     $rows = '';
     foreach ($prog->fetchAll() as $p) {
-        $rows .= '<tr><td>' . h($p['name']) . '</td><td class="muted">' . h(type_label($p['type'])) . '</td>
-          <td>' . (int)$p['cards'] . '</td><td>' . (int)$p['actions'] . '</td><td>' . (int)$p['redeems'] . '</td></tr>';
+        $rows .= '<tr><td data-label="' . h(t('Programm')) . '">' . h($p['name']) . '</td><td data-label="' . h(t('Typ')) . '" class="muted">' . h(type_label($p['type'])) . '</td>
+          <td data-label="' . h(t('Karten')) . '">' . (int)$p['cards'] . '</td><td data-label="' . h(t('Aktionen')) . '">' . (int)$p['actions'] . '</td><td data-label="' . h(t('Einlösungen')) . '">' . (int)$p['redeems'] . '</td></tr>';
     }
     $progTable = $rows
-        ? '<table class="table"><thead><tr><th>' . t('Programm') . '</th><th>' . t('Typ') . '</th><th>' . t('Karten') . '</th><th>' . t('Aktionen') . '</th><th>' . t('Einlösungen') . '</th></tr></thead><tbody>' . $rows . '</tbody></table>'
+        ? '<table class="table analytics-programs"><thead><tr><th>' . t('Programm') . '</th><th>' . t('Typ') . '</th><th>' . t('Karten') . '</th><th>' . t('Aktionen') . '</th><th>' . t('Einlösungen') . '</th></tr></thead><tbody>' . $rows . '</tbody></table>'
         : '<p class="muted">' . t('Noch keine Programme.') . '</p>';
 
     /* Top-Mitglieder nach Lifetime-Punkten */
@@ -116,6 +117,7 @@ function route_analytics(int $businessId): never
       <p><a href="/business/' . $businessId . '" class="muted">← ' . h($b['name']) . '</a></p>
       <h1>Analytics</h1>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">' . $kpiHtml . '</div>
+      <p class="muted">Einlösungen zählen Stempelprämien, Punkteprämien, einfache Gutscheinkarten und Code-Gutscheine ohne stornierte Transaktionen. Keine Anzahl verkaufter Prepaid-Pässe oder Geldsumme. Einlösungszahl und Programm-Performance gelten für alle gespeicherten Daten, das Aktivitätsdiagramm nur für die letzten 30 UTC-Tage.</p>
       <h2>' . t('Aktivität') . '</h2>
       <div class="panel">' . $chart . '</div>
       <h2>' . t('Programm-Performance') . '</h2>

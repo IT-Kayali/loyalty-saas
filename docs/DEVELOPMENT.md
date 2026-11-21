@@ -148,3 +148,7 @@ Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Pari
 ## Code-Gutschein-Auswertung
 
 `python3 tests/run-voucher-report.py`: reine Eigentümer-Leseansicht, UTC-Zeitraum, Währungs-/Typtrennung, Snapshot- und Datensatzgrenzen sowie responsive Browserprüfungen. [VOUCHER-REPORT.md](VOUCHER-REPORT.md).
+
+## Analytics
+
+`python3 tests/run-analytics.py`: Code-Gutschein-Einlösungen im bisherigen Dashboard, Allzeit-/30-Tage-Grenzen, Stornos, Idempotenz, Rechte und mobile Programm-Performance. [ANALYTICS.md](ANALYTICS.md).

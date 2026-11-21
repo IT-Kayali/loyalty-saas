@@ -518,3 +518,11 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 }
 .voucher-report-table table {table-layout:fixed;}
 .voucher-report-table th,.voucher-report-table td {white-space:normal;overflow-wrap:anywhere;}
+
+@media(max-width:700px) {
+ .analytics-programs,.analytics-programs tbody,.analytics-programs tr,.analytics-programs td {display:block;width:100%;}
+ .analytics-programs thead {display:none;}
+ .analytics-programs tr {padding:12px;border-bottom:1px solid var(--line);}
+ .analytics-programs td {display:flex;justify-content:space-between;gap:12px;white-space:normal;overflow-wrap:anywhere;border:0;padding:8px 0;}
+ .analytics-programs td::before {content:attr(data-label);font-weight:600;flex:0 0 35%;}
+}
