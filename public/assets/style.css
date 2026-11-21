@@ -554,3 +554,5 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
  .audit-table th:nth-child(2) {width:34%;}
  .audit-table th:nth-child(3) {width:40%;}
 }
+
+.network-list,.network-editor {overflow-wrap:anywhere;}

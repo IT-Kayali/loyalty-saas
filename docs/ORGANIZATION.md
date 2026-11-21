@@ -51,4 +51,16 @@ Die neue Suite verwendet Wegwerfinstallationen und prüft Rollen/Overrides, frem
 
 ## Weiter offen
 
-Keine unternehmensübergreifenden Salden oder Clubs, keine delegierten Managerkonten, keine Standort-Datensicht oder Standortberichte, keine zeitgesteuerten Rollen, keine Staff-Einladungen/OTP/MFA und keine vollständige Audit-/Compliance-Abnahme. Netzwerk- und Standortnamen/-adressen lassen sich in dieser ersten Oberfläche noch nicht bearbeiten oder löschen. Keine vollständige Funktionsgleichheit mit dem Referenzprodukt.
+Keine unternehmensübergreifenden Salden oder Clubs, keine delegierten Managerkonten, keine Standort-Datensicht oder Standortberichte, keine zeitgesteuerten Rollen, keine Staff-Einladungen/OTP/MFA und keine vollständige Audit-/Compliance-Abnahme. Eigene Netzwerknamen sind jetzt separat editierbar (siehe unten). Standortnamen/-adressen bleiben nicht editierbar; Netzwerke/Standorte nicht löschbar. Keine vollständige Funktionsgleichheit mit dem Referenzprodukt.
+
+## Eigenen Netzwerknamen ändern
+
+Organisation zeigt alle eigenen Netzwerke mit aktueller Zahl zugeordneter eigener Unternehmen und „Name bearbeiten“. Auch noch nicht zugeordnete Netzwerke sind erreichbar. Der getrennte Editor `/network/ID/edit` ändert ausschließlich den Gruppierungsnamen: 1 bis 80 UTF-8-Zeichen nach äußeren Leerzeichen, keine Steuerzeichen oder Formulararrays. HTML bleibt Text und wird bei Ausgabe escaped. Lange Namen ohne Leerzeichen umbrechen in Liste und Editor.
+
+Netzwerk-ID, Eigentümer und Unternehmenszuordnungen bleiben gleich. Keine Verschiebung von Mitgliedern, Programmen, Karten, Salden, Standorten oder Teamrechten. Aktuelle Organisationslisten und Netzwerkauswahlen zeigen den neuen Namen beim nächsten Abruf. Keine Umbenennung alter Exporte oder Dokumente und kein Wallet-Push, Mailversand oder externer Aufruf.
+
+Nur der Eigentümer, CSRF und Planfeature `locations`. Lesen bleibt bei fehlender Planberechtigung möglich. Ziel ist die URL, fremde zusätzliche Formular-IDs können es nicht ändern. Name und ID-Audit `network.rename` speichern atomar unter `BEGIN IMMEDIATE`. Eigentümer und Plan werden darin erneut geprüft. Ein alter Namensprüfstand überschreibt keine neuere Umbenennung. Bei Konflikt lädt die Seite den aktuellen Namen mit Hinweis, verworfene Eingaben werden nicht als Entwurf behalten.
+
+Das ist ein Zustandsvergleich, keine Namenshistorie: Wird zwischenzeitlich exakt der alte Name wiederhergestellt, erkennt der Prüfsummenvergleich diese Zwischenänderung nicht. Gleichzeitige Unternehmenszuordnung ist kein Namenskonflikt und wird vom Editor nicht überschrieben. Keine Änderung von Netzwerkbesitzer, keine Fremdbetreiber-/Clubfreigabe oder geteilten Salden. Anlage und deren bisherige Begrenzungen bleiben unverändert; keine rückwirkende Bereinigung alter Namen und keine neue Eindeutigkeitsregel.
+
+`python3 tests/run-network-edit.py`: 28 HTTP-/Domänenprüfungen für Name/Unicode/Arrays/UTF-8, exakte Grenzen, Mandant/Ziel/CSRF/Plan, ausgeschlossene Seiteneffekte, Audit-Rollback, Escaping und zwei echte parallele Speicherprozesse. 14 Chromium-Prüfungen für Desktop/Mobil, echte Zwei-Tab-Konflikte, aktuellen Namen und Maximalnamen ohne Überlauf. Screenshots unter `/tmp/loyalty-network-edit/` visuell geprüft. Wegwerfdaten, keine echten Konten oder externen Dienste geändert.

@@ -194,3 +194,7 @@ Meilenstein-Suite jetzt 50 Domänen-/HTTP-/Parallel- und 18 Browserprüfungen ei
 ### Admin-Protokoll-Leseansicht
 
 `python3 tests/run-admin-audit.py`: 39 HTTP-/Datenbank- und 20 Desktop-/Mobilbrowserprüfungen für reine Leseansicht, Filter, Cursor, Rollen, Nebenwirkungsfreiheit und ausgeschlossene Details. [ADMIN-AUDIT.md](ADMIN-AUDIT.md).
+
+### Netzwerknamen
+
+`python3 tests/run-network-edit.py`: 28 HTTP-/Domänen- und 14 Desktop-/Mobilbrowserprüfungen, einschließlich Rollen/CSRF/Plan, atomarem ID-Audit, Namensgrenzen, Parallel- und Zwei-Tab-Konflikten. [ORGANIZATION.md](ORGANIZATION.md).

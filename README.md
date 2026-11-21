@@ -221,3 +221,7 @@ Betreiber können eigene Tickets ohne neue Nachricht schließen und wieder öffn
 ## Admin-Aktivitätsprotokoll
 
 Plattform-Admins können bestehende Protokolle nach UTC-Tagen, exakter Aktion und Konto filtern und ältere Einträge lesen. Keine Detaildaten oder Exporte, keine Zusage einer vollständigen Sicherheitsgeschichte. [Umfang, Datenschutz und Tests](docs/ADMIN-AUDIT.md).
+
+## Netzwerknamen bearbeiten
+
+Organisation zeigt eigene Netzwerke samt Namenseditor mit Konfliktschutz. Nur Gruppierungsname, keine Änderung an Unternehmenszuordnung, Mitgliedern oder Salden. [Rechte, Wirkung und Grenzen](docs/ORGANIZATION.md).

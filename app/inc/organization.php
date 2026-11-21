@@ -65,6 +65,8 @@ function route_organization(string $method): never
         redirect('/organization');
     }
     $body='<h1>Netzwerke & Standorte</h1><p class="muted">Netzwerke ordnen deine eigenen Unternehmen. Mitglieder, Programme und Guthaben bleiben strikt beim Unternehmen. Standorte teilen dessen Mitglieder, aber Teamaktionen tragen die Standortkennung.</p><section class="panel"><h2>Netzwerk anlegen</h2><form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="network"><label>Name<input name="name" maxlength="80" required></label><button class="btn">Anlegen</button></form></section>';
+    $q=db()->prepare('SELECT n.id,n.name,(SELECT COUNT(*) FROM businesses b WHERE b.network_id=n.id AND b.user_id=n.user_id) AS companies FROM networks n WHERE n.user_id=? ORDER BY n.name,n.id');$q->execute([$u['id']]);$networks=$q->fetchAll();$body.='<section class="panel network-list"><h2>Eigene Netzwerke</h2>';
+    if(!$networks)$body.='<p>Noch keine Netzwerke.</p>';else{$body.='<ul>';foreach($networks as $n)$body.='<li><strong>'.h($n['name']).'</strong> · '.(int)$n['companies'].' Unternehmen · <a href="/network/'.(int)$n['id'].'/edit">Name bearbeiten</a></li>';$body.='</ul>';}$body.='</section>';
     $q=db()->prepare('SELECT b.*,n.name AS network_name FROM businesses b LEFT JOIN networks n ON n.id=b.network_id WHERE b.user_id=? ORDER BY b.name');$q->execute([$u['id']]);
     foreach($q->fetchAll() as $b) {
         $bid=(int)$b['id'];$body.='<section class="panel"><h2>'.h($b['name']).'</h2><form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="assign"><input type="hidden" name="business_id" value="'.$bid.'"><label>Netzwerk<select name="network_id">'.network_options((int)$u['id'],$b['network_id']!==null?(int)$b['network_id']:null).'</select></label><button class="btn ghost">Zuordnen</button></form><p><a href="/business/'.$bid.'/team">Team & Rechte verwalten</a></p><h3>Standorte</h3>';
@@ -115,4 +117,30 @@ function assert_business_actor(int $bid,array $actor,string $capability): array
         if($s && in_array($capability,staff_permissions($s),true))return array_merge($actor,['location_id'=>$s['location_id']]);
     }
     throw new InvalidArgumentException('Keine Berechtigung für dieses Unternehmen oder diese Aktion.');
+}
+
+function network_revision(array $network): string
+{
+    return hash('sha256',json_encode([(int)$network['id'],(int)$network['user_id'],$network['name']],JSON_THROW_ON_ERROR));
+}
+function network_rename(int $uid,int $id,array $input): void
+{
+    if(!isset($input['name'],$input['revision']) || !is_string($input['name']) || !is_string($input['revision']))throw new InvalidArgumentException('Name und Prüfstand als einzelne Werte angeben.');
+    $raw=$input['name'];$name=trim($raw);
+    if($name==='' || !mb_check_encoding($raw,'UTF-8') || mb_strlen($name)>80 || preg_match('/[\x00-\x1f\x7f]/u',$raw))throw new InvalidArgumentException('Name mit 1 bis 80 Zeichen ohne Steuerzeichen angeben.');
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try{
+        $q=$db->prepare('SELECT * FROM networks WHERE id=? AND user_id=?');$q->execute([$id,$uid]);$network=$q->fetch();if(!$network)throw new InvalidArgumentException('Netzwerk nicht verfügbar.');
+        if(($err=plan_policy($uid,'locations'))!==null)throw new InvalidArgumentException($err);
+        if(!hash_equals(network_revision($network),$input['revision']))throw new InvalidArgumentException('Netzwerk wurde inzwischen geändert. Aktuellen Namen prüfen.');
+        $db->prepare('UPDATE networks SET name=? WHERE id=?')->execute([$name,$id]);audit_log($uid,'network.rename',['network_id'=>$id]);$db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+}
+function route_network_edit(int $id,string $method): never
+{
+    $u=require_login();header('Cache-Control: private, no-store');$q=db()->prepare('SELECT * FROM networks WHERE id=? AND user_id=?');$q->execute([$id,$u['id']]);$n=$q->fetch();if(!$n)not_found();
+    if($method==='POST'){require_plan_write((int)$u['id'],'locations');try{network_rename((int)$u['id'],$id,$_POST);flash('Netzwerkname gespeichert. Zuordnungen und Salden unverändert.');}catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}redirect('/network/'.$id.'/edit');}
+    if($method!=='GET'){http_response_code(405);exit;}
+    $q=db()->prepare('SELECT COUNT(*) FROM businesses WHERE network_id=? AND user_id=?');$q->execute([$id,$u['id']]);$count=(int)$q->fetchColumn();
+    page('Netzwerkname bearbeiten','<p><a href="/organization">← Organisation</a></p><h1>Netzwerkname bearbeiten</h1><section class="panel network-editor"><h2>'.h($n['name']).'</h2><p>Zugeordnete eigene Unternehmen: '.$count.'. Nur der Gruppierungsname wird geändert. Zuordnungen, Mitglieder, Programme und Salden bleiben unverändert. Kein Versand oder Wallet-Update.</p><form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.network_revision($n).'"><label>Name (1 bis 80 Zeichen)<input name="name" maxlength="80" value="'.h($n['name']).'" required></label><button class="btn">Netzwerknamen speichern</button></form><p>Ein älterer Tab kann einen inzwischen geänderten Namen nicht überschreiben. Keine Namenshistorie oder neue Netzwerkfreigabe.</p></section>',$u);exit;
 }
