@@ -140,3 +140,7 @@ Weiter offen sind unter anderem vollständige PWA-/Geräteparität, Support-Pari
 - [Eigene Mitgliedsnamen](MEMBER-PROFILE.md)
 
 - [Eigenes Betreiber-Passwort](OWNER-PASSWORD.md)
+
+## Gutschein-QR
+
+`python3 tests/run-voucher-qr.py`: persönliche QR-Codes, striktes Scanformat, Mandant/Rechte, keine GET-Buchung, Bestätigung, CSRF, Storno und Desktop/Mobil. Details: [VOUCHER-QR.md](VOUCHER-QR.md).

@@ -12,7 +12,7 @@ function route_staff_scan(): never
     $s = require_staff();
     page(t('QR scannen'), '
       <p><a href="/staff" class="muted">← ' . t('Theke') . '</a></p>
-      <h1>' . t('Kunden- oder Prämien-QR scannen') . '</h1>
+      <h1>' . t('Kunden-, Prämien- oder Gutschein-QR scannen') . '</h1>
       <div class="scan-wrap">
         <video id="cam" playsinline muted></video>
         <canvas id="scan-canvas" hidden></canvas>
@@ -21,7 +21,7 @@ function route_staff_scan(): never
       <details class="panel" style="margin-top:1rem">
         <summary>' . t('Kein QR? Code manuell eingeben') . '</summary>
         <form method="get" action="/staff/find" class="form inline-form">
-          <label>' . t('Kunden- oder Prämien-Code') . ' <input name="code" maxlength="2048" required placeholder="B074818F74 oder ABCD-2345" style="text-transform:uppercase"></label>
+          <label>' . t('Kunden-, Prämien- oder Gutscheincode') . ' <input name="code" maxlength="2048" required placeholder="B074818F74 oder ABCD-2345" style="text-transform:uppercase"></label>
           <button class="btn">' . t('Code prüfen') . '</button>
         </form>
       </details>
@@ -83,6 +83,7 @@ function staff_scan_code(string $raw): ?array
             || ($u['port'] ?? null) !== ($base['port'] ?? null)) return null;
         $raw = (string)($u['path'] ?? '');
     }
+    if (preg_match('/^V-([A-F0-9]{24})$/iD', $raw, $m)) return ['voucher', strtoupper($m[1])];
     if (preg_match('#^(?:/c/)?([A-F0-9]{10})$#iD', $raw, $m)) return ['member', strtoupper($m[1])];
     if (preg_match('#^(?:/claim/)?([ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4})-?([ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4})$#iD', $raw, $m)) return ['claim', strtoupper($m[1] . $m[2])];
     return null;
@@ -93,8 +94,12 @@ function route_staff_find(): never
 {
     $s = require_staff();
     $scan = staff_scan_code((string)($_GET['code'] ?? ''));
-    if (!$scan) { flash(t('Kein gültiger Kunden- oder Prämien-Code. Bitte erneut scannen oder eingeben.'), 'err'); redirect('/staff/scan'); }
+    if (!$scan) { flash(t('Kein gültiger Kunden-, Prämien- oder Gutscheincode. Bitte erneut scannen oder eingeben.'), 'err'); redirect('/staff/scan'); }
     [$kind, $code] = $scan;
+    if ($kind === 'voucher') {
+        require_staff_permission('redeem', $s);
+        redirect('/staff/business/' . (int)$s['business_id'] . '/voucher-counter?code=' . $code);
+    }
     if ($kind === 'claim') {
         require_staff_permission('redeem', $s);
         redirect('/staff/business/' . (int)$s['business_id'] . '/claim-counter?code=' . $code);

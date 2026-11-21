@@ -161,8 +161,14 @@ function route_voucher_counter(int $bid,string $method): never
         }catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
         redirect(($a['kind']==='staff'?'/staff':'').'/business/'.$bid.'/voucher-counter');
     }
-    $q=db()->prepare('SELECT id,name,code FROM members WHERE business_id=? ORDER BY name LIMIT 500');$q->execute([$bid]);$opts='';foreach($q->fetchAll() as $m)$opts.='<option value="'.(int)$m['id'].'">'.h($m['name']).' · '.h($m['code']).'</option>';
-    page('Gutschein-Kasse','<p><a href="'.($a['kind']==='owner'?'/business/'.$bid:'/staff').'">← Zurück</a></p><h1>Code-Gutschein einlösen</h1><p class="muted">Unternehmen: '.h($b['name']).'. Keine Zahlung wird ausgelöst.</p><form method="post" class="form panel">'.csrf_field().'<input type="hidden" name="operation" value="'.bin2hex(random_bytes(16)).'"><label>Gutscheincode<input name="code" maxlength="24" required autocomplete="off"></label><label>Mitglied<select name="member_id">'.$opts.'</select></label><label>Kaufbetrag in Gutscheinwährung<input name="spend" inputmode="decimal" value="0.00" required></label><label class="check"><input type="checkbox" required> Richtigen Kunden und externen Kaufbetrag geprüft</label><button class="btn" name="action" value="preview">Einlösung prüfen</button></form>',$a['user']);exit;
+    $prefill=strtoupper(trim((string)($_GET['code'] ?? '')));
+    if($prefill!=='' && !preg_match('/^[A-F0-9]{24}$/D',$prefill))not_found();
+    if($prefill!=='') {
+        actor_permission($a,'redeem');
+        $q=db()->prepare('SELECT v.id FROM voucher_codes v JOIN programs p ON p.id=v.program_id WHERE v.code=? AND p.business_id=?');$q->execute([$prefill,$bid]);if(!$q->fetch())not_found();
+    }
+    $q=db()->prepare('SELECT id,name,code FROM members WHERE business_id=? ORDER BY name LIMIT 500');$q->execute([$bid]);$opts='<option value="">Mitglied wählen</option>';foreach($q->fetchAll() as $m)$opts.='<option value="'.(int)$m['id'].'">'.h($m['name']).' · '.h($m['code']).'</option>';
+    page('Gutschein-Kasse','<p><a href="'.($a['kind']==='owner'?'/business/'.$bid:'/staff').'">← Zurück</a></p><h1>Code-Gutschein einlösen</h1><p class="muted">Unternehmen: '.h($b['name']).'. Keine Zahlung wird ausgelöst. Ein Scan übernimmt nur den Code. Mitglied und Kaufbetrag prüfen, danach die Einlösung ausdrücklich bestätigen.</p><form method="post" class="form panel">'.csrf_field().'<input type="hidden" name="operation" value="'.bin2hex(random_bytes(16)).'"><label>Gutscheincode<input name="code" maxlength="24" value="'.h($prefill).'" required autocomplete="off"></label><label>Mitglied<select name="member_id" required>'.$opts.'</select></label><label>Kaufbetrag in Gutscheinwährung<input name="spend" inputmode="decimal" value="0.00" required></label><label class="check"><input type="checkbox" required> Richtigen Kunden und externen Kaufbetrag geprüft</label><button class="btn" name="action" value="preview">Einlösung prüfen</button></form>',$a['user']);exit;
 }
 
 /** Kurzbeschreibung des Werts aus einem Regel-Snapshot. */
@@ -187,7 +193,7 @@ function member_vouchers_html(array $memberIds): string
         $r=json_decode((string)$v['rules_snapshot'],true) ?: [];
         if(!empty($r['ends']) && $r['ends']<$today)continue;
         if(!empty($r['starts']) && $r['starts']>$today)continue;
-        $h.='<li><strong>'.h($v['name']).'</strong> · '.h($v['business']).'<br><code>'.h($v['code']).'</code> · '.h(voucher_value_label($r)).(!empty($r['ends'])?' · gültig bis '.h(date('d.m.Y',strtotime($r['ends']))):'').'</li>';
+        $h.='<li class="voucher-wallet-item"><div class="qr-box" data-qr="V-'.h($v['code']).'" data-qr-size="160"></div><div><strong>'.h($v['name']).'</strong> · '.h($v['business']).'<br><code>'.h($v['code']).'</code> · '.h(voucher_value_label($r)).(!empty($r['ends'])?' · gültig bis '.h(date('d.m.Y',strtotime($r['ends']))):'').'</div></li>';
     }
-    return $h===''?'':'<section class="panel member-vouchers" style="text-align:left;margin-bottom:16px"><h2>Deine Gutscheine</h2><ul>'.$h.'</ul><p class="muted">Code an der Kasse nennen oder zeigen.</p></section>';
+    return $h===''?'':'<section class="panel member-vouchers" style="text-align:left;margin-bottom:16px"><h2>Deine Gutscheine</h2><ul>'.$h.'</ul><p class="muted">QR an der Kasse scannen lassen oder Code nennen. Erst das Team bestätigt die Einlösung. Nicht weitergeben: Der QR enthält deinen Gutscheincode.</p></section>';
 }

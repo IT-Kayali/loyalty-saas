@@ -177,3 +177,5 @@ Mitglieder können ihr eigenes Shared-Wallet-Passwort ändern und alle Wallet-Si
 Eigene Namen pro Mitgliedseintrag in der Wallet: [docs/MEMBER-PROFILE.md](docs/MEMBER-PROFILE.md).
 
 Eigenes Betreiber-Passwort ohne SMTP ändern: [docs/OWNER-PASSWORD.md](docs/OWNER-PASSWORD.md).
+
+Persönliche Gutschein-QRs: [Ablauf und Grenzen](docs/VOUCHER-QR.md), Tests `python3 tests/run-voucher-qr.py`.
