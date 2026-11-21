@@ -101,6 +101,7 @@ function undo_transaction(array $card, int $txnId): bool
     $fresh=$db->prepare('SELECT c.*,p.stamps_required FROM cards c JOIN programs p ON p.id=c.program_id WHERE c.id=?');
     $fresh->execute([$card['id']]);$card=$fresh->fetch();
     if(!$card){$db->exec('ROLLBACK');return false;}
+    if(PHP_SAPI!=='cli' && str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/staff/'))require_staff_permission('reverse');
     $stmt = $db->prepare('SELECT * FROM transactions WHERE id = ? AND card_id = ? AND reversed_at IS NULL');
     $stmt->execute([$txnId, $card['id']]);
     $t = $stmt->fetch();
@@ -169,6 +170,7 @@ function route_card_undo(int $cardId): never
 function route_staff_card_undo(int $cardId): never
 {
     $s = require_staff();
+    require_staff_permission('reverse',$s);
     $stmt = db()->prepare('SELECT c.*, p.type AS program_type, p.stamps_required, p.name AS program_name
         FROM cards c JOIN programs p ON p.id = c.program_id
         WHERE c.id = ? AND p.business_id = ?');
@@ -177,6 +179,7 @@ function route_staff_card_undo(int $cardId): never
     if (!$card) {
         not_found();
     }
+    $tx=db()->prepare('SELECT id FROM transactions WHERE id=? AND staff_id=? AND card_id=?');$tx->execute([(int)($_POST['txn_id'] ?? 0),$s['id'],$cardId]);if(!$tx->fetch()){http_response_code(403);exit('Nur eigene Aktionen können storniert werden.');}
     if (undo_transaction($card, (int)($_POST['txn_id'] ?? 0))) {
         flash(t('Aktion storniert.'));
     } else {

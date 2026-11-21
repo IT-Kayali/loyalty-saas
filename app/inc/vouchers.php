@@ -16,9 +16,9 @@ function date_or_null(string $value): ?string {
 }
 function business_actor(int $bid): array
 {
-    $u=current_user();
+    $u=str_starts_with(parse_url($_SERVER['REQUEST_URI'] ?? '',PHP_URL_PATH) ?: '', '/staff/')?null:current_user();
     if($u && own_business((int)$u['id'],$bid))return ['kind'=>'owner','id'=>(int)$u['id'],'user'=>$u];
-    $staff=current_staff();if($staff && (int)$staff['business_id']===$bid)return ['kind'=>'staff','id'=>(int)$staff['id'],'user'=>null];
+    $staff=current_staff();if($staff && (int)$staff['business_id']===$bid)return ['kind'=>'staff','id'=>(int)$staff['id'],'user'=>null,'location_id'=>$staff['location_id']];
     not_found();
 }
 function voucher_rules(array $p): array
@@ -45,6 +45,7 @@ function voucher_redeem(string $code,int $memberId,int $spend,array $actor,strin
     try {
         $q=$db->prepare('SELECT v.*,p.business_id,p.voucher_rules,p.active FROM voucher_codes v JOIN programs p ON p.id=v.program_id WHERE v.code=?');$q->execute([$code]);$v=$q->fetch();
         if(!$v || !$v['active'] || $v['status']!=='active')throw new InvalidArgumentException('Gutschein nicht aktiv.');
+        $actor=assert_business_actor((int)$v['business_id'],$actor,'redeem');
         $r=json_decode($v['rules_snapshot'],true);$today=gmdate('Y-m-d');
         if(($r['starts'] && $today<$r['starts'])||($r['ends'] && $today>$r['ends']))throw new InvalidArgumentException('Gutschein außerhalb der Gültigkeit.');
         $q=$db->prepare('SELECT id FROM members WHERE id=? AND business_id=?');$q->execute([$memberId,$v['business_id']]);if(!$q->fetch())throw new InvalidArgumentException('Mitglied gehört nicht zu diesem Unternehmen.');
@@ -63,12 +64,14 @@ function voucher_redeem(string $code,int $memberId,int $spend,array $actor,strin
             $q=$db->prepare("SELECT c.id FROM cards c JOIN programs p ON p.id=c.program_id WHERE c.member_id=? AND p.business_id=? AND p.type='points' AND p.active=1 LIMIT 1");$q->execute([$memberId,$v['business_id']]);$pointsCard=$q->fetchColumn();
             if(!$pointsCard)throw new InvalidArgumentException('Keine aktive Punktekarte vorhanden.');
             $db->prepare('UPDATE cards SET points=points+?,points_lifetime=points_lifetime+? WHERE id=?')->execute([(int)$r['value'],(int)$r['value'],$pointsCard]);
-            txn((int)$pointsCard,'points_add',(int)$r['value'],'Gutscheinbonus');
+            txn((int)$pointsCard,'points_add',(int)$r['value'],'Gutscheinbonus',$actor);
         }
         $db->prepare('UPDATE voucher_codes SET used=used+1 WHERE id=?')->execute([$v['id']]);
         $snapshot=json_encode(['rules'=>$r,'discount'=>$discount,'spend'=>$spend,'points_card'=>$pointsCard],JSON_UNESCAPED_UNICODE);
         $db->prepare('INSERT INTO voucher_redemptions(business_id,program_id,code_id,member_id,operation,spend_cents,discount_cents,actor_kind,actor_id,snapshot)VALUES(?,?,?,?,?,?,?,?,?,?)')->execute([$v['business_id'],$v['program_id'],$v['id'],$memberId,$operation,$spend,$discount,$actor['kind'],$actor['id'],$snapshot]);
-        $id=(int)$db->lastInsertId();txn((int)$cid,'voucher_code_use',1,'Code-Gutschein eingelöst: '.($r['type']==='product'?$r['item']:money_label($discount,$r['currency'])));
+        $id=(int)$db->lastInsertId();
+        $db->prepare('UPDATE voucher_redemptions SET location_id=? WHERE id=?')->execute([$actor['location_id'] ?? null,$id]);
+        txn((int)$cid,'voucher_code_use',1,'Code-Gutschein eingelöst: '.($r['type']==='product'?$r['item']:money_label($discount,$r['currency'])),$actor);
         $db->exec('COMMIT');return ['id'=>$id,'discount_cents'=>$discount,'spend_cents'=>$spend,'currency'=>$r['currency']];
     }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
 }
@@ -122,6 +125,7 @@ function route_voucher_counter(int $bid,string $method): never
 {
     $a=business_actor($bid);$q=db()->prepare('SELECT * FROM businesses WHERE id=?');$q->execute([$bid]);$b=$q->fetch();if(!$b)not_found();
     if($method==='POST') {
+        actor_permission($a,'redeem');
         require_plan_write((int)$b['user_id'],'vouchers');
         $code=strtoupper(trim((string)($_POST['code'] ?? '')));$q=db()->prepare('SELECT v.id FROM voucher_codes v JOIN programs p ON p.id=v.program_id WHERE v.code=? AND p.business_id=?');$q->execute([$code,$bid]);if(!$q->fetch())not_found();
         try {
@@ -137,7 +141,7 @@ function route_voucher_counter(int $bid,string $method): never
             $r=voucher_redeem($code,(int)($_POST['member_id'] ?? 0),money_cents((string)($_POST['spend'] ?? '0')),$a,$op);
             flash('Gutschein eingelöst. Rabatt: '.money_label((int)$r['discount_cents'],$r['currency'] ?? json_decode($r['snapshot'] ?? '{}',true)['rules']['currency'] ?? 'EUR').'. Nur dokumentiert, Zahlung erfolgt extern.');
         }catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
-        redirect('/business/'.$bid.'/voucher-counter');
+        redirect(($a['kind']==='staff'?'/staff':'').'/business/'.$bid.'/voucher-counter');
     }
     $q=db()->prepare('SELECT id,name,code FROM members WHERE business_id=? ORDER BY name LIMIT 500');$q->execute([$bid]);$opts='';foreach($q->fetchAll() as $m)$opts.='<option value="'.(int)$m['id'].'">'.h($m['name']).' · '.h($m['code']).'</option>';
     page('Gutschein-Kasse','<p><a href="'.($a['kind']==='owner'?'/business/'.$bid:'/staff').'">← Zurück</a></p><h1>Code-Gutschein einlösen</h1><p class="muted">Unternehmen: '.h($b['name']).'. Keine Zahlung wird ausgelöst.</p><form method="post" class="form panel">'.csrf_field().'<input type="hidden" name="operation" value="'.bin2hex(random_bytes(16)).'"><label>Gutscheincode<input name="code" maxlength="24" required autocomplete="off"></label><label>Mitglied<select name="member_id">'.$opts.'</select></label><label>Kaufbetrag in Gutscheinwährung<input name="spend" inputmode="decimal" value="0.00" required></label><label class="check"><input type="checkbox" required> Richtigen Kunden und externen Kaufbetrag geprüft</label><button class="btn" name="action" value="preview">Einlösung prüfen</button></form>',$a['user']);exit;

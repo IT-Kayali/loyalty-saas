@@ -25,6 +25,7 @@ require_once ROOT_DIR . '/app/inc/vouchers.php';
 require_once ROOT_DIR . '/app/inc/prepaid.php';
 require_once ROOT_DIR . '/app/inc/mail.php';
 require_once ROOT_DIR . '/app/inc/recovery.php';
+require_once ROOT_DIR . '/app/inc/organization.php';
 require_once ROOT_DIR . '/app/inc/qr.php';
 
 /* ------------------------------------------------------------------ */
@@ -98,13 +99,15 @@ try {
         preg_match('#^/pass/stamps/([A-F0-9]{10})/([a-f0-9]{64})\.png$#', $path, $m) === 1 => route_stamp_strip($m[1], $m[2]),
         preg_match('#^/program/(\d+)/vouchers$#',$path,$m)===1 && $method==='POST' => route_voucher_program((int)$m[1]),
         preg_match('#^/program/(\d+)/voucher-export$#',$path,$m)===1 => route_voucher_export((int)$m[1]),
-        preg_match('#^/business/(\d+)/voucher-counter$#',$path,$m)===1 => route_voucher_counter((int)$m[1],$method),
+        preg_match('#^/(?:staff/)?business/(\d+)/voucher-counter$#',$path,$m)===1 => route_voucher_counter((int)$m[1],$method),
         preg_match('#^/program/(\d+)/prepaid-settings$#',$path,$m)===1 && $method==='POST' => route_prepaid_settings((int)$m[1]),
         preg_match('#^/business/(\d+)/prepaid-export$#',$path,$m)===1 => route_prepaid_export((int)$m[1]),
         preg_match('#^/(?:staff/)?prepaid/sell$#',$path)===1 && $method==='POST' => route_prepaid_action('sell'),
         preg_match('#^/(?:staff/)?prepaid/(\d+)/(use|reverse)$#',$path,$m)===1 && $method==='POST' => route_prepaid_action($m[2],(int)$m[1]),
         preg_match('#^/business/(\d+)/mail$#',$path,$m)===1 => route_mail_admin((int)$m[1],$method),
         preg_match('#^/unsubscribe/(\d+)/([a-f0-9]{64})$#',$path,$m)===1 => route_unsubscribe((int)$m[1],$m[2],$method),
+        $path==='/organization' => route_organization($method),
+        preg_match('#^/business/(\d+)/team$#',$path,$m)===1 => route_team((int)$m[1],$method),
         $path==='/forgot-password' => route_forgot_password($method),
         $path==='/reset-password' => route_reset_password($method),
         $path==='/member/preferences' => route_member_preferences($method),
@@ -386,7 +389,7 @@ function route_business(int $id): never
 
     page($b['name'], '
       <p><a href="/dashboard" class="muted">← ' . t('Alle Unternehmen') . '</a></p>
-      <h1>' . h($b['name']) . '</h1><p><a class="btn ghost" href="/business/'.(int)$b['id'].'/mail">E-Mail & Automationen</a></p>
+      <h1>' . h($b['name']) . '</h1><p><a class="btn ghost" href="/business/'.(int)$b['id'].'/mail">E-Mail & Automationen</a> <a class="btn ghost" href="/business/'.(int)$b['id'].'/team">Team & Rechte</a></p>
       <p class="btn-row">
         <a class="btn ghost small" href="/business/' . $id . '/analytics">' . t('Analytics') . '</a>
         <a class="btn ghost small" href="/business/' . $id . '/design">' . t('Karten-Design') . '</a>
@@ -442,7 +445,7 @@ function route_business(int $id): never
         <form method="post" action="/staff/create" class="form inline-form">' . csrf_field() . '
           <input type="hidden" name="business_id" value="' . $id . '">
           <label>' . t('Name') . ' <input name="name" required maxlength="80"></label>
-          <label>PIN <input type="password" name="pin" required minlength="4" maxlength="20"></label>
+          <label>PIN <input type="password" name="pin" required minlength="6" maxlength="12" pattern="[0-9]{6,12}"></label>
           <button class="btn">' . t('Anlegen') . '</button>
         </form>
       </details>
@@ -753,7 +756,7 @@ function member_panels(int $id, array $programs, string $actionBase): string
                 $body .= '<li><span class="muted">' . h($txnRow['created_at']) . '</span> ' . h($txnRow['note']);
                 if ($txnRow['reversed_at'] ?? null) {
                     $body .= ' <span class="muted">(' . t('storniert') . ')</span>';
-                } elseif (!in_array($txnRow['kind'], ['reversal', 'reward_earned'], true)) {
+                } elseif (!in_array($txnRow['kind'], ['reversal', 'reward_earned'], true) && ($actionBase!=='/staff/card' || (($counterStaff=current_staff()) && in_array('reverse',staff_permissions($counterStaff),true) && (int)$txnRow['staff_id']===(int)$counterStaff['id']))) {
                     $body .= ' <form method="post" action="' . $actionBase . '/' . $cid . '/undo" class="undo-form" onsubmit="return confirm(\'' . t('Diese Aktion stornieren?') . '\')">' . csrf_field() . '<button class="undo-btn" name="txn_id" value="' . (int)$txnRow['id'] . '" title="' . t('Stornieren') . '">↩</button></form>';
                 }
                 $body .= '</li>';
@@ -803,6 +806,7 @@ function do_card_action(array $card, string $action): void
     $fresh->execute([$cardId]);$card=$fresh->fetch();
     if(!$card){$db->exec('ROLLBACK');return;}
 
+    if(PHP_SAPI!=='cli' && str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/staff/'))require_staff_permission(in_array($action,['stamp','points_add'],true)?'award':'redeem');
     switch (true) {
         case $action === 'stamp' && $card['program_type'] === 'stamps':
             $req = (int)$card['stamps_required'];

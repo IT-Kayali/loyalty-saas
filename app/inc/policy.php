@@ -63,6 +63,8 @@ function install_plan_guards(PDO $pdo): void
     $card='(SELECT b.user_id FROM cards c JOIN programs p ON p.id=c.program_id JOIN businesses b ON b.id=p.business_id WHERE c.id=%s.card_id)';
     $rules=[
         'businesses'=>['%s.user_id','core','businesses'],
+        'networks'=>['%s.user_id','locations',''],
+        'locations'=>[$direct,'locations',''],
         'programs'=>[$direct,'programs','programs'],
         'members'=>[$direct,'members','members'],
         'staff'=>[$direct,'staff','staff'],
@@ -116,6 +118,8 @@ function policy_browser_guard(string $path,string $method): void
     $feature=match(true) {
         str_contains($path,'/design')=>'designer',
         str_ends_with($path,'/mail')=>'campaigns',
+        $path==='/organization'=>'locations',
+        str_ends_with($path,'/team')=>'staff',
         str_starts_with($path,'/campaign/') || str_starts_with($path,'/segment/')=>'campaigns',
         str_starts_with($path,'/webhook/')=>'webhooks',
         str_starts_with($path,'/integration/')=>'integrations',

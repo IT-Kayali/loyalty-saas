@@ -303,6 +303,18 @@ function init_schema(PDO $pdo): void
     SQL);
 
     $pdo->exec(<<<'SQL'
+    CREATE TABLE IF NOT EXISTS networks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS locations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        address TEXT NOT NULL DEFAULT '',
+        active INTEGER NOT NULL DEFAULT 1
+    );
     CREATE TABLE IF NOT EXISTS mail_outbox (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         business_id INTEGER REFERENCES businesses(id) ON DELETE CASCADE,
@@ -448,6 +460,24 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'members', 'birthday', 'TEXT');
     ensure_column($pdo, 'members', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'businesses', 'network_id', 'INTEGER REFERENCES networks(id)');
+    ensure_column($pdo, 'staff', 'location_id', 'INTEGER REFERENCES locations(id)');
+    ensure_column($pdo, 'staff', 'role', "TEXT NOT NULL DEFAULT 'supervisor'");
+    ensure_column($pdo, 'staff', 'permissions', 'TEXT');
+    ensure_column($pdo, 'staff', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'transactions', 'staff_id', 'INTEGER REFERENCES staff(id)');
+    ensure_column($pdo, 'transactions', 'location_id', 'INTEGER REFERENCES locations(id)');
+    ensure_column($pdo, 'prepaid_issues', 'location_id', 'INTEGER REFERENCES locations(id)');
+    ensure_column($pdo, 'prepaid_ledger', 'location_id', 'INTEGER REFERENCES locations(id)');
+    ensure_column($pdo, 'voucher_redemptions', 'location_id', 'INTEGER REFERENCES locations(id)');
+    // Tenant relations are enforced even for direct SQL, not only owner forms.
+    foreach(['INSERT','UPDATE'] as $op) {
+        $suffix=strtolower($op);
+        $pdo->exec("CREATE TRIGGER IF NOT EXISTS network_owner_$suffix BEFORE $op ON businesses WHEN NEW.network_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM networks n WHERE n.id=NEW.network_id AND n.user_id=NEW.user_id) BEGIN SELECT RAISE(ABORT,'Network owner mismatch'); END");
+        $pdo->exec("CREATE TRIGGER IF NOT EXISTS staff_location_$suffix BEFORE $op ON staff WHEN NEW.location_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM locations l WHERE l.id=NEW.location_id AND l.business_id=NEW.business_id) BEGIN SELECT RAISE(ABORT,'Staff location mismatch'); END");
+    }
+    $pdo->exec("CREATE TRIGGER IF NOT EXISTS network_owner_immutable BEFORE UPDATE OF user_id ON networks WHEN NEW.user_id<>OLD.user_id BEGIN SELECT RAISE(ABORT,'Network ownership cannot change'); END");
+    $pdo->exec("CREATE TRIGGER IF NOT EXISTS location_business_immutable BEFORE UPDATE OF business_id ON locations WHEN NEW.business_id<>OLD.business_id BEGIN SELECT RAISE(ABORT,'Location business cannot change'); END");
     ensure_column($pdo, 'programs', 'card_design', 'TEXT');
     ensure_column($pdo, 'programs', 'voucher_rules', 'TEXT');
     ensure_column($pdo, 'programs', 'pass_kind', "TEXT NOT NULL DEFAULT 'visits'");
@@ -611,10 +641,12 @@ function own_card(int $userId, int $cardId): ?array
     return $stmt->fetch() ?: null;
 }
 
-function txn(int $cardId, string $kind, int $amount = 0, string $note = ''): void
+function txn(int $cardId, string $kind, int $amount = 0, string $note = '', ?array $actor = null): void
 {
-    db()->prepare('INSERT INTO transactions (card_id, kind, amount, note) VALUES (?,?,?,?)')
-        ->execute([$cardId, $kind, $amount, $note]);
+    $staff=PHP_SAPI!=='cli' && str_starts_with(parse_url($_SERVER['REQUEST_URI'] ?? '',PHP_URL_PATH) ?: '', '/staff/')?current_staff():null;
+    if($actor!==null)$staff=$actor['kind']==='staff'?$actor:null;
+    db()->prepare('INSERT INTO transactions (card_id, kind, amount, note,staff_id,location_id) VALUES (?,?,?,?,?,?)')
+        ->execute([$cardId,$kind,$amount,$note,$staff['id'] ?? null,$staff['location_id'] ?? null]);
 }
 
 function member_code(): string
@@ -715,6 +747,7 @@ function page(string $title, string $body, ?array $user = null, string $brand = 
         $nav = '<nav class="topnav">
             <a class="logo" href="/dashboard"><span class="logo-mark"></span>' . h(platform_setting('platform_name', 'Loyalty')) . '</a>
             <span class="nav-right">' . lang_switcher()
+                . '<a class="nav-link" href="/organization">Organisation</a>'
                 . '<a class="nav-link" href="/billing">' . t('Abrechnung') . '</a>'
                 . (is_platform_admin($user) ? '<a class="nav-link" href="/admin">Admin</a>' : '')
                 . '<span class="nav-user">' . h($user['name']) . '</span>

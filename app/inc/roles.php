@@ -13,7 +13,10 @@ function current_staff(): ?array
     $stmt = db()->prepare('SELECT s.*, b.name AS business_name, b.brand_color FROM staff s
         JOIN businesses b ON b.id = s.business_id WHERE s.id = ? AND s.active = 1');
     $stmt->execute([$_SESSION['staff_id']]);
-    return $stmt->fetch() ?: null;
+    $s=$stmt->fetch();
+    if($s && (int)$s['session_version']!==(int)($_SESSION['staff_session_version'] ?? 0)){unset($_SESSION['staff_id']);return null;}
+    if($s && $s['location_id']){$q=db()->prepare('SELECT active FROM locations WHERE id=? AND business_id=?');$q->execute([$s['location_id'],$s['business_id']]);if(!$q->fetchColumn())return null;}
+    return $s ?: null;
 }
 
 function require_staff(): array
@@ -62,11 +65,11 @@ function route_staff_create(): never
     $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
     $name = trim($_POST['name'] ?? '');
     $pin = (string)($_POST['pin'] ?? '');
-    if (!$b || $name === '' || strlen($pin) < 4) {
-        flash(t('Name und PIN (min. 4 Zeichen) erforderlich.'), 'err');
+    if (!$b || $name === '' || !preg_match('/^\d{6,12}$/D',$pin)) {
+        flash(t('Name und PIN (6 bis 12 Ziffern) erforderlich.'), 'err');
         redirect('/dashboard');
     }
-    db()->prepare('INSERT INTO staff (business_id, name, pin_hash) VALUES (?,?,?)')
+    db()->prepare("INSERT INTO staff (business_id, name, pin_hash,role) VALUES (?,?,?,'cashier')")
         ->execute([$b['id'], $name, password_hash($pin, PASSWORD_DEFAULT)]);
     flash(t('Staff-Zugang für {name} angelegt.', ['name' => $name]));
     redirect('/business/' . (int)$b['id']);
@@ -104,6 +107,7 @@ function route_staff_login(string $method): never
     }
     session_regenerate_id(true);
     $_SESSION['staff_id'] = (int)$s['id'];
+    $_SESSION['staff_session_version']=(int)$s['session_version'];
     redirect('/staff');
 }
 
@@ -125,6 +129,7 @@ function route_staff_counter(): never
         <a class="btn accent" href="/staff/scan">' . t('QR scannen') . '</a>
       </form>';
 
+    $body.='<p><a href="/staff/business/'.(int)$s['business_id'].'/voucher-counter">Code-Gutschein prüfen</a></p><p class="muted">Erlaubte Aktionen: '.h(implode(', ',staff_permissions($s)) ?: 'Nur lesen').'</p>';
     if ($q !== '') {
         $like = '%' . $q . '%';
         $stmt = db()->prepare('SELECT * FROM members WHERE business_id = ? AND (name LIKE ? OR email LIKE ? OR code LIKE ?) ORDER BY name LIMIT 20');
@@ -188,7 +193,9 @@ function route_staff_card_action(int $cardId): never
     if (!$card) {
         not_found();
     }
-    do_card_action($card, (string)($_POST['action'] ?? ''));
+    $action=(string)($_POST['action'] ?? '');
+    require_staff_permission(in_array($action,['stamp','points_add'],true)?'award':'redeem',$s);
+    do_card_action($card,$action);
     redirect('/staff/member/' . (int)$card['member_id']);
 }
 

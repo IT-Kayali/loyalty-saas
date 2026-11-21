@@ -1,0 +1,118 @@
+<?php
+declare(strict_types=1);
+
+const STAFF_CAPABILITIES=['award','redeem','reverse','sell_pass'];
+function staff_permissions(array $staff): array
+{
+    $base=match($staff['role'] ?? 'cashier') {
+        'viewer'=>[],
+        'cashier'=>['award','redeem','sell_pass'],
+        'supervisor'=>STAFF_CAPABILITIES,
+        default=>[],
+    };
+    $custom=json_decode((string)($staff['permissions'] ?? ''),true);
+    if(is_array($custom))foreach(STAFF_CAPABILITIES as $cap)if(array_key_exists($cap,$custom)) {
+        if($custom[$cap] && !in_array($cap,$base,true))$base[]=$cap;
+        if(!$custom[$cap])$base=array_values(array_diff($base,[$cap]));
+    }
+    return $base;
+}
+function require_staff_permission(string $capability,?array $staff=null): void
+{
+    $staff ??=require_staff();
+    if(!in_array($capability,staff_permissions($staff),true)) {
+        http_response_code(403);page('Keine Berechtigung','<div class="auth-box"><h1>Keine Berechtigung</h1><p>Dein Teamzugang darf diese Aktion nicht ausführen. Bitte den Betreiber ansprechen.</p><a href="/staff">Zur Theke</a></div>');exit;
+    }
+}
+function actor_permission(array $actor,string $capability): void
+{
+    if($actor['kind']==='staff')require_staff_permission($capability);
+}
+function network_options(int $uid,?int $selected=null): string
+{
+    $q=db()->prepare('SELECT id,name FROM networks WHERE user_id=? ORDER BY name');$q->execute([$uid]);$out='<option value="0">Kein Netzwerk</option>';
+    foreach($q->fetchAll() as $n)$out.='<option value="'.(int)$n['id'].'"'.((int)$selected===(int)$n['id']?' selected':'').'>'.h($n['name']).'</option>';
+    return $out;
+}
+function location_options(int $bid,?int $selected=null): string
+{
+    $q=db()->prepare('SELECT id,name,active FROM locations WHERE business_id=? ORDER BY name');$q->execute([$bid]);$out='<option value="0">Alle Standorte dieses Unternehmens</option>';
+    foreach($q->fetchAll() as $l)$out.='<option value="'.(int)$l['id'].'"'.((int)$selected===(int)$l['id']?' selected':'').'>'.h($l['name']).($l['active']?'':' (inaktiv)').'</option>';
+    return $out;
+}
+function route_organization(string $method): never
+{
+    $u=require_login();
+    if($method==='POST') {
+        require_plan_write((int)$u['id'],'locations');$action=$_POST['action'] ?? '';
+        try {
+            if($action==='network') {
+                $name=mb_substr(trim((string)($_POST['name'] ?? '')),0,80);if($name==='')throw new InvalidArgumentException('Name fehlt.');
+                db()->prepare('INSERT INTO networks(user_id,name)VALUES(?,?)')->execute([$u['id'],$name]);audit_log((int)$u['id'],'network.create');
+            }elseif($action==='assign') {
+                $b=own_business((int)$u['id'],(int)($_POST['business_id'] ?? 0));if(!$b)not_found();$network=(int)($_POST['network_id'] ?? 0);
+                if($network){$q=db()->prepare('SELECT id FROM networks WHERE id=? AND user_id=?');$q->execute([$network,$u['id']]);if(!$q->fetch())not_found();}
+                db()->prepare('UPDATE businesses SET network_id=? WHERE id=?')->execute([$network?:null,$b['id']]);audit_log((int)$u['id'],'network.assign',['business_id'=>$b['id']]);
+            }elseif($action==='location') {
+                $b=own_business((int)$u['id'],(int)($_POST['business_id'] ?? 0));if(!$b)not_found();$name=mb_substr(trim((string)($_POST['name'] ?? '')),0,80);if($name==='')throw new InvalidArgumentException('Name fehlt.');
+                db()->prepare('INSERT INTO locations(business_id,name,address)VALUES(?,?,?)')->execute([$b['id'],$name,mb_substr(trim((string)($_POST['address'] ?? '')),0,200)]);audit_log((int)$u['id'],'location.create',['business_id'=>$b['id']]);
+            }elseif($action==='location_toggle') {
+                $q=db()->prepare('SELECT l.id,l.business_id FROM locations l JOIN businesses b ON b.id=l.business_id WHERE l.id=? AND b.user_id=?');$q->execute([(int)($_POST['id'] ?? 0),$u['id']]);$l=$q->fetch();if(!$l)not_found();
+                db()->prepare('UPDATE locations SET active=1-active WHERE id=?')->execute([$l['id']]);audit_log((int)$u['id'],'location.toggle',['location_id'=>$l['id']]);
+            }
+            flash('Organisation gespeichert.');
+        }catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
+        redirect('/organization');
+    }
+    $body='<h1>Netzwerke & Standorte</h1><p class="muted">Netzwerke ordnen deine eigenen Unternehmen. Mitglieder, Programme und Guthaben bleiben strikt beim Unternehmen. Standorte teilen dessen Mitglieder, aber Teamaktionen tragen die Standortkennung.</p><section class="panel"><h2>Netzwerk anlegen</h2><form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="network"><label>Name<input name="name" maxlength="80" required></label><button class="btn">Anlegen</button></form></section>';
+    $q=db()->prepare('SELECT b.*,n.name AS network_name FROM businesses b LEFT JOIN networks n ON n.id=b.network_id WHERE b.user_id=? ORDER BY b.name');$q->execute([$u['id']]);
+    foreach($q->fetchAll() as $b) {
+        $bid=(int)$b['id'];$body.='<section class="panel"><h2>'.h($b['name']).'</h2><form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="assign"><input type="hidden" name="business_id" value="'.$bid.'"><label>Netzwerk<select name="network_id">'.network_options((int)$u['id'],$b['network_id']!==null?(int)$b['network_id']:null).'</select></label><button class="btn ghost">Zuordnen</button></form><p><a href="/business/'.$bid.'/team">Team & Rechte verwalten</a></p><h3>Standorte</h3>';
+        $l=db()->prepare('SELECT * FROM locations WHERE business_id=? ORDER BY name');$l->execute([$bid]);foreach($l->fetchAll() as $loc)$body.='<p><strong>'.h($loc['name']).'</strong> · '.h($loc['address']).' · '.($loc['active']?'aktiv':'inaktiv').'<form method="post" class="undo-form">'.csrf_field().'<input type="hidden" name="action" value="location_toggle"><button class="btn ghost small" name="id" value="'.(int)$loc['id'].'">Umschalten</button></form></p>';
+        $body.='<form method="post" class="form inline-form">'.csrf_field().'<input type="hidden" name="action" value="location"><input type="hidden" name="business_id" value="'.$bid.'"><label>Standortname<input name="name" maxlength="80" required></label><label>Adresse<input name="address" maxlength="200"></label><button class="btn">Standort anlegen</button></form></section>';
+    }
+    page('Netzwerke & Standorte',$body,$u);exit;
+}
+function route_team(int $bid,string $method): never
+{
+    $u=require_login();$b=own_business((int)$u['id'],$bid);if(!$b)not_found();
+    if($method==='POST') {
+        require_plan_write((int)$u['id'],'staff');$q=db()->prepare('SELECT * FROM staff WHERE id=? AND business_id=?');$q->execute([(int)($_POST['staff_id'] ?? 0),$bid]);$staff=$q->fetch();if(!$staff)not_found();
+        $role=(string)($_POST['role'] ?? 'viewer');if(!in_array($role,['viewer','cashier','supervisor'],true))$role='viewer';$location=(int)($_POST['location_id'] ?? 0);
+        if($location){$q=db()->prepare('SELECT id FROM locations WHERE id=? AND business_id=?');$q->execute([$location,$bid]);if(!$q->fetch())not_found();}
+        $pin=(string)($_POST['new_pin'] ?? '');if($pin!=='' && !preg_match('/^\d{6,12}$/D',$pin)){flash('Neue PIN muss 6 bis 12 Ziffern haben. Nichts gespeichert.','err');redirect('/business/'.$bid.'/team');}
+        $permissions=[];foreach(STAFF_CAPABILITIES as $cap)$permissions[$cap]=isset($_POST['cap_'.$cap]);
+        db()->prepare('UPDATE staff SET role=?,permissions=?,location_id=?,active=? WHERE id=?')->execute([$role,json_encode($permissions),$location?:null,isset($_POST['active'])?1:0,$staff['id']]);
+        $pin=(string)($_POST['new_pin'] ?? '');if($pin!=='') {
+            db()->prepare('UPDATE staff SET pin_hash=?,session_version=session_version+1 WHERE id=?')->execute([password_hash($pin,PASSWORD_DEFAULT),$staff['id']]);
+        }
+        audit_log((int)$u['id'],'team.update',['staff_id'=>$staff['id'],'role'=>$role,'location_id'=>$location]);flash('Teamzugang aktualisiert. Rechte wirken sofort.');redirect('/business/'.$bid.'/team');
+    }
+    $body='<p><a href="/business/'.$bid.'">← '.h($b['name']).'</a></p><h1>Team & Rechte</h1><p class="muted">Viewer liest, Kasse vergibt/löst ein/verkauft, Schichtleitung darf zusätzlich stornieren. Einzelne Häkchen sind die endgültigen Rechte. Keine Rolle erhält Betreiber-, Abrechnungs- oder Plattformzugriff.</p>';
+    $q=db()->prepare('SELECT * FROM staff WHERE business_id=? ORDER BY name');$q->execute([$bid]);
+    foreach($q->fetchAll() as $staff) {
+        $rights=staff_permissions($staff);$body.='<section class="panel"><h2>'.h($staff['name']).'</h2><form method="post" class="form">'.csrf_field().'<input type="hidden" name="staff_id" value="'.(int)$staff['id'].'"><label>Rollenprofil (setzt die Häkchen neu)<select name="role">';
+        foreach(['viewer'=>'Viewer','cashier'=>'Kasse','supervisor'=>'Schichtleitung'] as $v=>$label)$body.='<option value="'.$v.'"'.($staff['role']===$v?' selected':'').'>'.$label.'</option>';
+        $body.='</select></label><label>Standort<select name="location_id">'.location_options($bid,$staff['location_id']!==null?(int)$staff['location_id']:null).'</select></label><label class="check"><input type="checkbox" name="active" '.($staff['active']?'checked':'').'> Zugang aktiv</label>';
+        foreach(['award'=>'Punkte und Stempel vergeben','redeem'=>'Prämien/Gutscheine/Passbesuche einlösen','reverse'=>'Eigene Aktionen stornieren','sell_pass'=>'Prepaid-Pässe verkaufen'] as $cap=>$label)$body.='<label class="check"><input type="checkbox" name="cap_'.$cap.'" '.(in_array($cap,$rights,true)?'checked':'').'>'.$label.'</label>';
+        $body.='<label>Neue PIN (leer = unverändert, 6–12 Ziffern)<input type="password" name="new_pin" inputmode="numeric" autocomplete="new-password" minlength="6" maxlength="12"></label><button class="btn">Zugang speichern</button></form></section>';
+    }
+    $body.=<<<'HTML'
+<script>
+document.querySelectorAll('select[name="role"]').forEach(function(select){select.addEventListener('change',function(){var caps=this.value==='supervisor'?['award','redeem','reverse','sell_pass']:(this.value==='cashier'?['award','redeem','sell_pass']:[]);var form=this.form;['award','redeem','reverse','sell_pass'].forEach(function(cap){form.elements['cap_'+cap].checked=caps.indexOf(cap)!==-1;});});});
+</script>
+HTML;
+    page('Team & Rechte',$body,$u);exit;
+}
+
+/** Recheck effective rights under the caller's write transaction. */
+function assert_business_actor(int $bid,array $actor,string $capability): array
+{
+    if($actor['kind']==='owner') {
+        $q=db()->prepare('SELECT 1 FROM businesses WHERE id=? AND user_id=?');$q->execute([$bid,$actor['id']]);if($q->fetchColumn())return array_merge($actor,['location_id'=>null]);
+    }elseif($actor['kind']==='staff') {
+        $q=db()->prepare('SELECT s.* FROM staff s LEFT JOIN locations l ON l.id=s.location_id AND l.business_id=s.business_id WHERE s.id=? AND s.business_id=? AND s.active=1 AND (s.location_id IS NULL OR l.active=1)');$q->execute([$actor['id'],$bid]);$s=$q->fetch();
+        if($s && in_array($capability,staff_permissions($s),true))return array_merge($actor,['location_id'=>$s['location_id']]);
+    }
+    throw new InvalidArgumentException('Keine Berechtigung für dieses Unternehmen oder diese Aktion.');
+}

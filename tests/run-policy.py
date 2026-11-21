@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory(prefix='loyalty-policy-') as temp:
         subprocess.run(['node',str(R/'tests/policy-ui.cjs')],cwd=R,check=True)
         owner=client();token=csrf(owner,'/login');check(req('/login',{'email':'demo@loyalty.local','password':'demo1234','csrf':token},owner)[0]==200,'login available with inactive subscription')
         token=csrf(owner,'/billing')
-        paths=['/business/create','/program/create','/member/create','/staff/create','/reward/create','/card/issue','/card/1/action','/card/1/undo','/tier/create','/bonus/create','/achievement/create','/segment/create','/campaign/create','/campaign/send','/business/referral','/apikey/regenerate','/webhook/create','/integration/save','/business/1/design']
+        paths=['/organization','/business/1/team','/business/create','/program/create','/member/create','/staff/create','/reward/create','/card/issue','/card/1/action','/card/1/undo','/tier/create','/bonus/create','/achievement/create','/segment/create','/campaign/create','/campaign/send','/business/referral','/apikey/regenerate','/webhook/create','/integration/save','/business/1/design']
         for path in paths:check(req(path,{'csrf':token,'business_id':1},owner)[0]==402,'inactive owner write denied '+path)
         check(req('/billing',{'csrf':token,'action':'checkout','plan':'starter'},owner)[0]==200,'billing remains reachable')
         check(req('/business/1',client=owner)[0]==200,'read business remains reachable')

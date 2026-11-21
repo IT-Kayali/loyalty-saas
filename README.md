@@ -37,7 +37,8 @@ Neu in dieser Ausbaustufe:
 - **WooCommerce-Plugin** (fertig in `integrations/woocommerce`) und **Shopify-Webhook** (HMAC-geprüft, Anleitung in `integrations/shopify`)
 - **Ausgehende Webhooks** mit HMAC-Signatur und Zustellprotokoll
 - **Mehrsprachig**: Deutsch + Englisch ausgeliefert, weitere Sprachen durch eine Datei in `app/lang/`
-- **Team & Rollen**: Owner, Staff (PIN-Login am Tresen), Mitglieder (eigenes Wallet-Login)
+- **Team & Rollen**: Betreiber, Staff mit Viewer/Kasse/Schichtleitung und Einzelrechten, PIN-Reset/Sitzungswiderruf, Mitglieder-Wallet. [Rechte und Grenzen](docs/ORGANIZATION.md)
+- **Organisation**: Netzwerke eigener Unternehmen, Standorte und Zuordnung neuer Teamaktionen. Keine unternehmensübergreifenden Salden und keine isolierte Standort-Datensicht.
 - **Marketing**: Segmente, Kampagnen (Inbox der Mitglieder, optional SMTP), Bonus-Zeitfenster (Happy Hour), Stufen/Tiers, Achievements
 - **Analytics**: Mitgliederwachstum, Buchungen, Tageszeiten-Heatmap
 
@@ -131,3 +132,7 @@ python3 tests/run-mail.py
 ```
 
 Browser-Tests benötigen Port 8099 und erzeugen nur lokale Testdaten. Ausgaben standardmäßig unter dem temporären Verzeichnis `loyalty-browser-results`; mit `TEST_OUTPUT` änderbar, PHP-Binary mit `PHP_BIN`. Das sind lokale Tests, kein echter Stripe-Testkauf oder Geräte-Wallet-Test.
+
+### Standorte und Teamrechte prüfen
+
+`PHP_BIN=php python tests/run-organization.py` prüft die neue Verwaltung, Mandantengrenzen, Staffrechte und Sitzungswiderruf in einer Wegwerfinstallation. Bestehende Staffzugänge behalten beim Update über das Profil Schichtleitung ihre bisherigen Rechte; vor Produktivbetrieb reduzieren. Neue PINs benötigen 6 bis 12 Ziffern. Details: [docs/ORGANIZATION.md](docs/ORGANIZATION.md).

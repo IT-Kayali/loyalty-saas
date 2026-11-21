@@ -12,6 +12,7 @@ function pass_sale(int $programId,int $memberId,array $actor,string $receipt,int
     try {
         $q=$db->prepare("SELECT * FROM programs WHERE id=? AND type='pass' AND active=1");$q->execute([$programId]);$p=$q->fetch();if(!$p)throw new InvalidArgumentException('Produkt nicht verfügbar.');
         $q=$db->prepare('SELECT id FROM members WHERE id=? AND business_id=?');$q->execute([$memberId,$p['business_id']]);if(!$q->fetch())throw new InvalidArgumentException('Mitglied passt nicht zum Unternehmen.');
+        $actor=assert_business_actor((int)$p['business_id'],$actor,'sell_pass');
         $terms=pass_terms($p);if(!in_array($terms['kind'],['visits','unlimited'],true))throw new InvalidArgumentException('Passart nicht freigegeben.');
         if($terms['kind']==='unlimited' && $terms['days']<1)throw new InvalidArgumentException('Unbegrenzter Pass braucht ein Ablaufdatum.');
         if($paid<0 || $paid>100000000 || !preg_match('/^[\pL\pN ._\/-]{1,80}$/uD',$receipt))throw new InvalidArgumentException('Tatsächliche externe Belegreferenz und gültigen Betrag angeben.');
@@ -20,8 +21,9 @@ function pass_sale(int $programId,int $memberId,array $actor,string $receipt,int
         $db->prepare('INSERT INTO prepaid_issues(business_id,program_id,member_id,code,operation,receipt,name,kind,remaining,original_visits,paid_cents,currency,expires_at,terms,actor_kind,actor_id)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
             ->execute([$p['business_id'],$programId,$memberId,strtoupper(bin2hex(random_bytes(10))),$operation,$receipt,$terms['name'],$terms['kind'],$terms['kind']==='visits'?$terms['visits']:null,$terms['kind']==='visits'?$terms['visits']:null,$paid,$terms['currency'],$expires,json_encode($terms,JSON_UNESCAPED_UNICODE),$actor['kind'],$actor['id']]);
         $id=(int)$db->lastInsertId();
-        $db->prepare("INSERT INTO prepaid_ledger(issue_id,business_id,kind,quantity,amount_cents,operation,actor_kind,actor_id)VALUES(?,?,'sale',?,?,?, ?,?)")
-            ->execute([$id,$p['business_id'],($terms['kind']==='visits'?$terms['visits']:0),$paid,$operation,$actor['kind'],$actor['id']]);
+        $db->prepare("INSERT INTO prepaid_ledger(issue_id,business_id,kind,quantity,amount_cents,operation,actor_kind,actor_id,location_id)VALUES(?,?,'sale',?,?,?, ?,?,?)")
+            ->execute([$id,$p['business_id'],($terms['kind']==='visits'?$terms['visits']:0),$paid,$operation,$actor['kind'],$actor['id'],$actor['location_id'] ?? null]);
+        $db->prepare('UPDATE prepaid_issues SET location_id=? WHERE id=?')->execute([$actor['location_id'] ?? null,$id]);
         $db->exec('COMMIT');return $id;
     }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
 }
@@ -30,13 +32,14 @@ function pass_use(int $id,int $quantity,int $expectedVersion,array $actor,string
     $db=db();$db->exec('BEGIN IMMEDIATE');
     try {
         $q=$db->prepare('SELECT * FROM prepaid_issues WHERE id=?');$q->execute([$id]);$p=$q->fetch();if(!$p)throw new InvalidArgumentException('Pass nicht gefunden.');
+        $actor=assert_business_actor((int)$p['business_id'],$actor,'redeem');
         $q=$db->prepare('SELECT id FROM prepaid_ledger WHERE issue_id=? AND operation=?');$q->execute([$id,$operation]);if($q->fetch()){$db->exec('COMMIT');return;}
         if((int)$p['version']!==$expectedVersion)throw new InvalidArgumentException('Stand wurde inzwischen geändert. Bitte aktuellen Pass erneut prüfen.');
         if($p['expires_at'] && $p['expires_at']<=gmdate('Y-m-d H:i:s'))throw new InvalidArgumentException('Pass abgelaufen.');
         if($quantity<1 || $quantity>100 || ($p['kind']==='visits' && $quantity>(int)$p['remaining']))throw new InvalidArgumentException('Nicht genügend Besuche oder ungültige Anzahl.');
         if($p['kind']==='unlimited' && $quantity!==1)throw new InvalidArgumentException('Bei unbegrenzten Pässen jeweils einen Besuch dokumentieren.');
         $db->prepare('UPDATE prepaid_issues SET remaining=CASE WHEN remaining IS NULL THEN NULL ELSE remaining-? END,version=version+1 WHERE id=?')->execute([$quantity,$id]);
-        $db->prepare("INSERT INTO prepaid_ledger(issue_id,business_id,kind,quantity,operation,actor_kind,actor_id)VALUES(?,?,'visit',?,?,?,?)")->execute([$id,$p['business_id'],$quantity,$operation,$actor['kind'],$actor['id']]);
+        $db->prepare("INSERT INTO prepaid_ledger(issue_id,business_id,kind,quantity,operation,actor_kind,actor_id,location_id)VALUES(?,?,'visit',?,?,?,?,?)")->execute([$id,$p['business_id'],$quantity,$operation,$actor['kind'],$actor['id'],$actor['location_id'] ?? null]);
         $db->exec('COMMIT');
     }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
 }
@@ -46,9 +49,10 @@ function pass_reverse(int $entryId,array $actor,string $operation): void
     try {
         $q=$db->prepare('SELECT l.*,i.kind AS pass_kind,i.expires_at FROM prepaid_ledger l JOIN prepaid_issues i ON i.id=l.issue_id WHERE l.id=?');$q->execute([$entryId]);$e=$q->fetch();
         if(!$e || $e['kind']!=='visit')throw new InvalidArgumentException('Nur ein Besuch kann storniert werden.');
+        $actor=assert_business_actor((int)$e['business_id'],$actor,'reverse');
         if($actor['kind']==='staff' && ($e['actor_kind']!=='staff' || (int)$e['actor_id']!==$actor['id']))throw new InvalidArgumentException('Staff darf nur eigene Besuche stornieren.');
         $q=$db->prepare('SELECT id FROM prepaid_ledger WHERE reverses_id=?');$q->execute([$entryId]);if($q->fetch()){$db->exec('COMMIT');return;}
-        $db->prepare("INSERT INTO prepaid_ledger(issue_id,business_id,kind,quantity,operation,actor_kind,actor_id,reverses_id)VALUES(?,?,'reversal',?,?,?,?,?)")->execute([$e['issue_id'],$e['business_id'],$e['quantity'],$operation,$actor['kind'],$actor['id'],$entryId]);
+        $db->prepare("INSERT INTO prepaid_ledger(issue_id,business_id,kind,quantity,operation,actor_kind,actor_id,reverses_id,location_id)VALUES(?,?,'reversal',?,?,?,?,?,?)")->execute([$e['issue_id'],$e['business_id'],$e['quantity'],$operation,$actor['kind'],$actor['id'],$entryId,$actor['location_id'] ?? null]);
         $db->prepare('UPDATE prepaid_issues SET remaining=CASE WHEN remaining IS NULL THEN NULL ELSE remaining+? END,version=version+1 WHERE id=?')->execute([$e['quantity'],$e['issue_id']]);
         $db->exec('COMMIT');
     }catch(Throwable $ex){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $ex;}
@@ -94,7 +98,7 @@ function route_prepaid_action(string $action,int $id=0): never
     }else {
         $q=db()->prepare('SELECT * FROM prepaid_issues WHERE id=?');$q->execute([$id]);$issue=$q->fetch();if(!$issue)not_found();$bid=(int)$issue['business_id'];$m=['id'=>$issue['member_id']];
     }
-    $actor=business_actor($bid);$q=db()->prepare('SELECT * FROM businesses WHERE id=?');$q->execute([$bid]);$b=$q->fetch();require_plan_write((int)$b['user_id'],'prepaid');
+    $actor=business_actor($bid);actor_permission($actor,match($action){'sell'=>'sell_pass','reverse'=>'reverse',default=>'redeem'});$q=db()->prepare('SELECT * FROM businesses WHERE id=?');$q->execute([$bid]);$b=$q->fetch();require_plan_write((int)$b['user_id'],'prepaid');
     $back=$actor['kind']==='owner'?'/member/':'/staff/member/';$base=$actor['kind']==='owner'?'':'/staff';
     try {
         $operation=(string)($_POST['operation'] ?? '');if(!preg_match('/^[a-f0-9]{32}$/D',$operation))throw new InvalidArgumentException('Vorgangskennung fehlt.');

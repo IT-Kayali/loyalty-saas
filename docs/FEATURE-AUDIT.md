@@ -20,10 +20,10 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 
 | Bereich | Lokal | Noch nicht gleichwertig / nächste Schritte |
 |---|---|---|
-| Plattform, Mandanten, Betreiberregistrierung | Basis | Keine Netzwerke, Clubs oder Standort-Hierarchien. Ein Betreiber besitzt mehrere getrennte Unternehmen. |
+| Plattform, Mandanten, Betreiberregistrierung | Basis | Neu: Netzwerke als Gruppierung eigener Unternehmen und Standorte zur Buchungszuordnung. Keine geteilten Salden, Clubs oder fremden Betreiber. |
 | Plattform-Admin | Neu, Basis | Globale Übersicht, Brandingname, Registrierungsschalter, CSV und Healthchecks vorhanden. Keine Managerdelegation, granularen Plattformrechte, Unternehmens-Sperrung oder Admin-Impersonation. |
-| Betreiber-Dashboard | Basis | Programme, Mitglieder, Designer, Analytics, Team. Noch keine vollständigen Unternehmenseinstellungen, Standortverwaltung oder monatlichen Zusammenfassungen. |
-| Staff-Kasse | Basis | PIN-Login, Suche, QR-Scan, vergeben/einlösen, Undo. Keine Clubberechtigungen, vollständige Mitarbeiter-Kontoverwaltung oder rollenfeine Operationen. |
+| Betreiber-Dashboard | Basis | Programme, Mitglieder, Designer, Analytics, Team. Neu: Standort- und Teamverwaltung. Keine vollständigen Unternehmenseinstellungen oder monatlichen Zusammenfassungen. |
+| Staff-Kasse | Basis | PIN-Login, Suche, QR-Scan, vergeben/einlösen, Undo. Neu: Viewer/Kasse/Schichtleitung mit Einzelrechten, Standortbindung, Deaktivierung und PIN-Reset mit Sitzungswiderruf. Keine Clubrechte, Managerkonten, Einladungen oder MFA. |
 | Mitglieder-Wallet | Basis | Login, mehrere Unternehmen, Karten, Inbox, Export/Löschung. Kein OTP-Login, anonyme Mitglieder, umfassendes Profil-/Passwortmanagement, Offlineinstallation oder Live-Event-Updates. |
 | Punkte & Prämien | Basis | Punkte, Prämien, Lifetime-Punkte, Stufen und Bonusstunden. Punkteanfragen zwischen Mitgliedern, Punkteverfall, individuelle Einlösecodes und zeitlich begrenzte Reward-QRs fehlen. |
 | Stempelkarten | Basis + Neu | Stempel/Rollover/Belohnungen, eigener Bildupload, Vorschau. Neu: eigenes Programmdesign, Hintergrundfoto/Deckkraft und kuratierte Emoji-Auswahl. Nativer Wallet-Pass bleibt ein Sammelpass, Fotos/Emoji nur im Web. |
@@ -60,7 +60,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 ## Empfohlene weitere Baupakete
 
 1. **Produktionsgrundlage:** Rate Limits, Konto-/Passwortwiederherstellung, SMTP-Provider mit Abmeldung/Queue, Tests für Geld-/Punkteoperationen, Backup/Restore, Deployment.
-2. **Mandanten und Berechtigungen:** Netzwerke, Clubs, Standorte, Manager, granulare Rollen, editierbare Plan-/Featureverwaltung. Zentrale Paywall-Prüfungen sind inzwischen umgesetzt.
+2. **Mandanten und Berechtigungen:** Netzwerk-Gruppierung, Standorte und Staff-Einzelrechte sind als Basis umgesetzt. Offen: Clubs/geteilte Salden, Managerkonten und editierbare Plan-/Featureverwaltung. Zentrale Paywall-Prüfungen sind umgesetzt.
 3. **Programm-Parität:** Voucher-Batches/Eligibility, Prepaid-Verkaufsledger/Zeit/Guthaben, Punkteverfall, programmbezogenes Design, erweiterte Achievements.
 4. **Kommunikation:** Lifecycle-Automationen, Geburtstags-/Winback-Flows, monatliche Reports und Zustellmonitoring.
 5. **Ökosystem:** vollständige Shopflows, Agent API/MCP mit Freigaben, PayPal, Offline-PWA, weitere Homepages und Sprachen.
@@ -102,3 +102,7 @@ Programmspezifischer Designer mit Hintergrundfoto/Deckkraft und Emoji, Code-Guts
 ## Nachtrag Etappe E-Mail
 
 TLS-SMTP, Outbox, Worker, Einwilligung/Abmeldung, drei Textautomationen und Passwortwiederherstellung mit Sessionwiderruf ergänzt. Echte Providerzustellung bleibt extern ungeprüft. Details: [MAIL.md](MAIL.md).
+
+## Nachtrag: Organisation und Team
+
+Netzwerk-Gruppierung eigener Unternehmen, Standorte mit Staff-Buchungszuordnung, Rollenprofile/Einzelrechte, sofortiger Entzug und PIN-Sitzungswiderruf sind ergänzt. SQL-Integritätsprüfungen verhindern fremde Netzwerk-/Standortzuordnungen. Semantik, Migration und bewusste Grenzen: [ORGANIZATION.md](ORGANIZATION.md). Keine unternehmensübergreifenden Salden oder isolierten Standort-Datensichten.
