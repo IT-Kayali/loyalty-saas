@@ -45,7 +45,7 @@ Status: **Basis** = wesentlicher lokaler Workflow vorhanden, aber nicht jedes Or
 | Agent API | Offen | Keine granularen Scopes, Idempotency-/Approval-Workflows und separate Agent-Authentifizierung. Vorhandene REST API nicht als gleichwertig ausgeben. |
 | AI/MCP | Offen | Keine OAuth-AI-Verbindungen, Streamable-HTTP-MCP, Tool Discovery, Freigabewarteschlange oder AI-Schreibassistenz. |
 | Stripe | Neu/Setup | Checkout, Portal, signierte Webhooks, Zustände und neue-Unternehmen-Limit. Preise/Konto/Keys und echter Testkauf fehlen. Zentrale Schreibprüfung und Limits jetzt vorhanden, noch keine editierbare vollständige Planfeature-Matrix. |
-| PayPal | Offen | Kein PayPal-Abo-Adapter. |
+| PayPal | Neu/Setup | SDK-v6-SaaS-Abos, verifizierte Webhooks, Statusabgleich und explizite Kündigung. Keine echte Sandbox-/Live-Abnahme, Proration oder vollständiger Planwechsel-/Reconciliation-Workflow. |
 | Pläne verwalten | Basis | Serverkonfiguration statt editierbarer Admin-Planverwaltung; keine Planmigrationen/Feature-Toggles pro Mandant. |
 | Branding/Homepages | Basis | Plattformname, Business-Farben/-Logo, Designer. Keine Smart/Showcase/Portal/Public-Listing-Homepages, eigenen Domains oder vollständigen E-Mail-Templates. |
 | Sprachen | Basis | DE/EN für bisherigen Bestand, neue Texte teilweise noch deutsch als Fallback. Nicht alle Originalsprachen; keine Übersetzungsverwaltung. |
@@ -106,3 +106,7 @@ TLS-SMTP, Outbox, Worker, Einwilligung/Abmeldung, drei Textautomationen und Pass
 ## Nachtrag: Organisation und Team
 
 Netzwerk-Gruppierung eigener Unternehmen, Standorte mit Staff-Buchungszuordnung, Rollenprofile/Einzelrechte, sofortiger Entzug und PIN-Sitzungswiderruf sind ergänzt. SQL-Integritätsprüfungen verhindern fremde Netzwerk-/Standortzuordnungen. Semantik, Migration und bewusste Grenzen: [ORGANIZATION.md](ORGANIZATION.md). Keine unternehmensübergreifenden Salden oder isolierten Standort-Datensichten.
+
+## Nachtrag: PayPal-SaaS-Abrechnung
+
+SDK-v6-Subscribe-Session, serverseitige Anlage und verbindlicher Statusabgleich, originaldatengetreue Webhook-Postback-Verifikation, Event-/Create-Deduplizierung, mandantengebundene Planwahl, explizite Kündigung und konservative Refund-/Reversal-Sperre sind ergänzt. Siehe [PAYPAL.md](PAYPAL.md). Keine echte Sandbox-/Live-Abnahme, kein automatischer Planwechsel/Proration, jährlicher Intervallwähler oder grafischer Reconciliation-Workflow. Fehlende Verkaufsereignisse verlangen Betreiberabgleich. Vollständige Parität bleibt offen.

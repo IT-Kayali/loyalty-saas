@@ -460,6 +460,13 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'members', 'birthday', 'TEXT');
     ensure_column($pdo, 'members', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'users', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
+    $pdo->exec("CREATE TABLE IF NOT EXISTS paypal_attempts(request_id TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,plan_key TEXT NOT NULL,plan_id TEXT NOT NULL,custom_id TEXT NOT NULL UNIQUE,subscription_id TEXT UNIQUE,finished INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (datetime('now')))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS paypal_sales(sale_id TEXT PRIMARY KEY,subscription_id TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS paypal_events(id TEXT PRIMARY KEY,event_type TEXT NOT NULL,processed_at TEXT NOT NULL DEFAULT (datetime('now')))");
+    ensure_column($pdo, 'subscriptions', 'provider', "TEXT NOT NULL DEFAULT 'stripe'");
+    ensure_column($pdo, 'subscriptions', 'paypal_subscription_id', 'TEXT');
+    ensure_column($pdo, 'subscriptions', 'paypal_request_id', 'TEXT');
+    ensure_column($pdo, 'subscriptions', 'paypal_payment_hold', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'businesses', 'network_id', 'INTEGER REFERENCES networks(id)');
     ensure_column($pdo, 'staff', 'location_id', 'INTEGER REFERENCES locations(id)');
     ensure_column($pdo, 'staff', 'role', "TEXT NOT NULL DEFAULT 'supervisor'");

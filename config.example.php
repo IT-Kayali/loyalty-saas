@@ -45,6 +45,18 @@ return [
         ],
     ],
 
+    /* ---- PayPal: optional SaaS subscriptions, SDK v6 (docs/PAYPAL.md) ---- */
+    'paypal' => [
+        'mode' => 'sandbox',
+        'client_id' => getenv('PAYPAL_CLIENT_ID') ?: '',
+        'secret' => getenv('PAYPAL_SECRET') ?: '',
+        'webhook_id' => getenv('PAYPAL_WEBHOOK_ID') ?: '',
+        'plans' => [
+            'starter' => ['plan_id' => getenv('PAYPAL_PLAN_STARTER') ?: '', 'currency' => 'EUR'],
+            'pro' => ['plan_id' => getenv('PAYPAL_PLAN_PRO') ?: '', 'currency' => 'EUR'],
+        ],
+    ],
+
     /* ---- Apple Wallet (PassKit) ----------------------------------
      * Setup-Anleitung: docs/WALLET.md
      * Ohne diese Werte antwortet der Apple-Pass-Endpunkt mit HTTP 501.

@@ -58,6 +58,10 @@ function safe_session_start(): void
         header('X-Frame-Options: DENY');
         header('Permissions-Policy: camera=(self), microphone=(), geolocation=()');
         header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+        // PayPal resources are allowed only on its billing page, never tenant pages.
+        if(parse_url($_SERVER['REQUEST_URI'] ?? '',PHP_URL_PATH)==='/billing/paypal' && config('paypal.client_id','')!=='' && config('paypal.secret','')!=='' && config('paypal.webhook_id','')!=='') {
+            header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://*.paypal.com https://*.paypalobjects.com; style-src 'self' 'unsafe-inline' https://*.paypal.com; img-src 'self' data: blob: https://*.paypal.com https://*.paypalobjects.com; connect-src 'self' https://*.paypal.com https://*.paypalobjects.com; frame-src https://*.paypal.com; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+        }
         if(str_starts_with((string)config('base_url',''),'https://'))header('Strict-Transport-Security: max-age=31536000');
     }
 }

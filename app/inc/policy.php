@@ -105,7 +105,7 @@ function policy_browser_guard(string $path,string $method): void
     if($method!=='POST')return;
     // Auth, billing and privacy are not paid features. The admin allowlist is separate.
     if(str_starts_with($path,'/unsubscribe/') || $path==='/member/preferences')return;
-    if(in_array($path,['/login','/register','/staff/login','/member/login','/billing','/member/delete','/forgot-password','/reset-password'],true) || str_starts_with($path,'/admin'))return;
+    if(in_array($path,['/login','/register','/staff/login','/member/login','/billing','/billing/paypal','/member/delete','/forgot-password','/reset-password'],true) || str_starts_with($path,'/admin'))return;
     if(preg_match('#^/join/([A-F0-9]{8})$#',$path,$m)) {
         $q=db()->prepare('SELECT user_id FROM businesses WHERE join_code=?');$q->execute([$m[1]]);$uid=$q->fetchColumn();
         if($uid)require_plan_write((int)$uid,'members');return;

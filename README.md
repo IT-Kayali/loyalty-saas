@@ -136,3 +136,7 @@ Browser-Tests benötigen Port 8099 und erzeugen nur lokale Testdaten. Ausgaben s
 ### Standorte und Teamrechte prüfen
 
 `PHP_BIN=php python tests/run-organization.py` prüft die neue Verwaltung, Mandantengrenzen, Staffrechte und Sitzungswiderruf in einer Wegwerfinstallation. Bestehende Staffzugänge behalten beim Update über das Profil Schichtleitung ihre bisherigen Rechte; vor Produktivbetrieb reduzieren. Neue PINs benötigen 6 bis 12 Ziffern. Details: [docs/ORGANIZATION.md](docs/ORGANIZATION.md).
+
+### PayPal-Abrechnung
+
+Optionales SaaS-Abo zusätzlich zur Stripe-Anbindung: SDK v6, serverseitiges Create und Statusprüfung, signaturverifizierte Webhook-Verarbeitung mit Originaldaten, Retry-/Tenantbindung, Refund-Sperren und ausdrücklich bestätigte Kündigung. Ohne Keys aus. Keine echte Sandbox-/Live-Zahlung wurde abgenommen. Einrichtung, manueller Refund-Abgleich und Grenzen: [docs/PAYPAL.md](docs/PAYPAL.md). Test: `PHP_BIN=php python tests/run-paypal.py`. Planwechsel kündigen kein laufendes Abo still.

@@ -421,3 +421,6 @@ svg rect:hover { opacity: 0.8; }
 
 .pass-item { border-top:1px solid #ddd4c8; padding:18px 0; }
 .pass-item h3 { margin:0 0 10px; }
+
+/* Keep long consent/cancellation labels from shrinking the actual checkbox. */
+label.check input[type="checkbox"] { flex: 0 0 16px; width: 16px; height: 16px; min-width: 16px; }

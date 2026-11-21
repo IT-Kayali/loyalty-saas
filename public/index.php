@@ -19,6 +19,7 @@ require_once ROOT_DIR . '/app/inc/analytics.php';
 require_once ROOT_DIR . '/app/inc/wallet.php';
 require_once ROOT_DIR . '/app/inc/images.php';
 require_once ROOT_DIR . '/app/inc/billing.php';
+require_once ROOT_DIR . '/app/inc/paypal.php';
 require_once ROOT_DIR . '/app/inc/admin.php';
 require_once ROOT_DIR . '/app/inc/designer.php';
 require_once ROOT_DIR . '/app/inc/vouchers.php';
@@ -51,6 +52,7 @@ if (preg_match('#^/integrations/shopify/webhook/(\d+)$#', $path, $m) === 1) {
     route_shopify_webhook((int)$m[1]);
 }
 
+if ($path === '/paypal/webhook') route_paypal_webhook($method);
 if ($path === '/stripe/webhook') route_stripe_webhook($method);
 
 /* Alle übrigen POST-Requests: CSRF-Token Pflicht */
@@ -61,6 +63,7 @@ policy_browser_guard($path,$method);
 try {
     match (true) {
         $path === '/' => route_home(),
+        $path === '/billing/paypal' => route_paypal($method),
         $path === '/register' => route_register($method),
         $path === '/login' => route_login($method),
         $path === '/logout' => route_logout(),
