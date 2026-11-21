@@ -7,13 +7,18 @@ for(const [label,vp] of [['desktop',{width:1280,height:900}],['mobile',{width:39
  await p.goto(U+'/login');await p.locator('[name=email]').fill('demo@loyalty.local');await p.locator('[name=password]').fill('demo1234');await p.locator('button').first().click();await p.waitForURL('**/dashboard');
  await p.goto(U+'/business/1/mail');
  yes((await p.content()).includes('Persönlichen Gutschein beilegen'),label+': Gutschein-Auswahl sichtbar');
- await p.locator('[name=event]').selectOption('birthday');
+ await p.locator('[name=event]').selectOption('birthday');await p.locator('[name=channel]').selectOption('inbox');
  await p.locator('[name=voucher_program_id]').selectOption({label:'Geburtstagsgutschein'});await p.locator('[name=voucher_days]').fill('21');
  await p.locator('[name=subject]').fill('Alles Gute {name}');await p.locator('[name=body]').fill('Dein Geschenk: {code}, gültig bis {valid_until}');
  await p.screenshot({path:`${out}/lifecycle-form-${label}.png`,fullPage:true});
  await p.getByRole('button',{name:'Automation speichern'}).click();await p.waitForLoadState();
- yes((await p.content()).includes('Alles Gute {name}')&&(await p.content()).includes('Gutschein: Geburtstagsgutschein'),label+': Automation mit Gutschein gelistet');
+ yes((await p.content()).includes('Wallet-Inbox')&&(await p.content()).includes('Gutschein: Geburtstagsgutschein'),label+': Automation mit Gutschein und Kanal gelistet');
  yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': kein horizontaler Überlauf');
  await p.screenshot({path:`${out}/lifecycle-list-${label}.png`,fullPage:true});
+ await p.context().clearCookies();
+ await p.goto(U+'/member/login');await p.locator('[name=email]').fill('aylin@example.com');await p.locator('[name=password]').fill('kunde1234');await p.locator('button').first().click();await p.waitForURL('**/wallet');
+ yes((await p.content()).includes('Deine Gutscheine')&&(await p.content()).includes('15 % Rabatt')&&(await p.content()).includes('Alles Gute Aylin'),label+': Wallet zeigt Gutschein und Nachricht');
+ yes(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),label+': Wallet ohne horizontalen Überlauf');
+ await p.screenshot({path:`${out}/wallet-voucher-${label}.png`,fullPage:true});
  await ctx.close();}
 await b.close();console.log(n+' Lifecycle-Browser-Prüfungen bestanden');})().catch(e=>{console.error(e);process.exit(1)});

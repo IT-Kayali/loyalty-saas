@@ -146,3 +146,30 @@ function route_voucher_counter(int $bid,string $method): never
     $q=db()->prepare('SELECT id,name,code FROM members WHERE business_id=? ORDER BY name LIMIT 500');$q->execute([$bid]);$opts='';foreach($q->fetchAll() as $m)$opts.='<option value="'.(int)$m['id'].'">'.h($m['name']).' · '.h($m['code']).'</option>';
     page('Gutschein-Kasse','<p><a href="'.($a['kind']==='owner'?'/business/'.$bid:'/staff').'">← Zurück</a></p><h1>Code-Gutschein einlösen</h1><p class="muted">Unternehmen: '.h($b['name']).'. Keine Zahlung wird ausgelöst.</p><form method="post" class="form panel">'.csrf_field().'<input type="hidden" name="operation" value="'.bin2hex(random_bytes(16)).'"><label>Gutscheincode<input name="code" maxlength="24" required autocomplete="off"></label><label>Mitglied<select name="member_id">'.$opts.'</select></label><label>Kaufbetrag in Gutscheinwährung<input name="spend" inputmode="decimal" value="0.00" required></label><label class="check"><input type="checkbox" required> Richtigen Kunden und externen Kaufbetrag geprüft</label><button class="btn" name="action" value="preview">Einlösung prüfen</button></form>',$a['user']);exit;
 }
+
+/** Kurzbeschreibung des Werts aus einem Regel-Snapshot. */
+function voucher_value_label(array $r): string
+{
+    return match($r['type'] ?? '') {
+        'percent'=>rtrim(rtrim(number_format(((int)$r['value'])/100,2,',',''),'0'),',').' % Rabatt',
+        'fixed'=>money_label((int)$r['value'],(string)($r['currency'] ?? 'EUR')).' Rabatt',
+        'product'=>(string)($r['item'] ?? 'Produkt'),
+        'points'=>(int)$r['value'].' Punkte',
+        default=>'Gutschein',
+    };
+}
+/** Persoenliche, noch nutzbare Gutschein-Codes eines Mitglieds (Wallet). */
+function member_vouchers_html(array $memberIds): string
+{
+    if(!$memberIds)return '';
+    $q=db()->query('SELECT v.code,v.rules_snapshot,p.name,b.name AS business FROM voucher_codes v JOIN programs p ON p.id=v.program_id JOIN businesses b ON b.id=p.business_id
+        WHERE v.member_id IN ('.implode(',',$memberIds).") AND v.status='active' AND v.used<v.max_uses AND p.active=1 ORDER BY v.id DESC LIMIT 20");
+    $today=gmdate('Y-m-d');$h='';
+    foreach($q->fetchAll() as $v) {
+        $r=json_decode((string)$v['rules_snapshot'],true) ?: [];
+        if(!empty($r['ends']) && $r['ends']<$today)continue;
+        if(!empty($r['starts']) && $r['starts']>$today)continue;
+        $h.='<li><strong>'.h($v['name']).'</strong> · '.h($v['business']).'<br><code>'.h($v['code']).'</code> · '.h(voucher_value_label($r)).(!empty($r['ends'])?' · gültig bis '.h(date('d.m.Y',strtotime($r['ends']))):'').'</li>';
+    }
+    return $h===''?'':'<section class="panel member-vouchers" style="text-align:left;margin-bottom:16px"><h2>Deine Gutscheine</h2><ul>'.$h.'</ul><p class="muted">Code an der Kasse nennen oder zeigen.</p></section>';
+}

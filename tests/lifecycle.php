@@ -27,7 +27,7 @@ try{voucher_redeem($code,$mid2,2000,$actor,'life-wrong');ok(false,'fremdes Mitgl
 $r=voucher_redeem($code,$mid,2000,$actor,'life-ok');ok((int)$r['discount_cents']===500,'Gutschein löst 5,00 € ein');
 try{voucher_redeem($code,$mid,2000,$actor,'life-twice');ok(false,'zweite Einlösung');}catch(InvalidArgumentException $e){ok(true,'Einmal-Code nicht erneut einlösbar');}
 // Ohne Einwilligung nichts
-$db->exec('UPDATE members SET marketing_consent=0 WHERE id='.$mid);$db->exec("DELETE FROM mail_outbox");$db->exec('DELETE FROM voucher_redemptions');$db->exec('DELETE FROM voucher_codes');
+$db->exec('UPDATE members SET marketing_consent=0 WHERE id='.$mid);$db->exec('DELETE FROM mail_outbox');$db->exec('DELETE FROM automation_runs');$db->exec('DELETE FROM voucher_redemptions');$db->exec('DELETE FROM voucher_codes');
 ok(automation_enqueue()===0 && $db->query('SELECT COUNT(*) FROM voucher_codes')->fetchColumn()==0,'ohne Einwilligung weder Mail noch Code');
 $db->exec('UPDATE members SET marketing_consent=1 WHERE id='.$mid);
 // Fremdes Programm (anderes Unternehmen): keine Ausgabe
@@ -43,13 +43,21 @@ ok(automation_enqueue()===0,'Programm mit abgelaufenem Ende gibt nichts aus');
 $end=gmdate('Y-m-d',time()+3*86400);$db->prepare('UPDATE programs SET voucher_rules=? WHERE id=?')->execute([json_encode(['type'=>'fixed','value'=>500,'ends'=>$end]),$vp]);
 ok(automation_enqueue()===1 && json_decode((string)$db->query('SELECT rules_snapshot FROM voucher_codes')->fetchColumn(),true)['ends']===$end,'Programmende kürzt die Gültigkeit');
 // Text ohne {code}: Code wird angehängt
-$db->exec('DELETE FROM mail_outbox');$db->exec('DELETE FROM voucher_redemptions');$db->exec('DELETE FROM voucher_codes');$db->exec("UPDATE mail_automations SET body='Hallo {name}'");
+$db->exec('DELETE FROM mail_outbox');$db->exec('DELETE FROM automation_runs');$db->exec('DELETE FROM voucher_redemptions');$db->exec('DELETE FROM voucher_codes');$db->exec("UPDATE mail_automations SET body='Hallo {name}'");
 ok(automation_enqueue()===1 && str_contains((string)$db->query('SELECT body FROM mail_outbox')->fetchColumn(),'Dein Gutscheincode: '),'ohne Platzhalter wird der Code angehängt');
 // Winback mit Gutschein, Zyklus pro letzter Aktivität
-$db->exec('DELETE FROM mail_outbox');$db->exec('DELETE FROM voucher_redemptions');$db->exec('DELETE FROM voucher_codes');$db->exec('DELETE FROM mail_automations');$db->exec('UPDATE members SET birthday=NULL');
+$db->exec('DELETE FROM mail_outbox');$db->exec('DELETE FROM automation_runs');$db->exec('DELETE FROM voucher_redemptions');$db->exec('DELETE FROM voucher_codes');$db->exec('DELETE FROM mail_automations');$db->exec('UPDATE members SET birthday=NULL');
 $db->prepare("INSERT INTO mail_automations(business_id,event,days,subject,body,voucher_program_id)VALUES(1,'winback',30,'Wir vermissen dich','Hi {name} {code}',?)")->execute([$vp]);
 $db->exec("UPDATE members SET created_at='2000-01-01' WHERE business_id=1");$db->exec("DELETE FROM transactions WHERE card_id IN (SELECT id FROM cards WHERE member_id IN (SELECT id FROM members WHERE business_id=1))");
 $q1=automation_enqueue();$codes=(int)$db->query('SELECT COUNT(*) FROM voucher_codes')->fetchColumn();
 ok($q1>=1 && $codes===$q1,'Winback: je eingereihter Mail genau ein Code');
 ok(automation_enqueue()===0,'Winback: nicht erneut innerhalb desselben Inaktivitätszyklus');
+// Kanal beide mit SMTP: eine Zustellung, eine Mail, eine Wallet-Nachricht, ein gemeinsamer Code
+$db->exec('DELETE FROM mail_outbox');$db->exec('DELETE FROM automation_runs');$db->exec('DELETE FROM voucher_redemptions');$db->exec('DELETE FROM voucher_codes');$db->exec('DELETE FROM mail_automations');$db->exec('DELETE FROM automation_runs');$db->exec('DELETE FROM member_messages');
+$db->prepare('UPDATE members SET birthday=? WHERE id=?')->execute(['1990-'.gmdate('m-d'),$mid]);$db->exec('UPDATE members SET birthday=NULL WHERE id='.$mid2);$db->exec('UPDATE members SET marketing_consent=0 WHERE id<>'.$mid.' AND business_id=1');
+$db->prepare("INSERT INTO mail_automations(business_id,event,subject,body,voucher_program_id,voucher_days,channel)VALUES(1,'birthday','Hi {name}','Code {code}',?,10,'both')")->execute([$vp]);
+ok(automation_enqueue()===1 && (int)$db->query("SELECT COUNT(*) FROM mail_outbox")->fetchColumn()===1 && (int)$db->query("SELECT COUNT(*) FROM member_messages WHERE kind='automation'")->fetchColumn()===1 && (int)$db->query('SELECT COUNT(*) FROM voucher_codes')->fetchColumn()===1,'Kanal beide: eine Mail, eine Wallet-Nachricht, ein Code');
+$code2=(string)$db->query('SELECT code FROM voucher_codes')->fetchColumn();
+ok(str_contains((string)$db->query('SELECT body FROM mail_outbox')->fetchColumn(),$code2) && str_contains((string)$db->query("SELECT text FROM member_messages WHERE kind='automation'")->fetchColumn(),$code2),'Mail und Wallet nennen denselben Code');
+ok(automation_enqueue()===0,'Kanal beide: zweiter Lauf ohne Doppelzustellung');
 echo $n," Lifecycle-Prüfungen bestanden\n";

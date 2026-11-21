@@ -332,6 +332,8 @@ function route_wallet(): never
         $body .= '</div>';
     }
 
+    $body .= member_vouchers_html(array_map('intval', array_column($rows, 'id')));
+
     foreach ($rows as $m) {
         $body .= '<h2 class="wallet-biz">' . h($m['business_name']) . '</h2>';
         $cards = wallet_cards_html((int)$m['id']);

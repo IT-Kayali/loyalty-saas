@@ -503,6 +503,8 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'businesses', 'join_code', 'TEXT');
     ensure_column($pdo, 'transactions', 'reversed_at', 'TEXT');
     ensure_column($pdo, 'mail_automations', 'voucher_program_id', 'INTEGER');
+    ensure_column($pdo, 'mail_automations', 'channel', "TEXT NOT NULL DEFAULT 'email'");
+    $pdo->exec('CREATE TABLE IF NOT EXISTS automation_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, dedup_key TEXT NOT NULL UNIQUE, rule_id INTEGER NOT NULL, member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE, channel TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime(\'now\')))');
     ensure_column($pdo, 'mail_automations', 'voucher_days', 'INTEGER NOT NULL DEFAULT 30');
     ensure_column($pdo, 'programs', 'points_expire_days', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'cards', 'points_lifetime', 'INTEGER NOT NULL DEFAULT 0');

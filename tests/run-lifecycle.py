@@ -18,11 +18,20 @@ with tempfile.TemporaryDirectory(prefix='loyalty-life-') as temp:
  subprocess.run([PHP,'seed.php'],cwd=A,check=True,capture_output=True)
  subprocess.run([PHP,str(R/'tests/lifecycle.php')],cwd=A,check=True)
  subprocess.run([PHP,'seed.php'],cwd=A,check=True,capture_output=True)
+ (A/'config.php').write_text("<?php return require __DIR__.'/config.example.php';")
+ shutil.copytree(R/'tools',A/'tools')
+ setup="require 'public/index.php';$db=db();$a=(int)$db->query(\"SELECT id FROM members WHERE email='aylin@example.com' AND business_id=1\")->fetchColumn();$db->prepare('UPDATE members SET marketing_consent=1,birthday=? WHERE id=?')->execute(['1990-'.gmdate('m-d'),$a]);$db->exec(\"INSERT INTO mail_automations(business_id,event,subject,body,channel)VALUES(1,'birthday','CLI','Hallo {name}','inbox')\");"
+ subprocess.run([PHP,'-r',setup],cwd=A,check=True)
+ out=subprocess.run([PHP,'tools/mail-worker.php'],cwd=A,check=True,capture_output=True,text=True).stdout
+ assert '"automation_delivered":1' in out,out
+ assert subprocess.run([PHP,'tools/mail-worker.php'],cwd=A,check=True,capture_output=True,text=True).stdout.count('"automation_delivered":0')==1
+ print('PASS Worker ohne SMTP liefert Inbox-Automation genau einmal')
+ subprocess.run([PHP,'-r',"require 'public/index.php';foreach(['automation_runs','member_messages','mail_automations'] as $t)db()->exec('DELETE FROM '.$t);"],cwd=A,check=True)
+ subprocess.run([PHP,str(R/'tests/lifecycle-inbox.php')],cwd=A,check=True)
  log=open(A/'server.log','w');server=subprocess.Popen([PHP,'-S','127.0.0.1:8099','-t','public','public/index.php'],cwd=A,stdout=log,stderr=log)
  try:
   for _ in range(50):
    try:req('/login');break
    except OSError:time.sleep(.1)
-  subprocess.run([PHP,'-r',"require 'public/index.php';db()->exec(\"INSERT INTO programs(business_id,type,name) VALUES(1,'voucher','Geburtstagsgutschein')\");"],cwd=A,check=True)
   subprocess.run(['node',str(R/'tests/lifecycle-ui.cjs')],cwd=R,check=True)
  finally:server.terminate();server.wait();log.close()
