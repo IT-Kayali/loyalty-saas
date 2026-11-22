@@ -48,7 +48,7 @@ Die tatsächliche Wiederholung bleibt im vorhandenen Worker beziehungsweise in d
 
 Die aggregierenden Abfragen lesen nur Status- und Zeitspalten. Keine Empfänger, Betreffzeilen, Inhalte, Rohstatuswerte, Payloads, URLs, Geheimnisse, Providerantworten oder Zeilen-IDs werden ausgegeben. Die Antwort ist `Cache-Control: private, no-store` und nur GET ist zugelassen. Ein POST mit gültigem CSRF-Token erhält HTTP 405, kein vorhandener Admin-Versandbefehl wird hier weitergereicht. Queryparameter schaffen keinen Ausführungsmodus und keinen Zeit- oder Mandantenfilter.
 
-Beide Tabellen werden in einer gemeinsamen SQLite-Lesemomentaufnahme ausgewertet. Die Live-Uhr wird erst nach dem Erwerb dieses Lesestands genommen, damit eine gerade abgeschlossene Zeile nach dem Warten auf einen Schreiber nicht fälschlich als Zukunftszeit erscheint. Die Lesetransaktion und Cursor enden vor der HTML-Ausgabe. Es gibt keine neue Tabelle, Migration, gespeicherte Kennzahl oder Auditzeile für einen normalen Seitenabruf.
+Beide Tabellen werden in einer gemeinsamen SQLite-Lesemomentaufnahme ausgewertet. Die Live-Uhr wird erst nach dem Erwerb dieses Lesestands genommen, damit eine gerade abgeschlossene Zeile nach dem Warten auf einen Schreiber nicht fälschlich als Zukunftszeit erscheint. Die Lesetransaktion und Cursor enden vor der HTML-Ausgabe. Die Queue-Auswertung selbst legt keine Laufbelege, gespeicherten Kennzahlen oder Auditzeilen für normale Seitenabrufe an. Die später ergänzte getrennte CLI-Statusanzeige hat eine eigene additive Statustabelle, siehe unten.
 
 Die Zähler umfassen die aufbewahrten Daten. Löschen und Bereinigung ändern somit auch die Zahlen; sie sind keine unveränderliche Statistik. Bei großen Datenmengen brauchen vollständige Aggregationen Zeit. Keine Lasttest-, Skalierungs- oder Verfügbarkeitsgarantie.
 
@@ -127,3 +127,11 @@ python3 tests/run-admin-health-json.py
 Die [Detailquelle zum Health center](https://rewardloyalty.co/docs/5.x/system-health-and-security/health-center), am 22.11.2026 erneut gelesen, nennt authentifiziertes Diagnose-JSON. Diese Etappe ergänzt nur das Ausgabeformat für vorhandene lokale Queue-Daten. Vollständige Referenzdiagnosen, tatsächliche Task-Laufbelege und manuelle Run-now-Steuerung sind damit nicht umgesetzt oder abgenommen. Keine Provider-, Produktions-, Last- oder Geräteabnahme.
 
 Nach der letzten PHP-/CSS-/Browseränderung dieser JSON-Etappe wurden alle 59 weiteren Nicht-WordPress-Suiten auf unveränderten 204 Quelldatei-Hashes frisch erfolgreich ausgeführt. Der neue Zielrunner blieb bei 38/81/24 grün; 80 PHP-Dateien lintfrei, 222 lokale Dokumentationslinks gültig und `git diff --check` sauber. Das unveränderte WordPress-Plugin und echte Provider wurden nicht erneut beziehungsweise nicht live geprüft.
+
+## Getrennte CLI-Aufrufbelege
+
+Der zusätzliche Link **CLI-Laufstatus** führt zu `/admin/maintenance`. Er zeigt den zuletzt gespeicherten Start und Abschluss der drei instrumentierten vorhandenen CLI-Befehle, nicht die Gesundheit der Queue oder einen Scheduler-Heartbeat. Dafür wird eine additive, zunächst leere Tabelle angelegt. Die hier beschriebenen Mail-/Webhook-Aggregate und der Queue-JSON-Vertrag bleiben unverändert. Keine Ausführung per Seitenabruf. [Statustexte, Fehlerverhalten, Datenschutz und Grenzen](CLI-MAINTENANCE.md).
+
+## HTTP-Testdaten ohne Sekundenrennen
+
+Der JSON-HTTP-Runner setzt seine rein künstlichen Zeiten nun eine Stunde zurück und prüft ausdrücklich, dass seine Aggregate über ein Zwei-Minuten-Uhrfenster stabil bleiben. Der frühere Anker minus 60 Sekunden verschob eine plus-60-Sekunden-Sperre genau auf die aktuelle Sekunde. Dadurch konnten aufeinanderfolgende reine GETs korrekterweise verschiedene Sperrzähler liefern. Mit zwei um eine Sekunde versetzten Momentaufnahmen bei unveränderten Zeilen reproduziert. Kein Produktfehler und keine Änderung der Queue-Auswertung. Die isolierten fachlichen Tests behalten ihre feste Uhr und exakten Grenzwerte. Aktuell 38 Domänen-, 82 HTTP-/Integrations- und 24 Browserprüfungen für JSON; frühere Etappenstatistiken oben beschreiben den damaligen Stand.

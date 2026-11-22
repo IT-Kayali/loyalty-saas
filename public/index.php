@@ -37,6 +37,7 @@ require_once ROOT_DIR . '/app/inc/paypal.php';
 require_once ROOT_DIR . '/app/inc/admin.php';
 require_once ROOT_DIR . '/app/inc/admin-audit.php';
 require_once ROOT_DIR . '/app/inc/admin-health.php';
+require_once ROOT_DIR . '/app/inc/maintenance.php';
 require_once ROOT_DIR . '/app/inc/designer.php';
 require_once ROOT_DIR . '/app/inc/cardlayout.php';
 require_once ROOT_DIR . '/app/inc/vouchers.php';
@@ -113,6 +114,7 @@ try {
         $path === '/billing' => route_billing($method),
         $path === '/admin/health/json' => route_admin_health_json($method),
         $path === '/admin/health' => route_admin_health($method),
+        $path === '/admin/maintenance' => route_admin_maintenance($method),
         $path === '/admin/audit' => route_admin_audit($method),
         $path === '/admin/audit/export' => route_admin_audit($method,true),
         $path === '/admin' => route_admin($method),

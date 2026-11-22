@@ -631,3 +631,10 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
   .points-analytics-series td { display: block; padding: 5px 0; border: 0; }
   .points-analytics-series td::before { content: attr(data-label); display: block; font-weight: 700; font-size: 13px; }
 }
+
+/* Separate private CLI invocation receipts. */
+.maintenance-view{min-width:0}.maintenance-view p,.maintenance-view h2{overflow-wrap:anywhere}
+.maintenance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:16px}
+.maintenance-grid .panel{min-width:0}.maintenance-state{font-weight:700;border-left:3px solid var(--accent,#e95426);padding-left:10px}
+.maintenance-grid dl{margin-bottom:0}.maintenance-grid dt{font-size:.9rem;color:var(--muted,#746e65);margin-top:12px}
+.maintenance-grid dd{margin:4px 0 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}

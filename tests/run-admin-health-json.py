@@ -17,7 +17,9 @@ with tempfile.TemporaryDirectory(prefix='loyalty-admin-health-json-') as temp:
  shutil.copy(R/'tests/admin-health-fixture.php',A/'fixture.php')
  subprocess.run([PHP,str(R/'tests/admin-health-json.php')],cwd=A,check=True)
  def sql(code):return subprocess.check_output([PHP,'-r',"require 'public/index.php';"+code],cwd=A,text=True).strip()
- sql("require 'fixture.php';health_fixture(time()-60);db()->prepare('INSERT INTO users(name,email,password_hash)VALUES(?,?,?)')->execute(['Admin','admin@test.local',password_hash('adminpass1',PASSWORD_DEFAULT)]);")
+ sql("require 'fixture.php';health_fixture(time()-3600);db()->prepare('INSERT INTO users(name,email,password_hash)VALUES(?,?,?)')->execute(['Admin','admin@test.local',password_hash('adminpass1',PASSWORD_DEFAULT)]);")
+ # Keep live HTTP reads far from clock-dependent lock/age boundaries. Exact boundaries remain in the injected-clock domain tests.
+ check(sql("$t=time();$a=admin_queue_snapshot($t);$b=admin_queue_snapshot($t+120);echo $a['mail']===$b['mail']&&$a['webhooks']===$b['webhooks']?'stable':'crosses-boundary';")=='stable','HTTP fixture remains stable across a two-minute clock window')
  def client():return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
  def req(path,c,data=None,method=None,headers=None):
   if isinstance(data,dict):data=urllib.parse.urlencode(data).encode()

@@ -335,3 +335,7 @@ Neue private, rein lesende Liste `/business/{id}/webhook-deliveries` mit exaktem
 ## Punkteprogramm nach Zeitraum und Vorperiode
 
 Private Auswertung je eigenem Punkteprogramm mit acht UTC-Kalenderzeiträumen, ganzer Vorperiode und drei Kennzahlen aus dem bestehenden Journal. Positive gespeicherte Einlösekosten, keine Saldenänderung; Stornos, Transfers und Verfall ausgeschlossen. Punktediagramm und vollständige Abschnittstabelle, beschriftete Mobilkarten bei 390/320px. Laufende Perioden, Datenstand und fehlende Archivierung sichtbar; ungültige Daten oder Überläufe liefern keine Teilzahlen. Keine erfundenen Aufrufzahlen, Einlösequote, Prozenttrends, Personenliste, neue Exportdatei oder Geldrechnung. [Kalender, Kennzahlen, Datenschutz und Grenzen](docs/POINTS-ANALYTICS.md). Neue Suite: `python3 tests/run-points-analytics.py`, 231 Domänen-, 52 HTTP-/Integrations- und 45 Browserprüfungen. Bisherige Analytics-Suite unverändert grün, keine echte Provider-/Produktions-/Lastabnahme.
+
+## CLI-Laufstatus
+
+Plattform-Admins sehen unter Versandzustand den zuletzt gespeicherten Aufruf der drei vorhandenen Mail-/Verfall-/Webhook-CLI-Befehle. Additive leere Statustabelle, maximal drei Belege; keine neuen Cronjobs oder Ausführungsbuttons. Prozessabschluss ist kein Zustellnachweis. [Einrichtung, Speicherung und Grenzen](docs/CLI-MAINTENANCE.md).

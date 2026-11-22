@@ -443,6 +443,13 @@ function init_schema(PDO $pdo): void
     );
     CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY,window_start INTEGER NOT NULL,hits INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS platform_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS maintenance_status (
+        task TEXT PRIMARY KEY CHECK(task IN ('mail_worker','points_expiry','webhook_retry')),
+        run_token TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        finished_at TEXT,
+        state TEXT NOT NULL CHECK(state IN ('started','completed','failed'))
+    );
     CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,

@@ -316,3 +316,7 @@ Nach der neuen Exportsuite bestanden alle 62 Nicht-WordPress-Runner frisch auf u
 ## Punkteprogramm nach Zeitraum und Vorperiode
 
 Private Auswertung je eigenem Punkteprogramm mit acht UTC-Kalenderzeiträumen, ganzer Vorperiode und drei Kennzahlen aus dem bestehenden Journal. Positive gespeicherte Einlösekosten, keine Saldenänderung; Stornos, Transfers und Verfall ausgeschlossen. Punktediagramm und vollständige Abschnittstabelle, beschriftete Mobilkarten bei 390/320px. Laufende Perioden, Datenstand und fehlende Archivierung sichtbar; ungültige Daten oder Überläufe liefern keine Teilzahlen. Keine erfundenen Aufrufzahlen, Einlösequote, Prozenttrends, Personenliste, neue Exportdatei oder Geldrechnung. [Kalender, Kennzahlen, Datenschutz und Grenzen](POINTS-ANALYTICS.md). Neue Suite: `python3 tests/run-points-analytics.py`, 231 Domänen-, 52 HTTP-/Integrations- und 45 Browserprüfungen. Bisherige Analytics-Suite unverändert grün, keine echte Provider-/Produktions-/Lastabnahme.
+
+## CLI-Aufrufbelege
+
+`python3 tests/run-maintenance.py` prüft lokale CLI-Befehle, bestehende Locks, echte Prozessüberlappung, fehlertolerante Statusschreiben und die private Admin-GET-Ansicht. Keine produktiven Worker zum Testen starten. Additive Tabelle und Abgrenzung zu Cron-/Zustellnachweisen: [CLI-MAINTENANCE.md](CLI-MAINTENANCE.md).

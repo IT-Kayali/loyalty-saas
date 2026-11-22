@@ -75,3 +75,7 @@ Before enabling live payments, a configured sandbox app must pass: buyer approva
 - https://developer.paypal.com/payment-links-buttons/troubleshooting (CSP guidance)
 - https://rewardloyalty.co/docs/5.x/plans-and-billing/billing-paypal (reference scope/behavior, not proof of parity)
 - https://github.com/paypal-examples/paypal-dev-support/issues/15 (historical user report of refund payload differences, not an API guarantee)
+
+## Navigation im SDK-Test
+
+Der lokale Approval-Test wartet ausdrücklich auf die von `onApprove` gestartete Navigation und danach auf den sichtbaren serverseitigen `Status: active`. Die bisherige sofortige Abfrage von `document.body.textContent` konnte während des Dokumentwechsels auf `null` treffen. Status- und Kündigungsbestätigungsprüfungen bleiben erhalten; echte Seitenfehler lassen den Test nun sofort fehlschlagen. Keine Produkt-/Provideränderung und weiterhin keine echte PayPal-Abnahme.
