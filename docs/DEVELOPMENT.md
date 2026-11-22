@@ -49,7 +49,7 @@ Die konkrete Hosting-Adresse, Kostenfreigabe, Prozess-/Proxykonfiguration, Daten
 | `app/inc/mail.php`, `recovery.php` | SMTP-Outbox, Einwilligung/Abmeldung, Textautomationen, einmalige Passwortresets |
 | `app/inc/billing.php`, `paypal.php` | Stripe-/PayPal-Abos, providergebundener Statusabgleich und Webhooks |
 | `app/inc/api.php`, `merchant.php` | REST/OpenAPI, Shop-Eingang, ausgehende Webhooks und neuer idempotenter Merchant-Pfad |
-| `app/inc/wallet.php`, `qr.php` | Apple-/Google-Wallet, PassKit-Web-Service und QR-Ausgaben |
+| `app/inc/wallet.php`, `wallet-versions.php`, `qr.php` | Apple-/Google-Wallet, PassKit-Web-Service, technische Inhaltsrevisionen/Validatoren und QR-Ausgaben |
 | `app/inc/organization.php` | Netzwerke eigener Unternehmen, Standorte und Teamrechte |
 | `app/inc/admin.php`, `analytics.php` | Plattformverwaltung, Basis-Audit und Auswertungen |
 | `integrations/woocommerce/` | WordPress-Händlerdashboard und optionaler WooCommerce-Bestellhook |
@@ -254,3 +254,7 @@ Privater aggregierter CSV-Download für den ausgewählten UTC-Monat, ohne Mitgli
 ## Wallet-Mitteilungen: Wahl und Textvorlagen
 
 Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle Betreiberhinweise und getrennte Textvorlagen. Zusätzlich getrennte Vorschau und ausdrücklich bestätigter Einzelpass-Versand mit standardmäßig ausgeschaltetem Server-Schalter. Keine Werbefreigabe, keine Zustell- oder DSGVO-Zusage. Änderungen an Betreiberhinweisen oder Unternehmensname erfordern neue Bestätigung, Textvorlagen senden nichts. [WALLET-PUSH.md](WALLET-PUSH.md). Tests: `python3 tests/run-wallet-push.py` und `python3 tests/run-wallet-message.py`. NFC ist auf Nutzerwunsch nicht vorgesehen.
+
+## Apple-PassKit-Prüfstände
+
+`app/inc/wallet-versions.php` hält technische Inhaltsrevisionen, verschlüsselte gerätegebundene Cursor und HTTP-Validatoren. Die Cachemetadaten sind keine neue Betreiber-Schreibfunktion; sie müssen bei erlaubten Wallet-Leseabrufen auch ohne aktive Planbuchung konsistent fortgeschrieben werden können. Keine neue Guthaben-/Kampagnenfreigabe. Bei Rendereränderungen die Inhaltsformatkennung bewusst erhöhen. [WALLET-UPDATES.md](WALLET-UPDATES.md), Test: `python3 tests/run-pass-service.py`. `tools/backup.php` entwertet beim unterstützten Restore alte Cursor und leert den Prüfcache, nicht die Registrierungen oder Mitgliedsdaten. Native Geräte-/Signierabnahme bleibt offen.

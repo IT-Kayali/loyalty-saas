@@ -71,6 +71,15 @@ try {
         $test=new PDO('sqlite:'.$stage.'/new/app.sqlite');
         if($test->query('PRAGMA integrity_check')->fetchColumn()!=='ok')throw new RuntimeException('Database integrity check failed');
         if(!$test->query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")->fetchColumn())throw new RuntimeException('Not a loyalty database');
+        // A restored database may predate a device's cursor. Force a new sync generation.
+        if($test->query("SELECT name FROM sqlite_master WHERE type='table' AND name='apple_pass_clock'")->fetchColumn()) {
+            $test->exec('BEGIN IMMEDIATE');
+            try {
+                $test->exec('DELETE FROM apple_pass_versions; UPDATE pass_devices SET registration_revision=0');
+                $test->prepare('UPDATE apple_pass_clock SET generation=? WHERE id=1')->execute([bin2hex(random_bytes(32))]);
+                $test->exec('COMMIT');
+            } catch (Throwable $e) { $test->exec('ROLLBACK'); throw $e; }
+        }
         $test=null;
         $dbPath=(string)config('db_path',$data.'/app.sqlite');$uploads=(string)config('upload_dir',$data.'/uploads');
         if(is_link($dbPath)||is_link($uploads))throw new RuntimeException('Restore target is a symlink');

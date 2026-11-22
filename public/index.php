@@ -26,6 +26,7 @@ require_once ROOT_DIR . '/app/inc/wallet-nearby-privacy.php';
 require_once ROOT_DIR . '/app/inc/wallet-push.php';
 require_once ROOT_DIR . '/app/inc/wallet-push-delivery.php';
 require_once ROOT_DIR . '/app/inc/wallet-push-ui.php';
+require_once ROOT_DIR . '/app/inc/wallet-versions.php';
 require_once ROOT_DIR . '/app/inc/images.php';
 require_once ROOT_DIR . '/app/inc/billing.php';
 require_once ROOT_DIR . '/app/inc/paypal.php';

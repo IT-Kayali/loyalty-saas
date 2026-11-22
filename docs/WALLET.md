@@ -152,3 +152,7 @@ Wallet-Nähe wird zusätzlich durch die separate, standardmäßig ausgeschaltete
 ## Optionale Betreiber-Mitteilungen
 
 Hinweise, getrennte Apple-/Google-Wahl und anpassbare Textvorlagen: [WALLET-PUSH.md](WALLET-PUSH.md). Einzelversand mit eigener Empfänger-/Textvorschau und ausdrücklicher Bestätigung ist lokal implementiert; standardmäßig bleibt `wallet_messages.enabled` aus. Reale Provider-/Geräteabnahme fehlt. Der neue Apple-Einzelversand verwendet das Passzertifikat, nicht den bisherigen p8-Kartenstandhelfer. Bestehende Kartenstand-Updates und Nähe-Relevanz sind eigene Pfade. Apple-Änderungsmitteilung ist kein beliebiger Pushalarm; Google-Nachricht braucht einen ausdrücklichen objektbezogenen Nachrichtenaufruf. NFC ist auf Nutzerwunsch nicht vorgesehen.
+
+## PassKit-Update-Protokoll
+
+Geänderte Serien, Registrierungsvorsprung, dauerhafte Revisionen, private verschlüsselte Cursor, stabile ETags/Datumsprüfungen und Restore-Verhalten: [WALLET-UPDATES.md](WALLET-UPDATES.md). Der normale Passabruf ist lokal mit selbstsignierten Testdaten geprüft, nicht von Apple oder auf Geräten abgenommen. Der ältere p8-/Sandbox-Kartenstandhelfer ist weiterhin ein eigener, noch zu korrigierender Pfad; der neue optionale Einzelversand nutzt schon das Passzertifikat.

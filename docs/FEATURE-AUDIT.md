@@ -170,3 +170,7 @@ Blindes Umschalten ersetzt durch gewünschten Aktivstatus mit Ausgangsprüfung u
 ## Wallet-Mitteilungen: Kundenwahl, Vorlagen und Einzelversand
 
 `WALLET-PUSH.md`: Betreiberhinweise und separate Textvorlagen, eigene Kundenwahl je Anbieter/Mitgliedschaft mit aktuellem Hinweisstand, Auswahlrevision, Snapshot, planfreiem Widerruf, Export und lokaler Löschkaskade. Neu: Empfänger-/Textvorschau und bestätigter Einzelpass-Versand, Quota-/Wiederholungsschutz, technische Ergebniszustände und 30-Tage-Bereinigungswerkzeug. Keine echten Provider-/Gerätebelege, Serverfreigabe standardmäßig aus. Keine DSGVO- oder Zustellzusage. NFC ausdrücklich nicht bauen.
+
+## Apple-PassKit: veränderte Serien und Abrufprüfung
+
+`WALLET-UPDATES.md`: dauerhafte Inhaltsrevisionen, gerätegebundene verschlüsselte Cursor ohne offengelegten globalen Mandantenzähler, Registrierungsvorsprung für alte neu gespeicherte Pässe, 204 ohne Änderungen und stabile private Passvalidatoren mit sicherem 304. Gleichzeitige/gleichsekündige Änderungen, Zeitrücksprung, Ablauf/Widerruf und Restore-Neusynchronisierung lokal geprüft. Keine neue Pushzustellung. Der ältere Kartenstand-APNs-Pfad bleibt gesondert offen; keine Apple-/Geräteabnahme.

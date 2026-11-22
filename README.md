@@ -281,3 +281,7 @@ Privater aggregierter CSV-Download für den ausgewählten UTC-Monat, ohne Mitgli
 ## Wallet-Mitteilungen: Wahl und Textvorlagen
 
 Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle Betreiberhinweise und getrennte Textvorlagen. Zusätzlich getrennte Vorschau und ausdrücklich bestätigter Einzelpass-Versand mit standardmäßig ausgeschaltetem Server-Schalter. Keine Werbefreigabe, keine Zustell- oder DSGVO-Zusage. Änderungen an Betreiberhinweisen oder Unternehmensname erfordern neue Bestätigung, Textvorlagen senden nichts. [WALLET-PUSH.md](docs/WALLET-PUSH.md). Tests: `python3 tests/run-wallet-push.py` und `python3 tests/run-wallet-message.py`. NFC ist auf Nutzerwunsch nicht vorgesehen.
+
+## Apple-PassKit: Update-Prüfung
+
+Dauerhafte Inhaltsrevisionen, gerätegebundene verschlüsselte Cursor und nur geänderte oder neu registrierte Serien. Unveränderte Listen liefern 204, Passabrufe unterstützen stabile ETags und vorsichtige Datumsvalidatoren mit 304. Der unterstützte Restore entwertet alte Prüfstände. Keine neue Pushzustellung und keine Geräteabnahme; der ältere Kartenstand-APNs-Helfer bleibt separat offen. [WALLET-UPDATES.md](docs/WALLET-UPDATES.md). Lokale Prüfung: `python3 tests/run-pass-service.py`.

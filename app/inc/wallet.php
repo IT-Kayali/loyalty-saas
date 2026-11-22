@@ -48,25 +48,35 @@ function apple_rgb(string $hex): string
     return 'rgb(' . hexdec(substr($hex, 0, 2)) . ', ' . hexdec(substr($hex, 2, 2)) . ', ' . hexdec(substr($hex, 4, 2)) . ')';
 }
 
+/** Wallet payload language is issuer-configured, never taken from a viewer session. */
+function wallet_t(string $text): string
+{
+    static $dictionaries = [];
+    $language = (string)config('default_lang', 'de');
+    if (!in_array($language, AVAILABLE_LANGS, true) || $language === 'de') return $text;
+    if (!isset($dictionaries[$language])) $dictionaries[$language] = require ROOT_DIR . '/app/lang/' . $language . '.php';
+    return $dictionaries[$language][$text] ?? $text;
+}
+
 /** Primaerkarte und Zahlenstand fuer die Pass-Vorderseite. */
 function pass_balance(array $m): array
 {
     foreach ($m['cards'] as $c) {
         if ($c['type'] === 'stamps') {
-            return ['label' => t('Stempel'), 'value' => (int)$c['stamps'] . ' / ' . (int)$c['stamps_required']];
+            return ['label' => wallet_t('Stempel'), 'value' => (int)$c['stamps'] . ' / ' . (int)$c['stamps_required']];
         }
         if ($c['type'] === 'points') {
-            return ['label' => t('Punkte'), 'value' => (string)(int)$c['points']];
+            return ['label' => wallet_t('Punkte'), 'value' => (string)(int)$c['points']];
         }
     }
     $c = $m['cards'][0] ?? null;
     if ($c && $c['type'] === 'voucher') {
-        return ['label' => t('Gutschein'), 'value' => (int)($c['uses_left'] ?? 0) . 'x'];
+        return ['label' => wallet_t('Gutschein'), 'value' => (int)($c['uses_left'] ?? 0) . 'x'];
     }
     if ($c && $c['type'] === 'pass') {
-        return ['label' => t('Besuche'), 'value' => (string)(int)($c['visits_left'] ?? 0)];
+        return ['label' => wallet_t('Besuche'), 'value' => (string)(int)($c['visits_left'] ?? 0)];
     }
-    return ['label' => t('Karte'), 'value' => '–'];
+    return ['label' => wallet_t('Karte'), 'value' => '–'];
 }
 
 /* ------------------------------------------------------------------ */
@@ -183,10 +193,10 @@ function apple_pass_json(array $m): array
     $secondary = [];
     foreach (array_slice($m['cards'], 0, 3) as $c) {
         $val = match ($c['type']) {
-            'stamps'  => (int)$c['stamps'] . '/' . (int)$c['stamps_required'] . ' ' . t('Stempel'),
-            'points'  => (int)$c['points'] . ' ' . t('Punkte'),
-            'voucher' => (int)($c['uses_left'] ?? 0) . 'x ' . t('Gutschein'),
-            default   => (int)($c['visits_left'] ?? 0) . ' ' . t('Besuche'),
+            'stamps'  => (int)$c['stamps'] . '/' . (int)$c['stamps_required'] . ' ' . wallet_t('Stempel'),
+            'points'  => (int)$c['points'] . ' ' . wallet_t('Punkte'),
+            'voucher' => (int)($c['uses_left'] ?? 0) . 'x ' . wallet_t('Gutschein'),
+            default   => (int)($c['visits_left'] ?? 0) . ' ' . wallet_t('Besuche'),
         };
         $secondary[] = ['key' => 'prog' . (int)$c['program_id'], 'label' => mb_strtoupper($c['program_name']), 'value' => $val];
     }
@@ -197,7 +207,7 @@ function apple_pass_json(array $m): array
         'serialNumber' => $m['code'],
         'teamIdentifier' => config('apple_wallet.team_id'),
         'organizationName' => config('apple_wallet.organization', '') !== '' ? config('apple_wallet.organization') : $m['business_name'],
-        'description' => $m['business_name'] . ' ' . t('Kundenkarte'),
+        'description' => $m['business_name'] . ' ' . wallet_t('Kundenkarte'),
         'logoText' => $d['header'] !== '' ? $d['header'] : $m['business_name'],
         'foregroundColor' => apple_rgb($d['text_color']),
         'backgroundColor' => apple_rgb($d['bg_color']),
@@ -207,13 +217,13 @@ function apple_pass_json(array $m): array
                 'key' => 'balance',
                 'label' => mb_strtoupper($balance['label']),
                 'value' => $balance['value'],
-                'changeMessage' => t('Neuer Stand: %@'),
+                'changeMessage' => wallet_t('Neuer Stand: %@'),
             ]],
             'secondaryFields' => $secondary,
             'backFields' => [wallet_message_apple_field($m)],
             'auxiliaryFields' => [[
                 'key' => 'member',
-                'label' => mb_strtoupper(t('Mitglied')),
+                'label' => mb_strtoupper(wallet_t('Mitglied')),
                 'value' => $m['name'],
             ]],
         ],
@@ -228,9 +238,9 @@ function apple_pass_json(array $m): array
 }
 
 /** Baut das signierte .pkpass-Bundle (ZIP). */
-function apple_pkpass(array $m): string
+function apple_pkpass(array $m,?array $payload=null): string
 {
-    $passJson = json_encode(apple_pass_json($m), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    $passJson = json_encode($payload ?? apple_pass_json($m), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     $letter = mb_strtoupper(mb_substr($m['business_name'], 0, 1));
     $files = [
         'pass.json'    => $passJson,
@@ -293,11 +303,7 @@ function route_pass_apple(string $code): never
           <p class="muted">' . t('Betreiber: Zertifikate und IDs in config.php hinterlegen - Anleitung in docs/WALLET.md.') . '</p></div>');
         exit;
     }
-    $pkpass = apple_pkpass($m);
-    header('Content-Type: application/vnd.apple.pkpass');
-    header('Content-Disposition: attachment; filename="' . $m['code'] . '.pkpass"');
-    echo $pkpass;
-    exit;
+    apple_pass_response($m);
 }
 
 /* ------------------------------------------------------------------ */
@@ -331,17 +337,13 @@ function route_pass_service(string $path, string $method): never
         }
         pass_service_auth($serial);
         if ($method === 'POST') {
-            $input = json_decode((string)file_get_contents('php://input'), true) ?: [];
-            $token = (string)($input['pushToken'] ?? '');
-            if ($token === '') {
+            $input = json_decode((string)file_get_contents('php://input'), true);
+            $token = is_array($input) ? ($input['pushToken'] ?? null) : null;
+            if (!is_string($token) || !preg_match('/^[\x21-\x7E]{1,512}$/D', $token)) {
                 http_response_code(400);
                 exit;
             }
-            $exists = db()->prepare('SELECT id FROM pass_devices WHERE device_library_id = ? AND pass_type_id = ? AND serial = ?');
-            $exists->execute([$device, $passType, $serial]);
-            $found = (bool)$exists->fetchColumn();
-            db()->prepare('INSERT OR REPLACE INTO pass_devices (device_library_id, pass_type_id, serial, push_token) VALUES (?,?,?,?)')
-                ->execute([$device, $passType, $serial, $token]);
+            $found = apple_pass_register($device, $passType, $serial, $token);
             http_response_code($found ? 200 : 201);
             exit;
         }
@@ -355,13 +357,13 @@ function route_pass_service(string $path, string $method): never
 
     /* Serien mit Updates: GET /api/pass/v1/devices/{dev}/registrations/{type} */
     if (preg_match('#^/api/pass/v1/devices/([\w.-]+)/registrations/([\w.-]+)$#', $path, $m) && $method === 'GET') {
-        $stmt = db()->prepare('SELECT serial, MAX(created_at) AS upd FROM pass_devices WHERE device_library_id = ? AND pass_type_id = ? GROUP BY serial');
-        $stmt->execute([$m[1], $m[2]]);
-        $rows = $stmt->fetchAll();
-        echo json_encode([
-            'lastUpdated' => date('c'),
-            'serialNumbers' => array_column($rows, 'serial'),
-        ]);
+        if ($m[2] !== (string)config('apple_wallet.pass_type_id', '')) { http_response_code(404); exit; }
+        $since = $_GET['passesUpdatedSince'] ?? null;
+        if ($since !== null && !is_string($since)) { http_response_code(400); exit; }
+        header('Cache-Control: private, no-store');
+        $changes = apple_pass_changes($m[1], $m[2], $since);
+        if ($changes === null) { http_response_code(204); exit; }
+        echo json_encode($changes);
         exit;
     }
 
@@ -374,10 +376,9 @@ function route_pass_service(string $path, string $method): never
         }
         pass_service_auth($serial);
         $member = pass_member($serial);
-        header('Content-Type: application/vnd.apple.pkpass');
-        header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
-        echo apple_pkpass($member);
-        exit;
+        if (!$member) { not_found(); }
+        if (!apple_wallet_ready()) { http_response_code(501); exit; }
+        apple_pass_response($member,true);
     }
 
     /* Log-Endpunkt (darf alles annehmen) */
@@ -444,7 +445,7 @@ function apns_push_serial(string $serial): void
     $ch = curl_multi_init();
     $handles = [];
     foreach ($tokens as $token) {
-        $h = curl_init($host . '/3/device/' . $token);
+        $h = curl_init($host . '/3/device/' . rawurlencode($token));
         curl_setopt_array($h, [
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
             CURLOPT_POST => true,
@@ -500,10 +501,10 @@ function google_pass_payload(array $m): array
     $modules = [];
     foreach (array_slice($m['cards'], 0, 4) as $c) {
         $val = match ($c['type']) {
-            'stamps'  => (int)$c['stamps'] . '/' . (int)$c['stamps_required'] . ' ' . t('Stempel'),
-            'points'  => (int)$c['points'] . ' ' . t('Punkte'),
-            'voucher' => (int)($c['uses_left'] ?? 0) . 'x ' . t('Gutschein'),
-            default   => (int)($c['visits_left'] ?? 0) . ' ' . t('Besuche'),
+            'stamps'  => (int)$c['stamps'] . '/' . (int)$c['stamps_required'] . ' ' . wallet_t('Stempel'),
+            'points'  => (int)$c['points'] . ' ' . wallet_t('Punkte'),
+            'voucher' => (int)($c['uses_left'] ?? 0) . 'x ' . wallet_t('Gutschein'),
+            default   => (int)($c['visits_left'] ?? 0) . ' ' . wallet_t('Besuche'),
         };
         $modules[] = ['header' => $c['program_name'], 'body' => $val, 'id' => 'prog' . (int)$c['program_id']];
     }
