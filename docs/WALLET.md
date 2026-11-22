@@ -145,3 +145,6 @@ Technische Google-Referenz: https://developers.google.com/wallet/reference/rest/
 ## Wallet-Nähe (vorbereitet, nicht gerätegeprüft)
 
 Getrennter Standorteditor mit ausdrücklicher Auswahl und bis zu zehn Geschäftskoordinaten je Unternehmen. Apple `locations`, Google-Objekt `merchantLocations`, keine Kundenortung durch die App. Signierung/Issuer und echte Geräteprüfung bleiben nötig: [WALLET-NEARBY.md](WALLET-NEARBY.md). Tests: `python3 tests/run-wallet-nearby.py`.
+
+
+Wallet-Nähe wird zusätzlich durch die separate, standardmäßig ausgeschaltete Kundenwahl begrenzt. Manuelle Betreiberhinweise und Hinweis-/Koordinatenprüfstand, Widerruf, Export und lokale Löschgrenzen: [WALLET-NEARBY-PRIVACY.md](WALLET-NEARBY-PRIVACY.md). Keine DSGVO-Zusage oder bestätigte Fernlöschung vorhandener Kopien.

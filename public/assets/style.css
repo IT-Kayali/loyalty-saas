@@ -571,3 +571,7 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 .bonus-list li,.bonus-editor{overflow-wrap:anywhere}.bonus-list .btn{margin:4px 0}
 
 .wallet-nearby-editor{overflow-wrap:anywhere}.wallet-nearby-editor h2{overflow-wrap:anywhere}.wallet-nearby-editor .check{align-items:flex-start}
+
+/* Wallet privacy text and manually entered operator data must wrap on phones. */
+.wallet-nearby-copy,.member-nearby{overflow-wrap:anywhere}
+.member-nearby form+form{margin-top:10px}

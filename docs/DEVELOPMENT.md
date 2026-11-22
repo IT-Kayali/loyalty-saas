@@ -230,3 +230,7 @@ Bestehende Bonusfenster mit Konfliktschutz ändern. Die bisherige Serverzeitzone
 ## Wallet-Nähe (vorbereitet, nicht gerätegeprüft)
 
 Getrennter Standorteditor mit ausdrücklicher Auswahl und bis zu zehn Geschäftskoordinaten je Unternehmen. Apple `locations`, Google-Objekt `merchantLocations`, keine Kundenortung durch die App. Signierung/Issuer und echte Geräteprüfung bleiben nötig: [WALLET-NEARBY.md](WALLET-NEARBY.md). Tests: `python3 tests/run-wallet-nearby.py`.
+
+## Wallet-Nähe: Datenschutz und manuelle Hinweise
+
+Eigene Betreiberangaben, Datenschutzlink und Zusatztext; feste technische Warnungen bleiben sichtbar. Separate freiwillige Kundenwahl je Unternehmen, standardmäßig aus und unabhängig von Marketing. Neue Apple-/Google-Passdaten enthalten nur bei zum Hinweis-/Koordinatenstand passender Zustimmung Nähepunkte. Widerruf bleibt ohne aktives Betreiber-Abo möglich; keine garantierte Änderung alter Passkopien. Export enthält den bestätigten Hinweisstand, lokale Kontolöschung räumt Apple-Geräteregistrierungen atomar auf. Keine Rechtsprüfung oder DSGVO-Zusage. [Einrichtung, Datenmodell und Grenzen](WALLET-NEARBY-PRIVACY.md). Tests: `python3 tests/run-wallet-nearby-privacy.py`.

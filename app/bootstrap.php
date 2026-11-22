@@ -480,6 +480,12 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'locations', 'wallet_latitude', 'REAL');
     ensure_column($pdo, 'locations', 'wallet_longitude', 'REAL');
     ensure_column($pdo, 'locations', 'wallet_nearby', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'businesses', 'wallet_nearby_notice', "TEXT NOT NULL DEFAULT '{}'");
+    ensure_column($pdo, 'members', 'wallet_nearby_consent', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'members', 'wallet_nearby_granted_at', 'TEXT');
+    ensure_column($pdo, 'members', 'wallet_nearby_withdrawn_at', 'TEXT');
+    ensure_column($pdo, 'members', 'wallet_nearby_notice_hash', "TEXT NOT NULL DEFAULT ''");
+    ensure_column($pdo, 'members', 'wallet_nearby_snapshot', "TEXT NOT NULL DEFAULT '{}'");
     ensure_column($pdo, 'staff', 'location_id', 'INTEGER REFERENCES locations(id)');
     ensure_column($pdo, 'staff', 'role', "TEXT NOT NULL DEFAULT 'supervisor'");
     ensure_column($pdo, 'staff', 'permissions', 'TEXT');

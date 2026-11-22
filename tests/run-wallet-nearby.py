@@ -16,8 +16,8 @@ with tempfile.TemporaryDirectory(prefix='loyalty-wallet-nearby-') as temp:
  id=loc();P='/location/%d/wallet-nearby'%id
  sql("db()->prepare('INSERT INTO users(name,email,password_hash)VALUES(?,?,?)')->execute(['Foreign','foreign@test.local',password_hash('foreignpass1',PASSWORD_DEFAULT)]);")
  def state():return sql('echo json_encode(db()->query("SELECT * FROM locations WHERE id=%d")->fetch());'%id)
- def effects():return sql("echo json_encode([db()->query('SELECT * FROM members')->fetchAll(),db()->query('SELECT * FROM cards')->fetchAll(),db()->query('SELECT * FROM transactions')->fetchAll(),db()->query('SELECT * FROM member_messages')->fetchAll(),db()->query('SELECT * FROM mail_outbox')->fetchAll(),db()->query('SELECT * FROM pass_devices')->fetchAll()]);")
- def payload(bid=1):return json.loads(sql("$q=db()->prepare('SELECT code FROM members WHERE business_id=? LIMIT 1');$q->execute([%d]);$m=pass_member($q->fetchColumn());echo json_encode(['apple'=>apple_pass_json($m),'google'=>google_pass_payload($m)]);"%bid))
+ def effects():return sql("echo json_encode([db()->query('SELECT id,name,email,marketing_consent,birthday FROM members')->fetchAll(),db()->query('SELECT * FROM cards')->fetchAll(),db()->query('SELECT * FROM transactions')->fetchAll(),db()->query('SELECT * FROM member_messages')->fetchAll(),db()->query('SELECT * FROM mail_outbox')->fetchAll(),db()->query('SELECT * FROM pass_devices')->fetchAll()]);")
+ def payload(bid=1):return json.loads(sql("$q=db()->prepare('SELECT code FROM members WHERE business_id=? LIMIT 1');$q->execute([%d]);$m=pass_member($q->fetchColumn());$n=wallet_nearby_notice((int)$m['business_id']);$h=wallet_nearby_hash($n);$GLOBALS['consent_update_authorized']=true;db()->prepare('UPDATE members SET wallet_nearby_consent=1,wallet_nearby_notice_hash=? WHERE id=?')->execute([$h,$m['id']]);echo json_encode(['apple'=>apple_pass_json($m),'google'=>google_pass_payload($m)]);"%bid))
  def client():return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
  def req(p,c,d=None):
   if isinstance(d,dict):d=urllib.parse.urlencode(d).encode()
@@ -56,6 +56,7 @@ with tempfile.TemporaryDirectory(prefix='loyalty-wallet-nearby-') as temp:
     save(changes);check(state()==before and audits()==a,'invalid coordinate/selection/confirmation rejected')
    for key in ['latitude','longitude','enabled','revision','confirm_location']:
     d={'latitude':'51','longitude':'7','enabled':'1','confirm_location':'1','revision':revision(),'csrf':csrf(o,P)};del d[key];d[key+'[]']='x';req(P,o,d);check(state()==before,'array rejected for '+key)
+   sql("db()->exec(\"UPDATE businesses SET wallet_nearby_notice='{\\\"controller\\\":\\\"Fixture\\\",\\\"contact\\\":\\\"privacy@example.test\\\",\\\"privacy_url\\\":\\\"https://example.test/privacy\\\",\\\"extra\\\":\\\"\\\"}' WHERE id=1\");")
    stale=revision();save();check(json.loads(state())['wallet_nearby']==1 and audits()==a+1,'explicit opt-in saved and audited once')
    p=payload();expected=[{'latitude':51.5,'longitude':7.25}]
    check(p['apple']['locations']==expected and p['google']['object']['merchantLocations']==expected,'Apple locations and Google merchantLocations contain exact numeric coordinates')

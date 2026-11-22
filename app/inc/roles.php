@@ -345,7 +345,7 @@ function route_wallet(): never
     $body = '<div class="member-view">
       <p class="brand-tag">' . t('Mein Wallet') . '</p>
       <h1>' . t('Hallo, {name}!', ['name' => $firstName]) . '</h1>
-      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p><p><a href="/member/profile">Meine Namen</a> · <a href="/member/password">Passwort ändern</a> · <a href="/member/preferences">E-Mail-Einwilligung & Geburtstag</a> · <a href="/wallet/request">Punkte anfordern</a></p>';
+      <p class="muted">' . h($email) . ' · <a href="/member/logout">' . t('Abmelden') . '</a> · ' . lang_switcher() . '</p><p><a href="/member/profile">Meine Namen</a> · <a href="/member/password">Passwort ändern</a> · <a href="/member/preferences">E-Mail-Einwilligung & Geburtstag</a> · <a href="/member/wallet-nearby">Wallet-Nähe & Datenschutz</a> · <a href="/wallet/request">Punkte anfordern</a></p>';
 
     $body.='<section class="panel"><h2>Karten offline vorzeigen</h2><p>Nur auf deinem eigenen Gerät speichern. Kundencodes und letzte Salden bleiben hier bis zu 24 Stunden lesbar, auch ohne Anmeldung. Keine Buchungen oder Einlösungen offline.</p><label><input id="offline-consent" type="checkbox"> Dies ist mein privates Gerät, ich möchte eine lokale Kopie.</label><p><button type="button" class="btn" id="offline-save">Karten auf diesem Gerät speichern</button> <button type="button" class="btn ghost" id="offline-clear">Lokale Kopie löschen</button></p><p id="offline-status" role="status"></p><p><a href="/offline.html">Gespeicherte Karten öffnen / Installationshilfe</a></p></section>';
 
@@ -408,7 +408,7 @@ function route_wallet(): never
 
     $body .= '<details class="panel" style="text-align:left">
         <summary>' . t('Konto &amp; Datenschutz') . '</summary>
-        <p class="muted">' . t('Deine Daten liegen beim jeweiligen Geschäft. Du kannst sie exportieren oder komplett löschen.') . '</p>
+        <p class="muted">' . t('Deine Daten liegen beim jeweiligen Geschäft. Du kannst gespeicherte Kontodaten exportieren oder lokal löschen. Wallet-Kopien und Daten bei externen Anbietern werden dadurch nicht ferngelöscht.') . '</p>
         <div class="btn-row">
           <a class="btn ghost small" href="/member/export">' . t('Daten exportieren (JSON)') . '</a>
           <form method="post" action="/member/delete" onsubmit="return confirm(\'' . t('Wirklich alle Kundenkonten zu dieser E-Mail löschen?') . '\')">' . csrf_field() . '
@@ -423,6 +423,7 @@ function route_wallet(): never
 
 function route_member_export(): never
 {
+    header('Cache-Control: private, no-store');header('Referrer-Policy: no-referrer');
     $email = require_member();
     $rows = member_rows_by_email($email);
     $out = ['email' => $email, 'exportiert_am' => date('c'), 'konten' => []];
@@ -436,11 +437,23 @@ function route_member_export(): never
             $c['verlauf'] = $tx->fetchAll();
             $cardList[] = $c;
         }
+        $nearbyNotice=wallet_nearby_notice((int)$m['business_id']);
         $out['konten'][] = [
             'geschaeft' => $m['business_name'],
             'name' => $m['name'],
             'code' => $m['code'],
             'angemeldet_seit' => $m['created_at'],
+            'marketing' => ['zugestimmt'=>(bool)$m['marketing_consent'],'zeit'=>$m['consent_at'],'quelle'=>$m['consent_source']],
+            'geburtstag' => $m['birthday'],
+            'wallet_naehe' => [
+                'zugestimmt'=>(bool)$m['wallet_nearby_consent'],
+                'bestaetigt_am'=>$m['wallet_nearby_granted_at'],
+                'ausgeschaltet_am'=>$m['wallet_nearby_withdrawn_at'],
+                'hinweis_hash'=>$m['wallet_nearby_notice_hash'],
+                'bestaetigter_hinweis'=>json_decode($m['wallet_nearby_snapshot'],true),
+                'aktueller_hinweis'=>$nearbyNotice,
+                'wirksam_fuer_neue_passdaten'=>wallet_nearby_consent_current($m,$nearbyNotice),
+            ],
             'karten' => $cardList,
         ];
     }
@@ -453,13 +466,17 @@ function route_member_export(): never
 function route_member_delete(): never
 {
     $email = require_member();
-    $cleanup=db()->prepare('DELETE FROM mail_outbox WHERE member_id IN (SELECT id FROM members WHERE lower(email)=lower(?))');$cleanup->execute([$email]);
-    db()->prepare("DELETE FROM password_resets WHERE email=? AND kind='member'")->execute([$email]);
-    $GLOBALS['privacy_delete_authorized']=true;
-    $stmt = db()->prepare('DELETE FROM members WHERE lower(email) = lower(?)');
-    $stmt->execute([$email]);
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try {
+        $db->prepare('DELETE FROM pass_devices WHERE serial IN (SELECT code FROM members WHERE lower(email)=lower(?))')->execute([$email]);
+        $db->prepare('DELETE FROM mail_outbox WHERE member_id IN (SELECT id FROM members WHERE lower(email)=lower(?))')->execute([$email]);
+        $db->prepare("DELETE FROM password_resets WHERE lower(email)=lower(?) AND kind='member'")->execute([$email]);
+        $GLOBALS['privacy_delete_authorized']=true;
+        $db->prepare('DELETE FROM members WHERE lower(email)=lower(?)')->execute([$email]);
+        $db->exec('COMMIT');
+    }catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}finally{$GLOBALS['privacy_delete_authorized']=false;}
     unset($_SESSION['member_email']);
-    flash(t('Deine Kundenkonten wurden gelöscht.'));
+    flash(t('Deine Kundenkonten und lokalen Wallet-Geräteregistrierungen wurden gelöscht. Gespeicherte Wallet-Kopien und Daten externer Anbieter bitte dort entfernen. Keine Fernlöschung ausgelöst.'));
     redirect('/member/login');
 }
 
