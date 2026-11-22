@@ -21,6 +21,7 @@ require_once ROOT_DIR . '/app/inc/webhook-list.php';
 require_once ROOT_DIR . '/app/inc/api-credit.php';
 require_once ROOT_DIR . '/app/inc/merchant.php';
 require_once ROOT_DIR . '/app/inc/analytics.php';
+require_once ROOT_DIR . '/app/inc/points-analytics.php';
 require_once ROOT_DIR . '/app/inc/monthly-summary.php';
 require_once ROOT_DIR . '/app/inc/wallet.php';
 require_once ROOT_DIR . '/app/inc/wallet-apns.php';
@@ -156,6 +157,7 @@ try {
         preg_match('#^/business/(\d+)/monthly-summary\.csv$#D',$path,$m)===1 => route_monthly_summary_csv((int)$m[1],$method),
         preg_match('#^/business/(\d+)/monthly-summary$#D',$path,$m)===1 => route_monthly_summary((int)$m[1],$method),
         preg_match('#^/business/(\d+)/analytics$#', $path, $m) === 1 => route_analytics((int)$m[1]),
+        preg_match('#^/program/(\d+)/analytics$#D',$path,$m)===1 => route_points_analytics((int)$m[1],$method),
         preg_match('#^/program/(\d+)/design$#', $path, $m) === 1 => route_program_design((int)$m[1],$method),
         preg_match('#^/business/(\d+)/design$#', $path, $m) === 1 => route_design((int)$m[1], $method),
         preg_match('#^/business/(\d+)/qr$#', $path, $m) === 1 => route_qr_studio((int)$m[1]),
@@ -627,6 +629,7 @@ function route_program(int $id): never
       <p class="muted">' . h($p['description']) . '</p>';
 
     $body.='<p><a class="btn ghost" href="/program/'.$id.'/design">Programmdesign</a></p>';
+    if($p['type']==='points')$body.='<p><a class="btn ghost" href="/program/'.$id.'/analytics">Punkte-Auswertung (UTC)</a></p>';
     if ($p['type'] === 'stamps') {
         $body .= '<p>' . t('Ziel:') . ' <strong>' . (int)$p['stamps_required'] . ' ' . t('Stempel') . '</strong> · ' . t('Belohnung:') . ' <strong>' . h($p['reward_text']) . '</strong></p>';
     } elseif ($p['type'] === 'voucher') {

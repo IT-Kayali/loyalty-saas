@@ -86,7 +86,7 @@ function route_analytics(int $businessId): never
         . '<p class="muted" style="font-size:12px">Aktionen pro Tag, letzte 30 Tage (' . array_sum($days) . ' gesamt)</p>';
 
     /* Programm-Performance */
-    $prog = $db->prepare("SELECT p.name, p.type,
+    $prog = $db->prepare("SELECT p.id, p.name, p.type,
         (SELECT COUNT(*) FROM cards c WHERE c.program_id = p.id) AS cards,
         (SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id WHERE c.program_id = p.id AND t.reversed_at IS NULL) AS actions,
         (SELECT COUNT(*) FROM transactions t JOIN cards c ON t.card_id = c.id WHERE c.program_id = p.id
@@ -95,7 +95,7 @@ function route_analytics(int $businessId): never
     $prog->execute([$businessId]);
     $rows = '';
     foreach ($prog->fetchAll() as $p) {
-        $rows .= '<tr><td data-label="' . h(t('Programm')) . '">' . h($p['name']) . '</td><td data-label="' . h(t('Typ')) . '" class="muted">' . h(type_label($p['type'])) . '</td>
+        $rows .= '<tr><td data-label="' . h(t('Programm')) . '">' . ($p['type']==='points'?'<a href="/program/'.(int)$p['id'].'/analytics">'.h($p['name']).'</a>':h($p['name'])) . '</td><td data-label="' . h(t('Typ')) . '" class="muted">' . h(type_label($p['type'])) . '</td>
           <td data-label="' . h(t('Karten')) . '">' . (int)$p['cards'] . '</td><td data-label="' . h(t('Aktionen')) . '">' . (int)$p['actions'] . '</td><td data-label="' . h(t('Einlösungen')) . '">' . (int)$p['redeems'] . '</td></tr>';
     }
     $progTable = $rows

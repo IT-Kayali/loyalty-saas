@@ -312,3 +312,7 @@ Nach diesen beiden gezielten Dreifachläufen bestanden außerdem alle 61 Nicht-W
 ## Gesamtrücklauf: Protokoll-Metadatenexport
 
 Nach der neuen Exportsuite bestanden alle 62 Nicht-WordPress-Runner frisch auf unveränderten 214 Quell-Hashes unter `app`, `public` und `tests`. Auch die bisherige Protokollsuite blieb unverändert grün. 86 PHP-Dateien lintfrei, neue Browserdatei syntaktisch geprüft, 227 relative Dokumentationsziele gültig und `git diff --check` sauber. Das unveränderte WordPress-Plugin wurde funktional nicht erneut geprüft. Keine echte Provider-, Tabellenprogramm-, Last- oder Produktionsabnahme.
+
+## Punkteprogramm nach Zeitraum und Vorperiode
+
+Private Auswertung je eigenem Punkteprogramm mit acht UTC-Kalenderzeiträumen, ganzer Vorperiode und drei Kennzahlen aus dem bestehenden Journal. Positive gespeicherte Einlösekosten, keine Saldenänderung; Stornos, Transfers und Verfall ausgeschlossen. Punktediagramm und vollständige Abschnittstabelle, beschriftete Mobilkarten bei 390/320px. Laufende Perioden, Datenstand und fehlende Archivierung sichtbar; ungültige Daten oder Überläufe liefern keine Teilzahlen. Keine erfundenen Aufrufzahlen, Einlösequote, Prozenttrends, Personenliste, neue Exportdatei oder Geldrechnung. [Kalender, Kennzahlen, Datenschutz und Grenzen](POINTS-ANALYTICS.md). Neue Suite: `python3 tests/run-points-analytics.py`, 231 Domänen-, 52 HTTP-/Integrations- und 45 Browserprüfungen. Bisherige Analytics-Suite unverändert grün, keine echte Provider-/Produktions-/Lastabnahme.

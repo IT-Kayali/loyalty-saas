@@ -612,3 +612,22 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
  .webhook-delivery-table td{border:0;padding:7px 14px}
  .webhook-delivery-table td::before{content:attr(data-label);display:block;font-size:.8rem;font-weight:700;margin-bottom:3px;color:var(--muted)}
 }
+
+/* Read-only per-points-program calendar analytics. */
+.points-analytics { overflow-wrap: anywhere; }
+.points-analytics-kpis { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); margin-top: 18px; }
+.points-analytics-kpis > .panel { margin: 0; }
+.points-analytics-kpis h2 { font-size: 17px; }
+.points-analytics-number { font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 700; font-variant-numeric: tabular-nums; margin: 10px 0; }
+.points-analytics-chart svg { width: 100%; height: auto; display: block; }
+.points-analytics-series caption { text-align: left; margin: 0 0 10px; color: var(--ink-soft); }
+.points-analytics-series td { font-variant-numeric: tabular-nums; }
+@media (max-width: 650px) {
+  .points-analytics-chart text { font-size: 20px; }
+  .points-analytics-series caption { display: block; width: 100%; }
+  .points-analytics-series table, .points-analytics-series tbody { display: block; width: 100%; }
+  .points-analytics-series thead { display: none; }
+  .points-analytics-series tr { display: grid; border: 1px solid var(--line); border-radius: 12px; margin: 0 0 10px; padding: 12px; background: var(--surface); }
+  .points-analytics-series td { display: block; padding: 5px 0; border: 0; }
+  .points-analytics-series td::before { content: attr(data-label); display: block; font-weight: 700; font-size: 13px; }
+}

@@ -2,6 +2,8 @@
 
 `/business/ID/analytics` ist eine reine Leseansicht für den Eigentümer des Unternehmens. Auch ohne aktiven Plan bleiben gespeicherte Daten lesbar. Die Antwort trägt `Cache-Control: private, no-store`.
 
+Die folgenden Abschnitte beschreiben weiterhin diese Unternehmensseite. Zusätzlich gibt es jetzt eine getrennte [Punkteprogramm-Auswertung](POINTS-ANALYTICS.md) mit acht UTC-Kalenderzeiträumen, Vorperiode, drei Journal-Kennzahlen, Diagramm und vollständiger Abschnittstabelle. Die neue Seite ist über das Punkteprogramm und dessen Namen in der Programm-Performance erreichbar; die bisherigen Unternehmens-Kennzahlen bleiben unverändert.
+
 ## Korrektur der Einlösungszahlen
 
 Die allgemeine Kennzahl "Einlösungen" und die Einlösungs-Spalte der Programm-Performance zählen jetzt auch Transaktionen vom Typ `voucher_code_use`. Zuvor fehlten diese Code-Gutscheine dort, obwohl sie im Transaktionsjournal vorhanden waren.
