@@ -242,15 +242,29 @@ function webhook_post(string $url, string $body, string $secret, array $extraHea
 /* Owner: API-Key + Webhook-Verwaltung + Integrationen                 */
 /* ------------------------------------------------------------------ */
 
+/** Pass authentication is independent. Rotate only this business API key, with an atomic audit. */
+function business_api_key_regenerate(int $userId,int $businessId): bool
+{
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try{
+        $business=own_business($userId,$businessId);
+        if(!$business){$db->exec('COMMIT');return false;}
+        if(($error=plan_policy($userId,'api'))!==null)throw new InvalidArgumentException($error);
+        $db->prepare('UPDATE businesses SET api_key=? WHERE id=?')->execute([bin2hex(random_bytes(24)),$businessId]);
+        audit_log($userId,'api.key_regenerated',['business_id'=>$businessId]);
+        $db->exec('COMMIT');return true;
+    }catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
+}
+
 function route_apikey_regenerate(): never
 {
     $u = require_login();
-    $b = own_business((int)$u['id'], (int)($_POST['business_id'] ?? 0));
-    if ($b) {
-        db()->prepare('UPDATE businesses SET api_key = ? WHERE id = ?')
-            ->execute([bin2hex(random_bytes(24)), $b['id']]);
+    $businessId=(int)($_POST['business_id'] ?? 0);
+    try { $changed=business_api_key_regenerate((int)$u['id'],$businessId); }
+    catch (InvalidArgumentException $e) { policy_http_error($e->getMessage()); }
+    if ($changed) {
         flash(t('Neuer API-Schlüssel erzeugt. Der alte ist sofort ungültig.'));
-        redirect('/business/' . (int)$b['id']);
+        redirect('/business/' . $businessId);
     }
     redirect('/dashboard');
 }

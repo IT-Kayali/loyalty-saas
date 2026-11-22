@@ -48,7 +48,7 @@ Eine außerhalb des unterstützten Werkzeugs kopierte ältere Datenbank kann nic
 - Änderungen werden bei Registrierungsliste oder Passabruf erkannt. Kein neuer Scheduler, kein automatisches Signal bei jeder Design-/Hinweisänderung oder beim Textablauf.
 - Ein Gerät kann alte Inhalte bis zu seinem nächsten erfolgreichen Abruf behalten. Keine Fernlöschung und keine garantierte Sperrbildschirmanzeige.
 - Die jüngste noch gültige Nachricht derselben aktuellen Kundenwahl wird ausgewählt. Läuft eine neuere kurze Nachricht ab, kann eine ältere noch gültige Nachricht wieder der aktuelle Passinhalt sein.
-- Kartenstand und optionaler Einzelversand nutzen inzwischen denselben Produktions-/Passzertifikatstransport mit ausdrücklicher Aktivierung: [WALLET-APNS.md](WALLET-APNS.md). Keine echte Provider-/Geräteabnahme. Noch offen ist die Tokenstabilität bei API-Schlüsselrotation: Die derzeitige HMAC-Ableitung hängt am veränderbaren Business-API-Schlüssel. Die Transportetappe behebt diesen eigenen Fehler nicht.
+- Kartenstand und optionaler Einzelversand nutzen inzwischen denselben Produktions-/Passzertifikatstransport mit ausdrücklicher Aktivierung: [WALLET-APNS.md](WALLET-APNS.md). Keine echte Provider-/Geräteabnahme. Passauthentifizierung und Google-Stempelbild-Zugang bleiben jetzt bei unterstützter API-Schlüsselrotation erhalten, einschließlich aktueller Legacy-Werte: [WALLET-AUTH.md](WALLET-AUTH.md). Früher bereits verlorene Token werden dadurch nicht rekonstruiert.
 - Bei Änderung des PNG-Renderverfahrens die interne Inhaltsformatkennung bewusst erhöhen. Keine allgemeine Dateisystem- oder Lastprüfung.
 - Keine neuen Konten, Zertifikate, Pushzustellungen, Hosting- oder Cronänderungen.
 

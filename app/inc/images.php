@@ -100,9 +100,10 @@ function stamp_strip_png(array $m, int $scale = 1): string
 function route_stamp_strip(string $code, string $token): never
 {
     $m = pass_member($code);
-    if (!$m || !hash_equals(hash_hmac('sha256', 'stamp-image:' . $code, (string)$m['api_key']), $token)) not_found();
+    if (!$m || !hash_equals(wallet_image_token($m), $token)) not_found();
     header('Content-Type: image/png');
     header('X-Content-Type-Options: nosniff');
-    header('Cache-Control: no-cache');
+    header('Cache-Control: private, no-cache');
+    header('Referrer-Policy: no-referrer');
     echo stamp_strip_png($m); exit;
 }

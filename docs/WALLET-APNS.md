@@ -52,7 +52,7 @@ Für eine Abnahme müssen ein gültiger installierter Pass, ein erreichbarer HTT
 
 ## Noch eigene Arbeit
 
-Das bisher aus dem Business-API-Schlüssel abgeleitete Passauthentifizierungstoken ist bei API-Schlüsselrotation noch nicht stabil. Die nächste Codeetappe muss das bestehende Token erhalten, ohne alte Passkopien durch ein neues Token auszusperren. Bereits früher durch Rotation ungültig gewordene Altpass-Token lassen sich aus dem aktuellen Schlüssel allein nicht rekonstruieren. Das ist kein mit dieser Transportetappe behobener Fehler.
+Die inzwischen eigene Etappe [WALLET-AUTH.md](WALLET-AUTH.md) erhält aktuelle Legacy-Zugangsdaten, trennt neue zufällige Wallet-Zugangsdaten vom API-Schlüssel und schützt auch bestehende Google-Stempelbild-Links bei Rotation. Das stellt keine früher bereits verlorenen Token wieder her.
 
 Auch eine erneute Registrierung mit identischem Token während einer laufenden APNs-Anfrage braucht noch einen eigenen Schutz gegen veraltete Fehlerantworten. Die aktuelle Bereinigung grenzt Seriennummer, Typ und Token ein, unterscheidet aber nicht zwei zeitlich aufeinanderfolgende Registrierungen mit derselben Kombination.
 

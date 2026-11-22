@@ -87,3 +87,8 @@ Authentifizierung wie oben über unternehmensgebundenen Bearer-Schlüssel. Diese
 Aktionen: `points_add` mit ganzzahligem `amount` 1–10000 (Bonuszeiten gelten), `stamp`, `redeem_reward` mit `reward_id`, `redeem_stamp_reward`. Nur aktive Karten im eigenen Unternehmen. Einlösung verlangt ausreichendes Guthaben beziehungsweise offene Belohnung. Der externe Client muss richtige Person und Einlösung ausdrücklich bestätigen lassen. Das WordPress-Plugin prüft diese Bestätigung serverseitig zusätzlich zum Nonce.
 
 Der neue Merchant-Pfad bucht Salden und Journal, aber noch keine Achievement-Auswertung, ausgehenden Webhooks, E-Mail-Automation oder Wallet-Pushes. E-Mail, Passwörter und Marketingeinwilligung bleiben unverändert. Keine Gutscheincode- oder bezahlten Passaktionen. Details und Fehler-/Retry-Bedienung: [WordPress-README](../integrations/woocommerce/README.md).
+
+
+## API-Schlüssel erneuern, Wallet-Zugänge erhalten
+
+Business-Seite → Integrationen → „Neu erzeugen“: Der alte API-Bearer wird sofort ungültig. Aktuelle ApplePass-Authentifizierung und bestehende Google-Stempelbild-Adressen bleiben durch eigene private Wallet-Zugangsdaten erhalten. Die Rotation ist keine Widerrufsfunktion für ausgegebene Pässe oder Bildlinks und repariert keine durch frühere Rotationen bereits verlorenen Token. Eigentum, CSRF und API-Planregel bleiben erforderlich; Schlüsseländerung und Audit ohne Geheimniswerte erfolgen atomar. [Legacy-Migration, neue zufällige Zugangsdaten und Restore-Grenzen](WALLET-AUTH.md). Tests: `python3 tests/run-wallet-auth.py`.

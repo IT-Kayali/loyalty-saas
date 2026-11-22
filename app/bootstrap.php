@@ -15,6 +15,7 @@ const ROOT_DIR = __DIR__ . '/..';
 
 require_once __DIR__ . '/inc/policy.php';
 require_once __DIR__ . '/inc/security.php';
+require_once __DIR__ . '/inc/wallet-auth.php';
 safe_session_start();
 if (PHP_SAPI!=='cli') {
     if (!is_dir(ROOT_DIR.'/data')) mkdir(ROOT_DIR.'/data',0700,true);
@@ -127,10 +128,16 @@ function db(): PDO
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
-        $pdo->exec('PRAGMA foreign_keys = ON');
-        $pdo->exec('PRAGMA busy_timeout = 5000');
-        init_schema($pdo);
-        install_plan_guards($pdo);
+        try {
+            $pdo->exec('PRAGMA foreign_keys = ON');
+            $pdo->exec('PRAGMA busy_timeout = 5000');
+            init_schema($pdo);
+            install_plan_guards($pdo);
+        } catch (Throwable $e) {
+            // A caught migration error must not expose a partially initialized connection.
+            $pdo = null;
+            throw $e;
+        }
     }
     return $pdo;
 }
@@ -180,6 +187,16 @@ function init_schema(PDO $pdo): void
         code TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS member_wallet_auth (
+        member_id INTEGER PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,
+        auth_token TEXT NOT NULL CHECK(length(auth_token)=64 AND auth_token NOT GLOB '*[^0-9a-f]*'),
+        image_token TEXT NOT NULL CHECK(length(image_token)=64 AND image_token NOT GLOB '*[^0-9a-f]*'),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TRIGGER IF NOT EXISTS member_wallet_auth_immutable
+    BEFORE UPDATE OF member_id,auth_token,image_token ON member_wallet_auth
+    WHEN NEW.member_id<>OLD.member_id OR NEW.auth_token<>OLD.auth_token OR NEW.image_token<>OLD.image_token
+    BEGIN SELECT RAISE(ABORT,'Pass authentication is immutable'); END;
     CREATE TABLE IF NOT EXISTS cards (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
@@ -565,11 +582,8 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'businesses', 'card_design', 'TEXT');          // JSON: Farben, Logo, Felder
     ensure_column($pdo, 'businesses', 'shopify_secret', 'TEXT');       // App-Secret für Shopify-Webhooks
     ensure_column($pdo, 'businesses', 'points_per_cent', 'INTEGER');   // Auto-Punkte aus Shop-Bestellungen (0 = aus)
-    $noKey = $pdo->query('SELECT id FROM businesses WHERE api_key IS NULL OR api_key = \'\'')->fetchAll();
-    foreach ($noKey as $row) {
-        $pdo->prepare('UPDATE businesses SET api_key = ? WHERE id = ?')
-            ->execute([bin2hex(random_bytes(24)), $row['id']]);
-    }
+    wallet_auth_migrate($pdo);
+    wallet_auth_fill_empty_business_keys($pdo);
     /* Lifetime-Punkte fuer Bestandsdaten nachziehen */
     if (!$pdo->query("SELECT 1 FROM platform_settings WHERE key='migration_lifetime_v1'")->fetchColumn()) {
         $pdo->exec("UPDATE cards SET points_lifetime = points WHERE points_lifetime = 0 AND points > 0");

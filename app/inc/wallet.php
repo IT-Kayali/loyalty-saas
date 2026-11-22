@@ -35,10 +35,10 @@ function pass_member(string $code): ?array
     return $m;
 }
 
-/** Legacy-Passauthentifizierung am API-Schluessel; Rotationsgrenze: docs/WALLET-APNS.md. */
+/** Preserve the installed pass credential across supported API-key rotations. */
 function pass_auth_token(array $m): string
 {
-    return hash_hmac('sha256', 'pass:' . $m['code'], (string)$m['api_key']);
+    return wallet_auth_for_member($m);
 }
 
 /** Hex #rrggbb -> "rgb(r, g, b)" (Apple-Format). */
@@ -462,7 +462,7 @@ function google_pass_payload(array $m): array
         $object['logo'] = ['sourceUri' => ['uri' => $logoUri]];
     }
     if ($d['stamp_image'] !== '') {
-        $token = hash_hmac('sha256', 'stamp-image:' . $m['code'], (string)$m['api_key']);
+        $token = wallet_image_token($m);
         $object['heroImage'] = ['sourceUri' => ['uri' => base_url() . '/pass/stamps/' . $m['code'] . '/' . $token . '.png']];
     }
     return ['class' => $class, 'object' => $object];
