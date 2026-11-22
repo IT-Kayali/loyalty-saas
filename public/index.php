@@ -17,6 +17,7 @@ require_once ROOT_DIR . '/app/inc/engage.php';
 require_once ROOT_DIR . '/app/inc/segments.php';
 require_once ROOT_DIR . '/app/inc/business-settings.php';
 require_once ROOT_DIR . '/app/inc/api.php';
+require_once ROOT_DIR . '/app/inc/api-credit.php';
 require_once ROOT_DIR . '/app/inc/merchant.php';
 require_once ROOT_DIR . '/app/inc/analytics.php';
 require_once ROOT_DIR . '/app/inc/monthly-summary.php';

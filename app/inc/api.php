@@ -619,64 +619,12 @@ function route_api(string $path, string $method): never
 
     /* POST /api/v1/members/{code}/points - Punkte gutschreiben (Kasse/POS) */
     if (preg_match('#^/api/v1/members/([A-Fa-f0-9]{10})/points$#', $path, $m3) && $method === 'POST') {
-        $m = api_member_by_code($bid, $m3[1]);
-        if (!$m) {
-            api_json(['error' => 'Mitglied nicht gefunden'], 404);
-        }
-        $stmt = db()->prepare("SELECT c.*, p.type AS program_type FROM cards c JOIN programs p ON p.id = c.program_id
-            WHERE c.member_id = ? AND p.business_id = ? AND p.type = 'points' AND p.active = 1 LIMIT 1");
-        $stmt->execute([$m['id'], $bid]);
-        $card = $stmt->fetch();
-        if (!$card) {
-            api_json(['error' => 'Keine aktive Punktekarte'], 404);
-        }
-        $base = max(1, min(10000, (int)($input['amount'] ?? 0)));
-        $mult = points_multiplier((int)$card['program_id']);
-        $amount = $base * $mult;
-        db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
-            ->execute([$amount, $amount, $card['id']]);
-        txn((int)$card['id'], 'points_add', $amount, '+' . $amount . ' Punkte (API)' . ($mult > 1 ? ' (Bonus-Zeit x' . $mult . ')' : ''));
-        check_achievements((int)$m['id'], $bid);
-        fire_webhook($bid, 'card.points', ['card_id' => (int)$card['id'], 'member_id' => (int)$m['id'], 'amount' => $amount]);
-        wallet_pass_update_for_card((int)$card['id']);
-        api_json(['member' => $m['code'], 'card_id' => (int)$card['id'], 'credited' => $amount, 'bonus_multiplier' => $mult,
-            'points' => (int)db()->query('SELECT points FROM cards WHERE id = ' . (int)$card['id'])->fetchColumn()]);
+        route_legacy_api_credit($bid,'member',$m3[1],'points',$input['amount'] ?? 0);
     }
 
     /* POST /api/v1/members/{code}/stamp - Stempel vergeben (Kasse/POS) */
     if (preg_match('#^/api/v1/members/([A-Fa-f0-9]{10})/stamp$#', $path, $m4) && $method === 'POST') {
-        $m = api_member_by_code($bid, $m4[1]);
-        if (!$m) {
-            api_json(['error' => 'Mitglied nicht gefunden'], 404);
-        }
-        $stmt = db()->prepare("SELECT c.*, p.type AS program_type, p.stamps_required, p.name AS program_name FROM cards c
-            JOIN programs p ON p.id = c.program_id
-            WHERE c.member_id = ? AND p.business_id = ? AND p.type = 'stamps' AND p.active = 1 LIMIT 1");
-        $stmt->execute([$m['id'], $bid]);
-        $card = $stmt->fetch();
-        if (!$card) {
-            api_json(['error' => 'Keine aktive Stempelkarte'], 404);
-        }
-        $req = (int)$card['stamps_required'];
-        $stamps = (int)$card['stamps'] + 1;
-        $pending = (int)$card['pending_rewards'];
-        $earned = false;
-        if ($stamps >= $req) {
-            $pending++;
-            $stamps -= $req;
-            $earned = true;
-        }
-        db()->prepare('UPDATE cards SET stamps = ?, pending_rewards = ? WHERE id = ?')
-            ->execute([$stamps, $pending, $card['id']]);
-        txn((int)$card['id'], 'stamp_add', 1, '+1 Stempel (API) (' . $stamps . '/' . $req . ')');
-        if ($earned) {
-            txn((int)$card['id'], 'reward_earned', 1, 'Belohnung verdient: ' . $card['program_name']);
-        }
-        check_achievements((int)$m['id'], $bid);
-        fire_webhook($bid, 'card.stamp', ['card_id' => (int)$card['id'], 'member_id' => (int)$m['id']]);
-        wallet_pass_update_for_card((int)$card['id']);
-        api_json(['member' => $m['code'], 'card_id' => (int)$card['id'], 'stamps' => $stamps,
-            'stamps_required' => $req, 'pending_rewards' => $pending, 'reward_earned' => $earned]);
+        route_legacy_api_credit($bid,'member',$m4[1],'stamp');
     }
 
     /* POST /api/v1/integrations/order - Bestellung (WooCommerce, POS, eigene Plugins) */
@@ -712,24 +660,7 @@ function route_api(string $path, string $method): never
 
     /* POST /api/v1/cards/{id}/points - Punkte gutschreiben (Karten-ID) */
     if (preg_match('#^/api/v1/cards/(\d+)/points$#', $path, $m5) && $method === 'POST') {
-        $stmt = db()->prepare('SELECT c.*, p.type AS program_type, p.name AS program_name, p.business_id
-            FROM cards c JOIN programs p ON p.id = c.program_id WHERE c.id = ? AND p.business_id = ?');
-        $stmt->execute([(int)$m5[1], $bid]);
-        $card = $stmt->fetch();
-        if (!$card || $card['program_type'] !== 'points') {
-            api_json(['error' => 'Punktekarte nicht gefunden'], 404);
-        }
-        $base = max(1, min(10000, (int)($input['amount'] ?? 0)));
-        $mult = points_multiplier((int)$card['program_id']);
-        $amount = $base * $mult;
-        db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
-            ->execute([$amount, $amount, $card['id']]);
-        txn((int)$card['id'], 'points_add', $amount, '+' . $amount . ' Punkte (API)' . ($mult > 1 ? ' (Bonus-Zeit x' . $mult . ')' : ''));
-        check_achievements((int)$card['member_id'], $bid);
-        fire_webhook($bid, 'card.points', ['card_id' => (int)$card['id'], 'member_id' => (int)$card['member_id'], 'amount' => $amount]);
-        wallet_pass_update_for_card((int)$card['id']);
-        api_json(['card_id' => (int)$card['id'], 'credited' => $amount, 'bonus_multiplier' => $mult,
-            'points' => (int)db()->query('SELECT points FROM cards WHERE id = ' . (int)$card['id'])->fetchColumn()]);
+        route_legacy_api_credit($bid,'card',(int)$m5[1],'points',$input['amount'] ?? 0);
     }
 
     /* GET /api/v1/openapi.json - maschinenlesbare API-Beschreibung */

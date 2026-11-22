@@ -37,7 +37,7 @@ Rate Limits sind Basismaßnahmen, kein Ersatz für Monitoring, WAF oder einen un
 
 Owner-/Staff-Kartenaktionen und Undo lesen den aktuellen Stand erneut unter `BEGIN IMMEDIATE`. Ein veraltetes Formular darf Punkte nicht zweimal ausgeben; eine Stornierung ist nur einmal möglich. Bestellpunkte führen einen eindeutigen Beleg `(business_id, reference)`, Transaktion und Punktegutschrift werden zusammen committed. Eine erneute gleich referenzierte Bestellung gibt 0 neue Punkte statt einer doppelten Gutschrift zurück. Bei aktivierten Bestellpunkten ist eine stabile `reference` im REST-Bestellpfad Pflicht. Shopify verwendet die Bestell-ID.
 
-Offen: vollständige Idempotency-Keys für jede Karten-/API-Aktion, umfassende Queue-/Retry-Verarbeitung aller Seiteneffekte und Lasttests. Direkte API-Punkte-/Stempelpfade müssen weiterhin auf parallele Buchungen intensiv geprüft werden; die Bestell- und Staff-Verbesserung ist kein pauschaler Nachweis für jeden zukünftigen Schreibpfad.
+Offen: vollständige Idempotency-Keys für jede Karten-/API-Aktion, umfassende Queue-/Retry-Verarbeitung aller Seiteneffekte und Lasttests. Die drei älteren direkten REST-Punkte-/Stempelpfade buchen inzwischen Saldo, Journal und lokale Meilensteine zusammen und wurden mit echten parallelen Prozessen und HTTP-Anfragen geprüft: [LEGACY-API-CREDITS.md](LEGACY-API-CREDITS.md). Sie bleiben ohne Idempotenzgarantie; andere API-Pfade und externe Folgearbeit sind damit nicht pauschal abgesichert.
 
 ## Backup und Wiederherstellung
 

@@ -37,7 +37,7 @@ Antwort:
 {"member": "ABC123DEF4", "card_id": 3, "credited": 150, "bonus_multiplier": 3, "points": 320}
 ```
 
-`credited` ist der tatsächlich gebuchte Betrag inkl. Bonus-Multiplikator.
+`credited` ist der tatsächlich gebuchte Betrag inkl. Bonus-Multiplikator. Die drei älteren Punkte-/Stempelpfade buchen jetzt Saldo, Journal, Rollover und lokale Meilensteine gemeinsam. Sie bleiben **ohne Idempotenzgarantie**: identische POSTs buchen erneut, bei Timeout nicht blind wiederholen. Fehler nach lokalem Commit können die erfolgreiche Antwort um `"warning":"follow_up_incomplete"` ergänzen, ohne die Buchung zurückzunehmen. Alte Betrags-/Auswahlregeln und genaue Grenzen: [LEGACY-API-CREDITS.md](LEGACY-API-CREDITS.md).
 
 Bestellung aus einem Shopsystem (WooCommerce-Plugin nutzt genau das):
 
@@ -62,7 +62,7 @@ Business-Seite → Integrationen → Webhook anlegen. Events: Mitglied erstellt,
 
 ## PassKit Web Service (intern)
 
-`/api/pass/v1/...` ist **kein** Endpunkt für eigene Integrationen, sondern die von Apples Wallet-App aufgerufene Update-Schnittstelle (Registrierung, Seriennummern, Pass-Download, Abmeldung, Log). Authentifizierung über das im Pass eingebettete `authenticationToken` (HMAC aus Mitgliedscode + Business-API-Key).
+`/api/pass/v1/...` ist **kein** Endpunkt für eigene Integrationen, sondern die von Apples Wallet-App aufgerufene Update-Schnittstelle (Registrierung, Seriennummern, Pass-Download, Abmeldung, Log). Authentifizierung über das im Pass eingebettete dauerhafte `authenticationToken`, getrennt vom Business-API-Key. Bestehende Legacy-Werte werden einmalig erhalten, neue Mitglieder bekommen eigene zufällige Pass-/Bild-Token: [WALLET-AUTH.md](WALLET-AUTH.md).
 
 ## Shopify (spezieller Endpunkt)
 

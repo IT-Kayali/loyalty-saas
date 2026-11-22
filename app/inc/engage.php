@@ -48,44 +48,45 @@ const METRIC_LABELS = [
  */
 function check_achievements(int $memberId, int $businessId): void
 {
-    $db=db();$db->exec('BEGIN IMMEDIATE');$events=[];
+    $db=db();$db->exec('BEGIN IMMEDIATE');
     try {
-        $q=$db->prepare('SELECT id FROM members WHERE id=? AND business_id=?');$q->execute([$memberId,$businessId]);if(!$q->fetch())throw new InvalidArgumentException('Mitglied passt nicht zum Unternehmen.');
-        $metrics = member_metrics($memberId, $businessId);
-        $stmt = db()->prepare('SELECT * FROM achievements WHERE business_id = ? AND active = 1');
-        $stmt->execute([$businessId]);
-        foreach ($stmt->fetchAll() as $a) {
-            $value = $metrics[$a['metric']] ?? 0;
-            if ($value < (int)$a['threshold']) {
-                continue;
-            }
-            $has = db()->prepare('SELECT 1 FROM member_achievements WHERE achievement_id = ? AND member_id = ?');
-            $has->execute([$a['id'], $memberId]);
-            if ($has->fetch()) {
-                continue;
-            }
-            db()->prepare('INSERT INTO member_achievements (achievement_id, member_id) VALUES (?,?)')
-                ->execute([$a['id'], $memberId]);
-            $text = '🏆 ' . t('Meilenstein erreicht:') . ' ' . $a['name'];
-            if ((int)$a['reward_points'] > 0) {
-                $card = db()->prepare("SELECT c.id FROM cards c JOIN programs p ON c.program_id = p.id
-                    WHERE c.member_id = ? AND p.business_id = ? AND p.type = 'points' LIMIT 1");
-                $card->execute([$memberId, $businessId]);
-                $cid = $card->fetchColumn();
-                if ($cid) {
-                    db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')
-                        ->execute([(int)$a['reward_points'], (int)$a['reward_points'], $cid]);
-                    txn((int)$cid, 'points_add', (int)$a['reward_points'], '+' . (int)$a['reward_points'] . ' Punkte (Meilenstein: ' . $a['name'] . ')');
-                    $text .= ' – +' . (int)$a['reward_points'] . ' ' . t('Punkte') . '!';
-                }
-            }
-            member_message($memberId, 'achievement', $text);
-            $events[]=['member_id'=>$memberId,'achievement'=>$a['name']];
-        }
+        $events=achievement_award_locked($memberId,$businessId);
         $db->exec('COMMIT');
     }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
     // Provider work must never hold the milestone write lock.
     foreach($events as $event)fire_webhook($businessId,'achievement.unlocked',$event);
+}
+
+/** Caller owns BEGIN IMMEDIATE. Local awards only, provider events are returned. */
+function achievement_award_locked(int $memberId, int $businessId): array
+{
+    $db=db();$events=[];
+    $q=$db->prepare('SELECT id FROM members WHERE id=? AND business_id=?');$q->execute([$memberId,$businessId]);if(!$q->fetch())throw new InvalidArgumentException('Mitglied passt nicht zum Unternehmen.');
+    $metrics = member_metrics($memberId, $businessId);
+    $stmt = db()->prepare('SELECT * FROM achievements WHERE business_id = ? AND active = 1');
+    $stmt->execute([$businessId]);
+    foreach ($stmt->fetchAll() as $a) {
+        $value = $metrics[$a['metric']] ?? 0;
+        if ($value < (int)$a['threshold']) continue;
+        $has = db()->prepare('SELECT 1 FROM member_achievements WHERE achievement_id = ? AND member_id = ?');
+        $has->execute([$a['id'], $memberId]);
+        if ($has->fetch()) continue;
+        db()->prepare('INSERT INTO member_achievements (achievement_id, member_id) VALUES (?,?)')->execute([$a['id'], $memberId]);
+        $text = '🏆 ' . t('Meilenstein erreicht:') . ' ' . $a['name'];
+        if ((int)$a['reward_points'] > 0) {
+            $card = db()->prepare("SELECT c.id FROM cards c JOIN programs p ON c.program_id = p.id WHERE c.member_id = ? AND p.business_id = ? AND p.type = 'points' LIMIT 1");
+            $card->execute([$memberId, $businessId]);
+            $cid = $card->fetchColumn();
+            if ($cid) {
+                db()->prepare('UPDATE cards SET points = points + ?, points_lifetime = points_lifetime + ? WHERE id = ?')->execute([(int)$a['reward_points'], (int)$a['reward_points'], $cid]);
+                txn((int)$cid, 'points_add', (int)$a['reward_points'], '+' . (int)$a['reward_points'] . ' Punkte (Meilenstein: ' . $a['name'] . ')');
+                $text .= ' – +' . (int)$a['reward_points'] . ' ' . t('Punkte') . '!';
+            }
+        }
+        member_message($memberId, 'achievement', $text);
+        $events[]=['member_id'=>$memberId,'achievement'=>$a['name']];
+    }
+    return $events;
 }
 
 /* ------------------------------------------------------------------ */
