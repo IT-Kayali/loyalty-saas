@@ -298,3 +298,13 @@ Neue rein lesende Seite `/admin/health`, im Admin-Dashboard verlinkt: aufbewahrt
 ## Eigene Webhook-Zustellliste mit CSV
 
 Neue private, rein lesende Liste `/business/{id}/webhook-deliveries` mit exaktem Event-, Status-, Webhook- und UTC-Zeitraumfilter sowie 50er-Seiten. CSV exportiert alle passenden eigenen Metadaten, ohne Payload, Secret, Ziel-URL oder rohe Antwort. Feste sieben Spalten, maximal 5000 Zeilen/4 MiB/64 KiB je Zelle, sonst keine Teildatei. Fehlende Referenzmetadaten werden nicht erfunden; letzter gespeicherter Verarbeitungszeitpunkt ist kein Zustellnachweis. Rechte, sechs Versuche, manuelle Retries und Cron unverändert. Mobile Zeilenkarten bei 390/320px geprüft. [Vertrag, Filter, Grenzen und Tests](WEBHOOK-LIST.md). Neue Suite: `python3 tests/run-webhook-list.py` mit 89 Domänen-, 72 HTTP-/Integrations- und 33 Browserprüfungen. Keine echte Provider-/Tabellenprogrammabnahme und keine volle Referenzparität.
+
+## Browserprüfungen: Zielseite vor dem Prüfen abwarten
+
+Die Profilprüfung wartet nach **Meine Namen** ausdrücklich auf `/member/profile` und das erste sichtbare Namensformular. Die Prämienprüfung wartet nach den Links in den Editor und zurück ins Programm auf die jeweilige Ziel-URL und den sichtbaren Zielinhalt. Erst danach laufen die bisherigen fachlichen Aussagen.
+
+Anlass war ein reproduzierter zu früher Profil-DOM-Check: Die richtige URL war schon erreicht, das Dokument noch `interactive`; die unmittelbare Abfrage fand null Formulare, nach Bereitschaft waren es zwei. Das ist kein nachgewiesener Produktfehler. Beim früheren Prämienabbruch bleibt die ursprüngliche Ursache offen; die entsprechenden Linkwechsel sind nun ebenfalls ausdrücklich abgesichert.
+
+Keine festen Wartepausen, abgeschwächten Aussagen, erweiterten Timeouts oder Produkt-/Oberflächenänderungen. Entfernt man nur die drei ergänzten Bereitschaftswartefolgen aus den beiden Browserdateien, entsprechen sie bytegenau dem vorherigen Stand. Jeder der beiden vollständigen Runner bestand drei frische Wiederholungsläufe: Profil 18 HTTP-/Domänen- und 8 Browserprüfungen, Prämieneditor 39 HTTP-/Domänen- und 14 Browserprüfungen. Befehle bleiben `python3 tests/run-member-profile.py` und `python3 tests/run-reward-edit.py`.
+
+Nach diesen beiden gezielten Dreifachläufen bestanden außerdem alle 61 Nicht-WordPress-Runner frisch auf unveränderten 209 Quell-Hashes. 83 PHP-Dateien lintfrei, beide geänderten Browserdateien syntaktisch geprüft, 227 relative Dokumentationsverweise gültig und `git diff --check` sauber. Keine Garantie, dass nie wieder ein Timingfehler auftritt; das unveränderte WordPress-Plugin und echte Provider wurden funktional nicht erneut abgenommen.

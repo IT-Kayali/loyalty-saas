@@ -6,6 +6,7 @@ for(const [label,vp] of [['desktop',{width:1280,height:1000}],['mobile',{width:3
  const ctx=await b.newContext({viewport:vp});const p=await ctx.newPage();p.on('pageerror',e=>{throw e});
  await p.goto(U+'/member/login');await p.locator('[name=email]').fill('aylin@example.com');await p.locator('[name=password]').fill('kunde1234');await p.locator('button').first().click();await p.waitForURL('**/wallet');
  await p.getByRole('link',{name:'Meine Namen',exact:true}).click();
+ await p.waitForURL(U+'/member/profile');await p.locator('.member-profile form').first().waitFor({state:'visible'});
  yes(await p.locator('.member-profile').count()>=1,label+': eigene Namensformulare');
  const form=p.locator('.member-profile form').first();await form.locator('[name=name]').fill(label+' Aylin');await form.getByRole('button',{name:'Name speichern'}).click();await p.waitForLoadState();
  yes(await p.locator('.member-profile [name=name]').first().inputValue()===label+' Aylin',label+': Name gespeichert und wieder angezeigt');
