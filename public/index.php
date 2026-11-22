@@ -34,6 +34,7 @@ require_once ROOT_DIR . '/app/inc/images.php';
 require_once ROOT_DIR . '/app/inc/billing.php';
 require_once ROOT_DIR . '/app/inc/paypal.php';
 require_once ROOT_DIR . '/app/inc/admin.php';
+require_once ROOT_DIR . '/app/inc/admin-audit.php';
 require_once ROOT_DIR . '/app/inc/admin-health.php';
 require_once ROOT_DIR . '/app/inc/designer.php';
 require_once ROOT_DIR . '/app/inc/cardlayout.php';
@@ -112,6 +113,7 @@ try {
         $path === '/admin/health/json' => route_admin_health_json($method),
         $path === '/admin/health' => route_admin_health($method),
         $path === '/admin/audit' => route_admin_audit($method),
+        $path === '/admin/audit/export' => route_admin_audit($method,true),
         $path === '/admin' => route_admin($method),
         $path === '/admin/export' => route_admin_export(),
         $path === '/business/create' && $method === 'POST' => route_business_create(),

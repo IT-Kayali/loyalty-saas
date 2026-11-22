@@ -195,7 +195,7 @@ Meilenstein-Suite jetzt 50 Domänen-/HTTP-/Parallel- und 18 Browserprüfungen ei
 
 ### Admin-Protokoll-Leseansicht
 
-`python3 tests/run-admin-audit.py`: 39 HTTP-/Datenbank- und 20 Desktop-/Mobilbrowserprüfungen für reine Leseansicht, Filter, Cursor, Rollen, Nebenwirkungsfreiheit und ausgeschlossene Details. [ADMIN-AUDIT.md](ADMIN-AUDIT.md).
+`python3 tests/run-admin-audit.py`: unveränderte 39 HTTP-/Datenbank- und 20 Desktop-/Mobilbrowserprüfungen für reine Leseansicht, Filter, Cursor, Rollen, Nebenwirkungsfreiheit und ausgeschlossene Details. Neu: `python3 tests/run-admin-audit-export.py`, 99 Domänen-, 86 HTTP-/Integrations- und 51 Browserprüfungen für filtergleiches privates Vier-Felder-CSV, alle Treffer statt nur 100er-Seite, aktuelle Allowlist, Methodensperre, kein privates JSON-Payload, exakte Zeilen-/Byte-/Zellgrenzen, geschlossene/öffnende Hilfe und echte Browserdownloads bei 1280/390/320px. Die bisherigen UTC-Zeittextvergleiche bleiben ausdrücklich erhalten. [Vertrag und Grenzen](ADMIN-AUDIT.md).
 
 ### Netzwerknamen
 
@@ -308,3 +308,7 @@ Anlass war ein reproduzierter zu früher Profil-DOM-Check: Die richtige URL war 
 Keine festen Wartepausen, abgeschwächten Aussagen, erweiterten Timeouts oder Produkt-/Oberflächenänderungen. Entfernt man nur die drei ergänzten Bereitschaftswartefolgen aus den beiden Browserdateien, entsprechen sie bytegenau dem vorherigen Stand. Jeder der beiden vollständigen Runner bestand drei frische Wiederholungsläufe: Profil 18 HTTP-/Domänen- und 8 Browserprüfungen, Prämieneditor 39 HTTP-/Domänen- und 14 Browserprüfungen. Befehle bleiben `python3 tests/run-member-profile.py` und `python3 tests/run-reward-edit.py`.
 
 Nach diesen beiden gezielten Dreifachläufen bestanden außerdem alle 61 Nicht-WordPress-Runner frisch auf unveränderten 209 Quell-Hashes. 83 PHP-Dateien lintfrei, beide geänderten Browserdateien syntaktisch geprüft, 227 relative Dokumentationsverweise gültig und `git diff --check` sauber. Keine Garantie, dass nie wieder ein Timingfehler auftritt; das unveränderte WordPress-Plugin und echte Provider wurden funktional nicht erneut abgenommen.
+
+## Gesamtrücklauf: Protokoll-Metadatenexport
+
+Nach der neuen Exportsuite bestanden alle 62 Nicht-WordPress-Runner frisch auf unveränderten 214 Quell-Hashes unter `app`, `public` und `tests`. Auch die bisherige Protokollsuite blieb unverändert grün. 86 PHP-Dateien lintfrei, neue Browserdatei syntaktisch geprüft, 227 relative Dokumentationsziele gültig und `git diff --check` sauber. Das unveränderte WordPress-Plugin wurde funktional nicht erneut geprüft. Keine echte Provider-, Tabellenprogramm-, Last- oder Produktionsabnahme.

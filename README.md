@@ -220,7 +220,7 @@ Betreiber können eigene Tickets ohne neue Nachricht schließen und wieder öffn
 
 ## Admin-Aktivitätsprotokoll
 
-Plattform-Admins können bestehende Protokolle nach UTC-Tagen, exakter Aktion und Konto filtern und ältere Einträge lesen. Keine Detaildaten oder Exporte, keine Zusage einer vollständigen Sicherheitsgeschichte. [Umfang, Datenschutz und Tests](docs/ADMIN-AUDIT.md).
+Plattform-Admins können bestehende Protokolle nach UTC-Tagen, exakter Aktion und Konto filtern, ältere Einträge lesen und alle gefilterten Metadaten als privates CSV herunterladen. Vier bereits sichtbare Felder, maximal 5000 Zeilen/4 MiB/64 KiB je Zelle, sonst keine Teildatei. Keine gespeicherten JSON-Details, neue Erfassung oder Zusage einer vollständigen Sicherheitsgeschichte. Konto-E-Mails bleiben private Daten; heutige Identität und historische Zeittexte werden nicht repariert. [Umfang, Datenschutz und Tests](docs/ADMIN-AUDIT.md). Neue Suite: `python3 tests/run-admin-audit-export.py`, 99 Domänen-, 86 HTTP-/Integrations- und 51 Browserprüfungen; Desktop und 390/320px geprüft, keine echte Tabellenprogramm-Abnahme.
 
 ## Netzwerknamen bearbeiten
 
