@@ -47,3 +47,5 @@ Testgrenze: Browser automatisiert mit simulierten Kameraframes und vorgegebenem 
 ## Historie auf kleinen Bildschirmen
 
 Die letzten 20 Codes stehen auf Desktop als Tabelle und bis 640 Pixel Breite als beschriftete Zeilenkarten (Code, Mitglied, Prämie, Status, Erzeugt). Status und Zeit bleiben so ohne seitliches Scrollen sichtbar. Das ändert weder Reihenfolge, Auswahl noch Berechtigungen. Keine Suche/Seitenwechsel und keine neue Exportfunktion. Browserprüfung Desktop/Mobil, keine echte Geräteabnahme.
+
+Prämiennamen und Punktekosten sind separat bearbeitbar. Bereits erzeugte Codes behalten ihre gespeicherten Namen/Kosten, neue Codes verwenden den aktuellen Stand. Zeitfenster werden weiterhin live geprüft. Siehe [REWARD-EDITOR.md](REWARD-EDITOR.md).

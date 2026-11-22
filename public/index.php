@@ -12,6 +12,7 @@ require_once dirname(__DIR__) . '/app/bootstrap.php';
 require_once ROOT_DIR . '/app/inc/roles.php';
 require_once ROOT_DIR . '/app/inc/counter.php';
 require_once ROOT_DIR . '/app/inc/tiers.php';
+require_once ROOT_DIR . '/app/inc/reward-editor.php';
 require_once ROOT_DIR . '/app/inc/engage.php';
 require_once ROOT_DIR . '/app/inc/segments.php';
 require_once ROOT_DIR . '/app/inc/business-settings.php';
@@ -107,6 +108,7 @@ try {
         $path === '/program/create' && $method === 'POST' => route_program_create(),
         $path === '/program/template' && $method === 'POST' => route_program_template(),
         preg_match('#^/program/(\d+)$#', $path, $m) === 1 => route_program((int)$m[1]),
+        preg_match('#^/reward/(\d+)/edit$#D',$path,$m)===1 => route_reward_edit((int)$m[1],$method),
         $path === '/reward/create' && $method === 'POST' => route_reward_create(),
         preg_match('#^/tier/(\d+)/edit$#D',$path,$m)===1 => route_tier_edit((int)$m[1],$method),
         $path === '/tier/create' && $method === 'POST' => route_tier_create(),
@@ -619,9 +621,9 @@ function route_program(int $id): never
         $rewards->execute([$id]);
         $rlist = '';
         foreach ($rewards->fetchAll() as $r) {
-            $rlist .= '<li>' . h($r['name']) . ' <span class="muted">· ' . (int)$r['points_cost'] . ' ' . t('Punkte') . '</span></li>';
+            $rlist .= '<li>' . h($r['name']) . ' <span class="muted">· ' . (int)$r['points_cost'] . ' ' . t('Punkte') . '</span> <a class="btn ghost small" href="/reward/' . (int)$r['id'] . '/edit">Bearbeiten</a></li>';
         }
-        $body .= '<h2>' . t('Prämien') . '</h2>' . ($rlist ? '<ul>' . $rlist . '</ul>' : '<p class="muted">' . t('Noch keine Prämien.') . '</p>') . '
+        $body .= '<h2>' . t('Prämien') . '</h2>' . ($rlist ? '<ul class="reward-list">' . $rlist . '</ul>' : '<p class="muted">' . t('Noch keine Prämien.') . '</p>') . '
         <form method="post" action="/reward/create" class="form inline-form panel">' . csrf_field() . '
           <input type="hidden" name="program_id" value="' . $id . '">
           <label>' . t('Prämie') . ' <input name="name" required maxlength="120" placeholder="' . t('Maniküre gratis') . '"></label>
@@ -693,20 +695,6 @@ function route_program(int $id): never
 
     page($p['name'], $body, $u, $b['brand_color']);
     exit;
-}
-
-function route_reward_create(): never
-{
-    $u = require_login();
-    $p = own_program((int)$u['id'], (int)($_POST['program_id'] ?? 0));
-    if (!$p || $p['type'] !== 'points' || trim($_POST['name'] ?? '') === '') {
-        flash(t('Ungültige Eingabe.'), 'err');
-        redirect('/dashboard');
-    }
-    db()->prepare('INSERT INTO rewards (program_id, name, points_cost) VALUES (?,?,?)')
-        ->execute([$p['id'], trim($_POST['name']), max(1, (int)$_POST['points_cost'])]);
-    flash(t('Prämie hinzugefügt.'));
-    redirect('/program/' . (int)$p['id']);
 }
 
 /* ------------------------------------------------------------------ */

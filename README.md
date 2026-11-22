@@ -265,3 +265,7 @@ Eigene Betreiberangaben, Datenschutzlink und Zusatztext; feste technische Warnun
 ## Stufen-/Bonuslöschung
 
 Private Prüfseite statt sofortigem Kreuz-Button, Bestätigung und Konfliktschutz: [PROGRAM-RULE-DELETE.md](docs/PROGRAM-RULE-DELETE.md). Tests: `python3 tests/run-rule-delete.py`.
+
+## Punkteprämien-Editor
+
+Name und Punktekosten bestehender Prämien konfliktsicher bearbeiten, mit gemeinsamer strikter Anlageprüfung. Vorhandene Einlösecodes behalten ihre Name-/Kostensnapshots, keine Saldo-/Journaländerung beim Speichern: [REWARD-EDITOR.md](docs/REWARD-EDITOR.md). Tests: `python3 tests/run-reward-edit.py`.
