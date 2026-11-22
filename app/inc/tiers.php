@@ -113,17 +113,10 @@ function route_tier_create(): never
     redirect('/program/'.(int)$p['id']);
 }
 
+/** Legacy direct POSTs cannot delete without reviewing the current rule. */
 function route_tier_delete(): never
 {
-    $u = require_login();
-    $p = own_program((int)$u['id'], (int)($_POST['program_id'] ?? 0));
-    if ($p) {
-        db()->prepare('DELETE FROM tiers WHERE id = ? AND program_id = ?')
-            ->execute([(int)$_POST['tier_id'], $p['id']]);
-        flash(t('Stufe gelöscht.'));
-        redirect('/program/' . (int)$p['id']);
-    }
-    redirect('/dashboard');
+    require_login();http_response_code(409);page('Stufe zuerst prüfen','<h1>Stufe zuerst prüfen</h1><p>Bitte das Punkteprogramm neu öffnen und „Löschen prüfen“ bei der gewünschten Stufe wählen.</p>',current_user());exit;
 }
 
 function bonus_fields(array $input): array
@@ -180,13 +173,41 @@ function route_bonus_create(): never
 
 function route_bonus_delete(): never
 {
-    $u = require_login();
-    $p = own_program((int)$u['id'], (int)($_POST['program_id'] ?? 0));
-    if ($p) {
-        db()->prepare('DELETE FROM bonus_hours WHERE id = ? AND program_id = ?')
-            ->execute([(int)$_POST['bonus_id'], $p['id']]);
-        flash(t('Bonus-Zeit gelöscht.'));
-        redirect('/program/' . (int)$p['id']);
-    }
-    redirect('/dashboard');
+    require_login();http_response_code(409);page('Bonuszeit zuerst prüfen','<h1>Bonuszeit zuerst prüfen</h1><p>Bitte das Punkteprogramm neu öffnen und „Löschen prüfen“ bei der gewünschten Bonuszeit wählen.</p>',current_user());exit;
+}
+
+/** One fixed rule, current-content check and ID audit in the same write transaction. */
+function program_rule_delete(int $uid,string $kind,int $id,array $input): int
+{
+    if(!in_array($kind,['tier','bonus'],true))throw new InvalidArgumentException('Unbekannte Regel.');
+    if(!is_string($input['revision'] ?? null) || ($input['confirm_delete'] ?? null)!=='1')throw new InvalidArgumentException('Aktuellen Stand und dauerhafte Löschung bestätigen.');
+    $db=db();$db->exec('BEGIN IMMEDIATE');
+    try {
+        $rule=$kind==='tier'?tier_owned($uid,$id):bonus_owned($uid,$id);if(!$rule)throw new InvalidArgumentException('Regel ist nicht mehr verfügbar. Es wurde nichts gelöscht.');
+        if(($err=plan_policy($uid,$kind==='tier'?'tiers':'bonus_hours'))!==null)throw new InvalidArgumentException($err);
+        $revision=$kind==='tier'?tier_revision($rule):bonus_revision($rule);
+        if(!hash_equals($revision,$input['revision']))throw new InvalidArgumentException('Regel wurde inzwischen geändert. Neuen Stand vor dem Löschen prüfen.');
+        if($kind==='tier' && (!is_string($input['name_confirm'] ?? null) || $input['name_confirm']!==$rule['name']))throw new InvalidArgumentException('Aktuellen Stufennamen exakt eingeben.');
+        $table=$kind==='tier'?'tiers':'bonus_hours';$db->prepare('DELETE FROM '.$table.' WHERE id=? AND program_id=?')->execute([$id,$rule['program_id']]);
+        audit_log($uid,$kind.'.delete',[$kind.'_id'=>$id,'program_id'=>(int)$rule['program_id']]);$db->exec('COMMIT');return (int)$rule['program_id'];
+    }catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
+}
+function route_program_rule_delete(string $kind,int $id,string $method): never
+{
+    $u=require_login();header('Cache-Control: private, no-store');$rule=$kind==='tier'?tier_owned((int)$u['id'],$id):bonus_owned((int)$u['id'],$id);if(!$rule)not_found();
+    $url='/'.$kind.'/'.$id.'/delete';$label=$kind==='tier'?'Mitgliedsstufe':'Bonuszeit';$error='';
+    if($method==='POST'){
+        require_plan_write((int)$u['id'],$kind==='tier'?'tiers':'bonus_hours');
+        try{$pid=program_rule_delete((int)$u['id'],$kind,$id,$_POST);flash($label.' gelöscht. Keine bestehenden Punkte oder Buchungen geändert.');redirect('/program/'.$pid);}catch(InvalidArgumentException $e){http_response_code(409);$error='<p class="alert">'.h($e->getMessage()).'</p>';}
+        // Refresh after a lost race before showing a new confirmation form.
+        $rule=$kind==='tier'?tier_owned((int)$u['id'],$id):bonus_owned((int)$u['id'],$id);if(!$rule)not_found();
+    }elseif($method!=='GET'){http_response_code(405);header('Allow: GET, POST');exit;}
+    $revision=$kind==='tier'?tier_revision($rule):bonus_revision($rule);$pid=(int)$rule['program_id'];
+    $body='<p><a href="/program/'.$pid.'">← '.h($rule['program_name']).'</a></p><h1>'.$label.' löschen prüfen</h1>'.$error.'<section class="panel rule-delete">';
+    if($kind==='tier')$body.='<h2>'.h($rule['name']).'</h2><p>Ab '.(int)$rule['min_points'].' Lifetime-Punkten'.($rule['benefit']!==''?' · '.h($rule['benefit']):'').'</p><p>Diese Stufe wird dauerhaft entfernt. Bestehende Mitglieder können beim nächsten Abruf eine andere oder keine Stufe sehen. Der beschriebene Vorteil wird nicht automatisch gewährt oder zurückgenommen.</p>';
+    else {$days=weekday_names();$body.='<h2>'.h($days[(int)$rule['weekday']] ?? 'Unbekannter Wochentag').' '.(int)$rule['start_hour'].'–'.(int)$rule['end_hour'].' Uhr · x'.(int)$rule['multiplier'].'</h2><p>Serverzeitzone: '.h(date_default_timezone_get()).'. Die Unternehmenszeitzone gilt hier nicht. Diese Regel wird dauerhaft entfernt. Künftige Vergaben können dadurch einen niedrigeren Multiplikator erhalten. Bei Überschneidungen gilt weiter der höchste verbleibende Wert.</p>';}
+    $body.='<p>Keine bestehenden Punkte, Lifetime-Punkte, Journalbuchungen oder Prämien ändern sich. Kein Versand oder Wallet-Push. Keine Wiederherstellung. Bereits laufende Buchungen werden nicht rückwirkend korrigiert.</p><form method="post" class="form">'.csrf_field().'<input type="hidden" name="revision" value="'.$revision.'">';
+    if($kind==='tier')$body.='<label>Aktuellen Stufennamen exakt eingeben<input name="name_confirm" autocomplete="off" required></label>';
+    $body.='<label class="check"><input type="checkbox" name="confirm_delete" value="1" required> Ich habe diese Regel und ihre Wirkung geprüft und will sie dauerhaft löschen.</label><button class="btn">'.$label.' endgültig löschen</button><a class="btn ghost" href="/program/'.$pid.'">Abbrechen</a></form><p class="muted">Ein geänderter oder bereits gelöschter Stand wird nicht blind gelöscht. Nach einer Änderung neu prüfen und erneut bestätigen.</p></section>';
+    page($label.' löschen prüfen',$body,$u);exit;
 }

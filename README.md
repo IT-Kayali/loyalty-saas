@@ -261,3 +261,7 @@ Getrennter Standorteditor mit ausdrücklicher Auswahl und bis zu zehn Geschäfts
 ## Wallet-Nähe: Datenschutz und manuelle Hinweise
 
 Eigene Betreiberangaben, Datenschutzlink und Zusatztext; feste technische Warnungen bleiben sichtbar. Separate freiwillige Kundenwahl je Unternehmen, standardmäßig aus und unabhängig von Marketing. Neue Apple-/Google-Passdaten enthalten nur bei zum Hinweis-/Koordinatenstand passender Zustimmung Nähepunkte. Widerruf bleibt ohne aktives Betreiber-Abo möglich; keine garantierte Änderung alter Passkopien. Export enthält den bestätigten Hinweisstand, lokale Kontolöschung räumt Apple-Geräteregistrierungen atomar auf. Keine Rechtsprüfung oder DSGVO-Zusage. [Einrichtung, Datenmodell und Grenzen](docs/WALLET-NEARBY-PRIVACY.md). Tests: `python3 tests/run-wallet-nearby-privacy.py`.
+
+## Stufen-/Bonuslöschung
+
+Private Prüfseite statt sofortigem Kreuz-Button, Bestätigung und Konfliktschutz: [PROGRAM-RULE-DELETE.md](docs/PROGRAM-RULE-DELETE.md). Tests: `python3 tests/run-rule-delete.py`.

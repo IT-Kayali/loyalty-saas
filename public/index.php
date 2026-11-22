@@ -110,6 +110,7 @@ try {
         $path === '/reward/create' && $method === 'POST' => route_reward_create(),
         preg_match('#^/tier/(\d+)/edit$#D',$path,$m)===1 => route_tier_edit((int)$m[1],$method),
         $path === '/tier/create' && $method === 'POST' => route_tier_create(),
+        preg_match('#^/(tier|bonus)/(\d+)/delete$#D',$path,$m)===1 => route_program_rule_delete($m[1],(int)$m[2],$method),
         $path === '/tier/delete' && $method === 'POST' => route_tier_delete(),
         $path === '/program/expiry' && $method === 'POST' => route_program_expiry(),
         preg_match('#^/bonus/(\d+)/edit$#D',$path,$m)===1 => route_bonus_edit((int)$m[1],$method),
@@ -634,7 +635,7 @@ function route_program(int $id): never
         $tlist = '';
         foreach ($tiers->fetchAll() as $tier) {
             $tlist .= '<li><strong>' . h($tier['name']) . '</strong> <span class="muted">' . t('ab') . ' ' . (int)$tier['min_points'] . ' ' . t('Punkten') . ($tier['benefit'] ? ' · ' . h($tier['benefit']) : '') . '</span>
-              <a class="btn ghost small" href="/tier/' . (int)$tier['id'] . '/edit">Bearbeiten</a><form method="post" action="/tier/delete" class="undo-form">' . csrf_field() . '<input type="hidden" name="program_id" value="' . $id . '"><button class="undo-btn" name="tier_id" value="' . (int)$tier['id'] . '" title="' . t('Löschen') . '">✕</button></form></li>';
+              <a class="btn ghost small" href="/tier/' . (int)$tier['id'] . '/edit">Bearbeiten</a> <a class="btn ghost small" href="/tier/' . (int)$tier['id'] . '/delete">Löschen prüfen</a></li>';
         }
         $body .= '<h2>' . t('Mitgliedsstufen (Tiers)') . '</h2>' . ($tlist ? '<ul class="tier-list">' . $tlist . '</ul>' : '<p class="muted">' . t('Noch keine Stufen.') . '</p>') . '
         <form method="post" action="/tier/create" class="form inline-form panel">' . csrf_field() . '
@@ -652,7 +653,7 @@ function route_program(int $id): never
         $blist = '';
         foreach ($bonus->fetchAll() as $bh) {
             $blist .= '<li>' . $wdNames[(int)$bh['weekday']] . ' ' . (int)$bh['start_hour'] . '–' . (int)$bh['end_hour'] . ' ' . t('Uhr') . ': <strong>x' . (int)$bh['multiplier'] . ' ' . t('Punkte') . '</strong>
-              <a class="btn ghost small" href="/bonus/' . (int)$bh['id'] . '/edit">Bearbeiten</a><form method="post" action="/bonus/delete" class="undo-form">' . csrf_field() . '<input type="hidden" name="program_id" value="' . $id . '"><button class="undo-btn" name="bonus_id" value="' . (int)$bh['id'] . '" title="' . t('Löschen') . '">✕</button></form></li>';
+              <a class="btn ghost small" href="/bonus/' . (int)$bh['id'] . '/edit">Bearbeiten</a> <a class="btn ghost small" href="/bonus/' . (int)$bh['id'] . '/delete">Löschen prüfen</a></li>';
         }
         $wdOpts = '';
         foreach ($wdNames as $i => $n) {

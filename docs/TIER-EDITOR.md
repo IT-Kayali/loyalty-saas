@@ -21,3 +21,5 @@ Der Prüfstand ist keine fortlaufende Versionsnummer: eine zwischenzeitliche Än
 `python3 tests/run-tier-edit.py`: 40 HTTP-/Domänen- und 12 Chromium-Prüfungen. Feldgrenzen/Unicode/Arrays, Anlegen ohne Klemmen, Eigentümer/CSRF/Plan, unveränderte Punkte/Journal/Programme/Prämien/Mails, dynamische Stufenberechnung nach Schwellenänderung, alte Tabs, atomare Audit-Rollbacks und zwei echte konkurrierende PHP-Schreiber mit genau einem Gewinner. Desktop/Mobil einschließlich langer Texte und Programmliste visuell geprüft. Screenshots unter `/tmp/loyalty-tier-edit/`, nur Wegwerfdaten.
 
 Etappenregression: alle 40 weiteren Nicht-WordPress-`run-*.py`-Suiten grün. WordPress-Echtumgebung nicht erneut geprüft.
+
+Nachtrag: Die zuvor direkte Löschfunktion wurde separat durch Prüf-/Bestätigungsseiten mit Konfliktschutz und atomarem Audit ersetzt, siehe [PROGRAM-RULE-DELETE.md](PROGRAM-RULE-DELETE.md).

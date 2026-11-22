@@ -23,3 +23,5 @@ Der Vergleich ist keine fortlaufende Versionsnummer. Zwischenzeitliche exakte Wi
 `python3 tests/run-bonus-edit.py`: 40 HTTP-/Domänen- und 12 Chromium-Prüfungen. Eingabegrenzen/Arrays/Anlage, Eigentümer/CSRF/Plan, Lesezugriff, unveränderte Punkte/Journal/Programme/Prämien/Mails, alte Tabs, Audit-Rollback und zwei parallele PHP-Schreiber. Bestehende Multiplikatorlogik geprüft: höchster überlappender Wert, anderer Wochentag ausgeschlossen und Ende exklusiv. Desktop/Mobil samt Programmliste visuell geprüft, Screenshots unter `/tmp/loyalty-bonus-edit/`. Nur Wegwerfdaten, keine externen Dienste oder Geräteabnahme.
 
 Etappenregression: alle 41 weiteren Nicht-WordPress-`run-*.py`-Suiten grün, einschließlich Stufen-Editor, Programme und Buchungswege. WordPress-Echtumgebung nicht erneut geprüft.
+
+Nachtrag: Die zuvor direkte Löschfunktion wurde separat durch Prüf-/Bestätigungsseiten mit Konfliktschutz und atomarem Audit ersetzt, siehe [PROGRAM-RULE-DELETE.md](PROGRAM-RULE-DELETE.md).
