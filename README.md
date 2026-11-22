@@ -58,7 +58,7 @@ Neu in dieser Ausbaustufe:
 ## Features
 
 - **Vier Programmtypen**: Stempelkarte (mit Rollover-Belohnung), Punkte & Prämien, Gutschein, Mehrfachkarte (10er-Karte)
-- **Apple Wallet**: signierte `.pkpass`-Pässe, eingebauter PassKit-Web-Service, APNs-Push bei Standänderungen — Sperrbildschirm-Mitteilung inklusive
+- **Apple Wallet**: signierte `.pkpass`-Pässe, eingebauter PassKit-Web-Service, APNs-Update-Code bei Standänderungen, mögliche Änderungsmitteilung je Gerät, kein Zustellnachweis
 - **Google Wallet**: "Zu Google Wallet hinzufügen"-Link (signiertes JWT) + automatische Updates über die Wallet-API
 - **QR-Studio**: druckbare QR-Codes mit Firmenlogo in der Mitte (Beitritt, Staff-Login, einzelne Kundenkarten), PNG-Download + Druckansicht
 - **Karten-Designer**: Farben, Logo, eigenes Stempel-Bild, Kopf-/Fußzeile und Felder der Kundenkarte pro Business im Admin anpassen — gilt für Webkarte und beide Wallets
@@ -277,3 +277,7 @@ Bestehende Datumsfelder prüfen vor dem Speichern Fenster und Unternehmenszeitzo
 ## Monatsübersicht als CSV
 
 Privater aggregierter CSV-Download für den ausgewählten UTC-Monat, ohne Mitgliedslisten oder Geldsummen. Gleiche Definitionen wie die Monatsansicht, eigener aktueller Lesesnapshot und Formelschutz: [MONTHLY-SUMMARY.md](docs/MONTHLY-SUMMARY.md). Tests: `python3 tests/run-monthly-csv.py`.
+
+## Wallet-Mitteilungen: Wahl und Textvorlagen
+
+Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle Betreiberhinweise und getrennte Textvorlagen. Kein Versand in dieser Etappe, keine Werbefreigabe, keine Zustell- oder DSGVO-Zusage. Änderungen an Betreiberhinweisen oder Unternehmensname erfordern neue Bestätigung, Textvorlagen senden nichts. [WALLET-PUSH.md](docs/WALLET-PUSH.md). Tests: `python3 tests/run-wallet-push.py`. NFC ist auf Nutzerwunsch nicht vorgesehen.

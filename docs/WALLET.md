@@ -119,7 +119,7 @@ data/google/service-account.json   # die heruntergeladene Datei
 ### 2.4 Wie es technisch läuft
 
 - **Hinzufügen**: `/pass/google/{CODE}` leitet auf einen `pay.google.com/gp/v/save/{JWT}`-Link weiter. Das JWT (RS256 mit dem Service-Account-Key signiert) enthält die komplette Pass-Klasse und das Objekt — die Klasse muss nicht vorab per API angelegt werden.
-- **Updates**: Bei Standänderungen ruft die App die Google-Wallet-REST-API auf (OAuth2-Zugriffstoken per JWT-Bearer-Flow, dann `PATCH` auf das Loyalty-Objekt). Google aktualisiert den Pass auf dem Gerät von selbst.
+- **Updates**: Bei Standänderungen ruft die App die Google-Wallet-REST-API auf (OAuth2-Zugriffstoken per JWT-Bearer-Flow, vorhandenes GenericObject per `PUT`, sonst Anlage). Dies ist kein belegter Versand einer optionalen Nachricht oder eine Empfangsbestätigung.
 
 Hinweis: Für produktive Pässe verlangt Google teilweise eine Freigabe der Klasse; im Testmodus kannst du Pässe für Testnutzer deines Google-Kontos sofort speichern.
 
@@ -148,3 +148,7 @@ Getrennter Standorteditor mit ausdrücklicher Auswahl und bis zu zehn Geschäfts
 
 
 Wallet-Nähe wird zusätzlich durch die separate, standardmäßig ausgeschaltete Kundenwahl begrenzt. Manuelle Betreiberhinweise und Hinweis-/Koordinatenprüfstand, Widerruf, Export und lokale Löschgrenzen: [WALLET-NEARBY-PRIVACY.md](WALLET-NEARBY-PRIVACY.md). Keine DSGVO-Zusage oder bestätigte Fernlöschung vorhandener Kopien.
+
+## Optionale Betreiber-Mitteilungen
+
+Hinweise, getrennte Apple-/Google-Wahl und anpassbare Textvorlagen: [WALLET-PUSH.md](WALLET-PUSH.md). Diese erste Etappe versendet noch nichts. Bestehende Kartenstand-Updates und Nähe-Relevanz sind eigene Pfade. Apple-Änderungsmitteilung ist kein beliebiger Pushalarm; Google-Nachricht braucht einen ausdrücklichen objektbezogenen Nachrichtenaufruf. NFC ist auf Nutzerwunsch nicht vorgesehen.

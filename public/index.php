@@ -23,6 +23,7 @@ require_once ROOT_DIR . '/app/inc/monthly-summary.php';
 require_once ROOT_DIR . '/app/inc/wallet.php';
 require_once ROOT_DIR . '/app/inc/wallet-nearby.php';
 require_once ROOT_DIR . '/app/inc/wallet-nearby-privacy.php';
+require_once ROOT_DIR . '/app/inc/wallet-push.php';
 require_once ROOT_DIR . '/app/inc/images.php';
 require_once ROOT_DIR . '/app/inc/billing.php';
 require_once ROOT_DIR . '/app/inc/paypal.php';
@@ -175,6 +176,8 @@ try {
         $path==='/member/profile' => route_member_profile($method),
         $path==='/member/password' => route_member_password($method),
         $path==='/member/wallet-nearby' => route_member_wallet_nearby($method),
+        $path==='/member/wallet-push' => route_member_wallet_push($method),
+        preg_match('#^/business/(\d+)/wallet-push$#D',$path,$m)===1 => route_wallet_push_settings((int)$m[1],$method),
         preg_match('#^/business/(\d+)/wallet-nearby-notice$#D',$path,$m)===1 => route_wallet_nearby_notice((int)$m[1],$method),
         $path==='/member/preferences' => route_member_preferences($method),
         $path === '/api/docs' => route_api_docs(),

@@ -57,6 +57,8 @@ function install_plan_guards(PDO $pdo): void
     },3);
     $pdo->sqliteCreateFunction('loyalty_account_change',static fn():int=>(!empty($GLOBALS['consent_update_authorized'])||!empty($GLOBALS['password_reset_authorized'])||!empty($GLOBALS['password_change_authorized'])||!empty($GLOBALS['profile_update_authorized']))?1:0,0);
     $pdo->sqliteCreateFunction('loyalty_privacy_delete',static fn():int=>!empty($GLOBALS['privacy_delete_authorized'])?1:0,0);
+    $pdo->sqliteCreateFunction('loyalty_wallet_choice',static fn():int=>!empty($GLOBALS['wallet_push_choice_authorized'])?1:0,0);
+    foreach(['INSERT','UPDATE'] as $op)$pdo->exec("CREATE TEMP TRIGGER IF NOT EXISTS wallet_push_choice_{$op} BEFORE {$op} ON main.wallet_push_choices WHEN loyalty_wallet_choice()=0 BEGIN SELECT RAISE(ABORT,'MEMBER_CHOICE_REQUIRED'); END");
     $direct='(SELECT user_id FROM businesses WHERE id=%s.business_id)';
     $program='(SELECT b.user_id FROM programs p JOIN businesses b ON b.id=p.business_id WHERE p.id=%s.program_id)';
     $member='(SELECT b.user_id FROM members m JOIN businesses b ON b.id=m.business_id WHERE m.id=%s.member_id)';

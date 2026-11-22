@@ -486,6 +486,10 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'members', 'wallet_nearby_withdrawn_at', 'TEXT');
     ensure_column($pdo, 'members', 'wallet_nearby_notice_hash', "TEXT NOT NULL DEFAULT ''");
     ensure_column($pdo, 'members', 'wallet_nearby_snapshot', "TEXT NOT NULL DEFAULT '{}'");
+    ensure_column($pdo, 'businesses', 'wallet_push_settings', "TEXT NOT NULL DEFAULT '{}'");
+    ensure_column($pdo, 'businesses', 'wallet_push_notice_revision', 'INTEGER NOT NULL DEFAULT 0');
+    $pdo->exec("CREATE TABLE IF NOT EXISTS wallet_push_choices(member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,provider TEXT NOT NULL CHECK(provider IN ('apple','google')),enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0,1)),revision INTEGER NOT NULL DEFAULT 0 CHECK(revision>=0),granted_at TEXT,withdrawn_at TEXT,notice_hash TEXT NOT NULL DEFAULT '',snapshot TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(member_id,provider))");
+    $pdo->exec("CREATE TRIGGER IF NOT EXISTS wallet_push_business_name AFTER UPDATE OF name ON businesses WHEN NEW.name<>OLD.name BEGIN UPDATE businesses SET wallet_push_notice_revision=wallet_push_notice_revision+1 WHERE id=NEW.id; END");
     ensure_column($pdo, 'staff', 'location_id', 'INTEGER REFERENCES locations(id)');
     ensure_column($pdo, 'staff', 'role', "TEXT NOT NULL DEFAULT 'supervisor'");
     ensure_column($pdo, 'staff', 'permissions', 'TEXT');

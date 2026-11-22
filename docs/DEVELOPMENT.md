@@ -250,3 +250,7 @@ Bestehende Datumsfelder prüfen vor dem Speichern Fenster und Unternehmenszeitzo
 ## Monatsübersicht als CSV
 
 Privater aggregierter CSV-Download für den ausgewählten UTC-Monat, ohne Mitgliedslisten oder Geldsummen. Gleiche Definitionen wie die Monatsansicht, eigener aktueller Lesesnapshot und Formelschutz: [MONTHLY-SUMMARY.md](MONTHLY-SUMMARY.md). Tests: `python3 tests/run-monthly-csv.py`.
+
+## Wallet-Mitteilungen: Wahl und Textvorlagen
+
+Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle Betreiberhinweise und getrennte Textvorlagen. Kein Versand in dieser Etappe, keine Werbefreigabe, keine Zustell- oder DSGVO-Zusage. Änderungen an Betreiberhinweisen oder Unternehmensname erfordern neue Bestätigung, Textvorlagen senden nichts. [WALLET-PUSH.md](WALLET-PUSH.md). Tests: `python3 tests/run-wallet-push.py`. NFC ist auf Nutzerwunsch nicht vorgesehen.

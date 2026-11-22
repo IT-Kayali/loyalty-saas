@@ -618,7 +618,7 @@ function google_access_token(): ?string
     return $token;
 }
 
-/** Erstellt/aktualisiert das Wallet-Objekt (loest bei Android die Update-Mitteilung aus). */
+/** Erstellt/aktualisiert das Wallet-Objekt, kein optionaler Nachrichten- oder Empfangsnachweis. */
 function google_update_object(array $m): void
 {
     if (!google_wallet_ready()) {

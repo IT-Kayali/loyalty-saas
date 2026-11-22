@@ -582,3 +582,6 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 .reward-window strong{min-width:0;max-width:100%;overflow-wrap:anywhere}
 
 .reward-window .reward-window-tz{flex-basis:100%}
+
+/* Optional Wallet messages: long operator texts remain readable on small screens. */
+.wallet-push-copy { overflow-wrap: anywhere; }

@@ -5,7 +5,7 @@ Auf der Unternehmensseite führt "Unternehmensname" zu `/business/ID/settings`. 
 ## Wirkung
 
 - 1 bis 100 UTF-8-Zeichen nach Entfernen äußerer Leerzeichen, ohne Steuerzeichen. HTML-Zeichen werden als Text gespeichert und bei Ausgabe escaped.
-- Die Änderung schreibt nur `businesses.name`. Eigentümer, Verknüpfungen, Programme, Punkte-/Stempel-/Gutscheinstände, Schlüssel, Netzwerk, Standorte, Zeitzone, Farben und Designertexte bleiben unverändert.
+- Die Änderung schreibt `businesses.name`; ein Datenbanktrigger erhöht außerdem die technische `wallet_push_notice_revision`, damit alte Zustimmungen für optionale Wallet-Mitteilungen nicht unter neuer Absenderidentität weitergelten (WALLET-PUSH.md). Kunden müssen diese bei Bedarf neu bestätigen, auch nach Rückkehr zum alten Namen. Kein Versand oder Geräteupdate. Eigentümer, Verknüpfungen, Programme, Punkte-/Stempel-/Gutscheinstände, Schlüssel, Netzwerk, Standorte, Zeitzone, Farben und Designertexte bleiben unverändert.
 - Neue Serverabrufe lesen den neuen Namen, wo der Unternehmensname ausgegeben wird: Dashboard, Unternehmensansicht und Wallet. Eigene Kopfzeilen oder statische Texte in Kartenlayouts behalten ihren Inhalt. Es werden keine alten Kampagnen, Belege oder bereits erzeugten Dokumente umbenannt.
 - Bereits installierte Apple-/Google-Wallet-Pässe, Offlinekopien, Exporte und Ausdrucke erhalten keinen automatischen Namens-Push. Bei später neu erzeugten Pässen hängt die Anzeige weiterhin von den bestehenden Layout-/Providerregeln ab. Keine echte Geräteprüfung.
 - Links, Beitrittscode, Mitgliedscodes und QR-Ziele ändern sich nicht. Es gibt keine URL-Weiterleitung oder Slug-Änderung und keinen externen Aufruf beim Speichern.
