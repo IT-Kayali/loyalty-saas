@@ -106,6 +106,7 @@ try {
         $path === '/program/template' && $method === 'POST' => route_program_template(),
         preg_match('#^/program/(\d+)$#', $path, $m) === 1 => route_program((int)$m[1]),
         $path === '/reward/create' && $method === 'POST' => route_reward_create(),
+        preg_match('#^/tier/(\d+)/edit$#D',$path,$m)===1 => route_tier_edit((int)$m[1],$method),
         $path === '/tier/create' && $method === 'POST' => route_tier_create(),
         $path === '/tier/delete' && $method === 'POST' => route_tier_delete(),
         $path === '/program/expiry' && $method === 'POST' => route_program_expiry(),
@@ -627,9 +628,9 @@ function route_program(int $id): never
         $tlist = '';
         foreach ($tiers->fetchAll() as $tier) {
             $tlist .= '<li><strong>' . h($tier['name']) . '</strong> <span class="muted">' . t('ab') . ' ' . (int)$tier['min_points'] . ' ' . t('Punkten') . ($tier['benefit'] ? ' · ' . h($tier['benefit']) : '') . '</span>
-              <form method="post" action="/tier/delete" class="undo-form">' . csrf_field() . '<input type="hidden" name="program_id" value="' . $id . '"><button class="undo-btn" name="tier_id" value="' . (int)$tier['id'] . '" title="' . t('Löschen') . '">✕</button></form></li>';
+              <a class="btn ghost small" href="/tier/' . (int)$tier['id'] . '/edit">Bearbeiten</a><form method="post" action="/tier/delete" class="undo-form">' . csrf_field() . '<input type="hidden" name="program_id" value="' . $id . '"><button class="undo-btn" name="tier_id" value="' . (int)$tier['id'] . '" title="' . t('Löschen') . '">✕</button></form></li>';
         }
-        $body .= '<h2>' . t('Mitgliedsstufen (Tiers)') . '</h2>' . ($tlist ? '<ul>' . $tlist . '</ul>' : '<p class="muted">' . t('Noch keine Stufen.') . '</p>') . '
+        $body .= '<h2>' . t('Mitgliedsstufen (Tiers)') . '</h2>' . ($tlist ? '<ul class="tier-list">' . $tlist . '</ul>' : '<p class="muted">' . t('Noch keine Stufen.') . '</p>') . '
         <form method="post" action="/tier/create" class="form inline-form panel">' . csrf_field() . '
           <input type="hidden" name="program_id" value="' . $id . '">
           <label>' . t('Stufe') . ' <input name="name" required maxlength="40" placeholder="Gold"></label>

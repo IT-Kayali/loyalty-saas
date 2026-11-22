@@ -218,3 +218,7 @@ Privater A4-Browserdruck und einzelne lokale QR-PNGs, ohne Erzeugen/Einlösen od
 ## UTC-Monatsübersicht
 
 Separate private Eigentümer-Leseansicht mit Monatsfilter und klar abgegrenzten Ereigniszahlen, ohne Versand oder finanzielle Auswertung: [MONTHLY-SUMMARY.md](MONTHLY-SUMMARY.md). Tests: `python3 tests/run-monthly-summary.py`.
+
+## Mitgliedsstufen-Editor
+
+Name, Lifetime-Schwelle und Vorteil eigener Stufen mit Konfliktschutz bearbeiten, keine Punktebuchung oder automatische Vergünstigung: [TIER-EDITOR.md](TIER-EDITOR.md). Tests: `python3 tests/run-tier-edit.py`.
