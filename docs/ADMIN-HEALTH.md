@@ -62,6 +62,68 @@ python3 tests/run-admin-health.py
 
 21 Domänenprüfungen, 25 Integrations-/HTTP-Prüfungen und 24 Chromium-Prüfungen: leere Tabellen, alle Zustände, genaue Zehn-Minuten-/Termin-/Sperrgrenzen, ungültige Daten, fehlende oder zukünftige Zeiten, korrekte älteste Termine, unveränderte Liefer-/Audit-/Einstellungsdaten, freigegebene Lesesperren und ein echter exklusiver Schreiber. Zusätzlich Rollen und entfernter Adminzugriff, privater Cache, Methodenbegrenzung und folgenlose Queryparameter. Desktop 1280px sowie Mobilansichten mit 390px und 320px wurden geprüft. Desktop und mobile Ansichten wurden als echte Pixel auf Lesbarkeit und vollständig sichtbare Werte kontrolliert. Screenshots verwenden ausschließlich künstliche Testdaten. Keine echte Providerverbindung oder Worker-Ausführung.
 
-Die Referenzübersicht [System health and security](https://rewardloyalty.co/docs/5.x/system-health-and-security) bestätigt einen Health-Center-Bereich mit Diagnosen. Daraus wird keine bestätigte Detailparität dieser eigenen Mail-/Webhook-Zähler oder eine vollständige Sicherheitsüberwachung abgeleitet.
+Die Referenzübersicht [System health and security](https://rewardloyalty.co/docs/5.x/system-health-and-security) und die unten verlinkte Detailquelle beschreiben einen Health-Center-Bereich. Die lokalen Mail-/Webhook-Zähler sind nur ein begrenzter Ausschnitt, keine vollständige Sicherheitsüberwachung.
 
-Nach der letzten Änderung am PHP-/CSS-/Browsercode wurden alle 56 weiteren Nicht-WordPress-Suiten frisch erfolgreich ausgeführt. PHP-Lint, 157 lokale Dokumentlinks und `git diff --check` sind grün. Der eigene Runner wurde nach ergänzter Prüfung erfolgreicher Staff-/Mitgliederanmeldung nochmals ausgeführt. Das unveränderte WordPress-Plugin wurde nicht erneut geprüft.
+Zur ursprünglichen HTML-Etappe wurden nach der letzten damaligen PHP-/CSS-/Browseränderung alle 56 weiteren Nicht-WordPress-Suiten frisch erfolgreich ausgeführt. PHP-Lint, 157 lokale Dokumentlinks und `git diff --check` sind grün. Der eigene Runner wurde nach ergänzter Prüfung erfolgreicher Staff-/Mitgliederanmeldung nochmals ausgeführt. Das unveränderte WordPress-Plugin wurde nicht erneut geprüft.
+
+
+## Private JSON-Momentaufnahme
+
+`GET /admin/health/json` liefert dieselben Mail-/Webhook-Aggregate als JSON. In der HTML-Ansicht führt **JSON-Momentaufnahme** dorthin. Beide Links sind auch bei 320px getrennt bedienbar. Keine automatische Abfrage und kein eingerichteter Monitor.
+
+Zugang nur mit einer gültigen Betreiber-Session, deren aktuelles Konto weiterhin in `platform_admin_emails` steht. Mitglieder-/Staff-Sessions, ein normaler Owner und ein API-Bearer allein reichen nicht. Widerrufene Sessions und entfernte Allowlist-Einträge verlieren sofort den Zugriff. Es gibt keinen zusätzlichen öffentlichen Health-Endpunkt, Login-Bypass, neuen Dienstschlüssel oder CORS-Zugriff. Monitoring-Software muss selbst eine berechtigte aktuelle Session verwenden und ihren Cookie-Speicher schützen. Diese Erweiterung richtet keine solche Anmeldung ein.
+
+Die erfolgreiche Antwort hat diese Struktur. Gekürztes Beispiel, die vollständigen Zählernamen stehen in den beiden Tabellen-/Listenabschnitten oben:
+
+```json
+{
+  "success": true,
+  "data": {
+    "schema_version": 1,
+    "scope": "retained_delivery_queues",
+    "observed_at_utc": "2026-11-22 12:00:00",
+    "smtp_configured": false,
+    "mail": {"total": 0, "queued": 0, "oldest_queued": null},
+    "webhooks": {"total": 0, "failed": 0, "oldest_due": null},
+    "limitations": ["retained_rows_only", "overlapping_subcounts", "canonical_utc_only", "smtp_configuration_only", "pending_webhooks_not_retried", "no_delivery_proof"],
+    "not_checked": ["worker_heartbeat", "cron_execution", "smtp_connectivity", "inbox_delivery", "wallet_delivery", "device_display", "environment", "migrations", "storage", "billing"]
+  }
+}
+```
+
+`success: true` bedeutet nur: Die Momentaufnahme wurde gelesen. Es ist **kein Gesund-/OK-Status**. Die lokalen Felder und `schema_version: 1` sind ein eigener Vertrag, keine Nachbildung der Referenzantwort mit `checks` und `summary`. Es werden keine erfundenen Ampeln ausgegeben. Jede Antwort trägt Geltungsbereich und Grenzen mit sich.
+
+- `observed_at_utc`: gemeinsame Aufnahmezeit im Format `JJJJ-MM-TT HH:MM:SS`, ausdrücklich UTC.
+- `mail`: Integerfelder `total`, `queued`, `sending`, `stale_sending`, `unknown`, `sent`, `skipped`, `other`, `bad_open_time`; zusätzlich `oldest_queued` als kanonische UTC-Zeit oder `null`.
+- `webhooks`: Integerfelder `total`, `pending`, `failed`, `dead`, `delivered`, `other`, `due_unlocked`, `due_locked`, `unscheduled`, `expired_locks`, `bad_open_time`; zusätzlich `oldest_due` als kanonische UTC-Zeit oder `null`.
+- `smtp_configured`: Boolean aus der vorhandenen Konfigurationsprüfung, keine Verbindung und kein Zustelltest.
+- `limitations`: nur aufbewahrte Zeilen, überlappende Untermengen, ausschließlich kanonische UTC-Zeiten, nur SMTP-Konfiguration, kein automatischer Retry von pending-Webhooks und kein Zustellnachweis.
+- `not_checked`: nicht geprüfte Worker-/Cron-Ausführung, SMTP-Erreichbarkeit, Postfach-/Wallet-/Geräteankunft und die weiteren Referenzbereiche Umgebung, Migrationen, Speicher und Billing. Eine leere Queue hebt diese Grenzen nicht auf.
+
+### HTTP und Fehler
+
+Vom JSON-Handler erzeugte Antworten haben `Content-Type: application/json; charset=utf-8`, `Cache-Control: private, no-store` und `X-Content-Type-Options: nosniff`, auch bei Fehlern. Keine Download-Anlage und keine CORS-Freigabe.
+
+| HTTP | Antwort |
+| --- | --- |
+| 200 | `success: true` mit `data` wie oben |
+| 401 | `{"success":false,"error":"authentication_required"}`, keine gültige Betreiber-Session |
+| 403 | `{"success":false,"error":"platform_access_required"}`, Konto nicht als Plattform-Admin freigegeben |
+| 405 | `{"success":false,"error":"method_not_allowed"}`, nach erfolgreicher Berechtigungsprüfung nur GET erlaubt; Header `Allow: GET` |
+| 503 | `{"success":false,"error":"snapshot_unavailable"}`, keine Teilzähler, SQL-Texte, Pfade oder Exceptiondetails |
+
+HEAD wird ebenfalls mit 405 abgewiesen und hat entsprechend der HTTP-Semantik keinen Antwortbody. Die vorhandene zentrale CSRF-Prüfung bleibt vor der Route: Ein POST ohne gültiges Token kann deshalb schon dort mit 403 und HTML enden. Sonstige zentrale Start-/Sicherheitsfehler sind ebenfalls kein Versprechen des JSON-Vertrags. Ein POST mit gültigem Token bleibt 405, er führt keine Aktion aus.
+
+Queryparameter wie `business_id`, `now`, `retry`, `action`, `format`, `callback` oder `lang` ändern weder Auswahl noch Uhr, Format oder Ausführung. Auch JSONP gibt es nicht. Normale GETs speichern keine Kennzahl und erzeugen keine Auditzeile. Eine Anmeldung wird wie bisher getrennt protokolliert. Aggregation und Fehlerbehandlung starten keinen Worker, setzen keine Sperre zurück und lösen keinen Versand aus.
+
+### Zusätzliche Prüfung
+
+```bash
+python3 tests/run-admin-health-json.py
+```
+
+38 Domänen-, 81 HTTP-/Integrations- und 24 Chromium-Prüfungen: exakter Vertrag, Typen, Nullzeiten, gemeinsame Aggregate, keine Rohdaten, echte Rollen-/Sessionprüfung und Widerruf, kein API-Bearer-Ersatz, zentrale CSRF-Regel, alle abgewiesenen Methoden, Header, unveränderte Daten und erzwungener SQL-Fehler mit generischer 503-Antwort. Browser prüfen den echten Link bei 1280/390/320px, Abstand und Bedienbarkeit sowie unveränderte Daten außer genau drei erwarteten Login-Auditzeilen. Die bisherige Health-Suite verwendet denselben ausgelagerten künstlichen Fixture-Datensatz; ihre fachlichen Grenzfälle bleiben unverändert.
+
+Die [Detailquelle zum Health center](https://rewardloyalty.co/docs/5.x/system-health-and-security/health-center), am 22.11.2026 erneut gelesen, nennt authentifiziertes Diagnose-JSON. Diese Etappe ergänzt nur das Ausgabeformat für vorhandene lokale Queue-Daten. Vollständige Referenzdiagnosen, tatsächliche Task-Laufbelege und manuelle Run-now-Steuerung sind damit nicht umgesetzt oder abgenommen. Keine Provider-, Produktions-, Last- oder Geräteabnahme.
+
+Nach der letzten PHP-/CSS-/Browseränderung dieser JSON-Etappe wurden alle 59 weiteren Nicht-WordPress-Suiten auf unveränderten 204 Quelldatei-Hashes frisch erfolgreich ausgeführt. Der neue Zielrunner blieb bei 38/81/24 grün; 80 PHP-Dateien lintfrei, 222 lokale Dokumentationslinks gültig und `git diff --check` sauber. Das unveränderte WordPress-Plugin und echte Provider wurden nicht erneut beziehungsweise nicht live geprüft.

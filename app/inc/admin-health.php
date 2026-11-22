@@ -58,6 +58,47 @@ SQL);
     return ['at'=>$at,'smtp_configured'=>smtp_ready(),'mail'=>$mail,'webhooks'=>$hooks];
 }
 
+/** Versioned local queue document, deliberately not the reference's full checks/summary API. */
+function admin_health_document(array $snapshot): array
+{
+    return ['success'=>true,'data'=>[
+        'schema_version'=>1,'scope'=>'retained_delivery_queues',
+        'observed_at_utc'=>$snapshot['at'],'smtp_configured'=>$snapshot['smtp_configured'],
+        'mail'=>$snapshot['mail'],'webhooks'=>$snapshot['webhooks'],
+        'limitations'=>['retained_rows_only','overlapping_subcounts','canonical_utc_only',
+            'smtp_configuration_only','pending_webhooks_not_retried','no_delivery_proof'],
+        'not_checked'=>['worker_heartbeat','cron_execution','smtp_connectivity','inbox_delivery',
+            'wallet_delivery','device_display','environment','migrations','storage','billing'],
+    ]];
+}
+
+function admin_health_json_response(array $document,int $status=200): never
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: private, no-store');
+    header('X-Content-Type-Options: nosniff');
+    echo json_encode($document,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);exit;
+}
+
+function route_admin_health_json(string $method): never
+{
+    // No redirect or HTML login body for monitoring clients. Session revocation still applies.
+    try {
+        $u=current_user();
+        if(!$u)admin_health_json_response(['success'=>false,'error'=>'authentication_required'],401);
+        if(!is_platform_admin($u))admin_health_json_response(['success'=>false,'error'=>'platform_access_required'],403);
+        if($method!=='GET'){
+            header('Allow: GET');admin_health_json_response(['success'=>false,'error'=>'method_not_allowed'],405);
+        }
+        $document=admin_health_document(admin_queue_snapshot());
+    } catch(Throwable) {
+        // No SQL, paths, exception text or partial aggregates in a failed response.
+        admin_health_json_response(['success'=>false,'error'=>'snapshot_unavailable'],503);
+    }
+    admin_health_json_response($document);
+}
+
 function admin_health_metrics(string $group,array $values,array $labels): string
 {
     $html='<dl class="health-metrics">';
@@ -70,7 +111,7 @@ function route_admin_health(string $method): never
     $u=require_platform_admin();header('Cache-Control: private, no-store');
     if($method!=='GET'){header('Allow: GET');http_response_code(405);exit;}
     $s=admin_queue_snapshot();$m=$s['mail'];$w=$s['webhooks'];
-    $body='<p><a href="/admin">← Admin-Dashboard</a></p><p class="eyebrow">PLATTFORM</p><h1>Versandzustand</h1><p>Gespeicherte Mail- und Webhook-Zeilen, plattformweit. Nur lesende Momentaufnahme vom <strong>'.h($s['at']).' UTC</strong>.</p><p class="muted">Kein Worker-Heartbeat und kein Nachweis laufender Cronjobs. Keine Empfänger oder Nachrichteninhalte. Zähler umfassen die aufbewahrten Daten, keinen festen Berichtszeitraum.</p><p><a class="btn ghost" href="/admin/health">Momentaufnahme erneuern</a></p><div class="health-grid">';
+    $body='<p><a href="/admin">← Admin-Dashboard</a></p><p class="eyebrow">PLATTFORM</p><h1>Versandzustand</h1><p>Gespeicherte Mail- und Webhook-Zeilen, plattformweit. Nur lesende Momentaufnahme vom <strong>'.h($s['at']).' UTC</strong>.</p><p class="muted">Kein Worker-Heartbeat und kein Nachweis laufender Cronjobs. Keine Empfänger oder Nachrichteninhalte. Zähler umfassen die aufbewahrten Daten, keinen festen Berichtszeitraum.</p><p class="health-actions"><a class="btn ghost" href="/admin/health">Momentaufnahme erneuern</a> <a class="btn ghost" href="/admin/health/json">JSON-Momentaufnahme</a></p><div class="health-grid">';
     $body.='<section class="panel" data-health-panel="mail"><h2>Mail-Outbox</h2><p>'.($s['smtp_configured']?'SMTP-Konfiguration vorhanden. Das beweist keine erreichbare Verbindung.':'SMTP nicht konfiguriert. Der Mail-Worker verarbeitet so keine Aufträge.').'</p>';
     $body.=admin_health_metrics('mail',$m,['total'=>'Alle gespeicherten Zeilen','queued'=>'Wartend (queued)','sending'=>'In Bearbeitung (sending)','stale_sending'=>'Davon länger als 10 Minuten','unknown'=>'Unklar (unknown)','sent'=>'Versandhelfer meldet Erfolg (sent)','skipped'=>'Übersprungen (skipped)','other'=>'Nicht erkannter Status','bad_open_time'=>'Offene Zeiten fehlen / ungültig / in Zukunft']);
     $body.='<p class="health-time">Älteste auswertbare wartende Mail:<br><strong>'.h($m['oldest_queued']!==null?$m['oldest_queued'].' UTC':'Keine auswertbare Zeit').'</strong></p><p class="muted">Bei gültiger SMTP-Konfiguration markiert der nächste Worker-Lauf sending-Einträge nach mehr als zehn Minuten als unknown. Unklare Mails nicht blind erneut senden. sent ist kein Nachweis der Ankunft im Postfach.</p></section>';

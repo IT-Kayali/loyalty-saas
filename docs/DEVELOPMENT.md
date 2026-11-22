@@ -288,3 +288,8 @@ Mitgliedssuche, Neuanlage und alle aktuell aktiven Programmkarten schließen im 
 ## Versandzustand für Plattform-Admins
 
 Neue rein lesende Seite `/admin/health`, im Admin-Dashboard verlinkt: aufbewahrte Mail-/Webhook-Zustände, fällige oder gesperrte Wiederholungen, unklare Ergebnisse und gültige UTC-Zeiten. Keine Empfänger oder Inhalte, kein Versand, kein Retry und kein behaupteter Cron-Heartbeat. Private GET-Ansicht nur für konfigurierte Plattform-Admins, Desktop und mobil geprüft. Wallet-Mitteilungen bleiben ausdrücklich außerhalb dieser Queueübersicht. [Zähler, Grenzen und Prüfung](ADMIN-HEALTH.md). Tests: `python3 tests/run-admin-health.py` mit 21 Domänen-, 25 Integrations-/HTTP- und 24 Browserprüfungen. Keine echte Provider- oder Produktionsabnahme.
+
+
+## Privates Queue-JSON für Plattform-Admins
+
+`GET /admin/health/json` ergänzt die vorhandene Versandübersicht um versioniertes JSON derselben Mail-/Webhook-Momentaufnahme. Gültige Betreiber-Session und aktuelle Plattform-Allowlist erforderlich, kein API-Bearer-Ersatz; privat/no-store, nur GET, generische Fehler ohne Teilzähler. `success` bestätigt nur das Lesen, keinen gesunden Betrieb. Geltungsbereich und ungeprüfte Bereiche stehen in jeder erfolgreichen Antwort. Keine Ampeln, Heartbeats, Providerverbindungen, neuen Versand-/Retry-Aktionen oder vollständige Referenzdiagnosen. HTML-Link bei 1280/390/320px geprüft. [Vertrag, Zugang und Grenzen](ADMIN-HEALTH.md). Tests: `python3 tests/run-admin-health-json.py` mit 38 Domänen-, 81 HTTP-/Integrations- und 24 Browserprüfungen. Keine echte Provider-/Geräteabnahme.

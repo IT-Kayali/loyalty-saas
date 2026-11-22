@@ -321,3 +321,8 @@ Plattform-Admins laden die gefilterten Support-Metadaten als CSV, TSV oder JSON 
 ## Support nach sichtbaren Bezeichnungen suchen
 
 Admins finden Status-, Prioritäts- und Kanalbezeichnungen auf Deutsch oder Englisch, z. B. "Wartet" bzw. "awaiting". Listenbedienung und feste Bezeichnungen passen sich DE/EN an; Namen und Betreff bleiben original. Suchformular, Folgeseite und Export behalten ihre Sprache auch nach einem Wechsel in einem anderen Tab. Keine Suche in Nachrichten/Notizen, keine neuen Partner- oder Kontaktrechte, keine vollständige Supportübersetzung. [Semantik, Sprachbindung und Grenzen](docs/SUPPORT.md). Tests: `python3 tests/run-support-search.py`.
+
+
+## Privates Queue-JSON für Plattform-Admins
+
+`GET /admin/health/json` ergänzt die vorhandene Versandübersicht um versioniertes JSON derselben Mail-/Webhook-Momentaufnahme. Gültige Betreiber-Session und aktuelle Plattform-Allowlist erforderlich, kein API-Bearer-Ersatz; privat/no-store, nur GET, generische Fehler ohne Teilzähler. `success` bestätigt nur das Lesen, keinen gesunden Betrieb. Geltungsbereich und ungeprüfte Bereiche stehen in jeder erfolgreichen Antwort. Keine Ampeln, Heartbeats, Providerverbindungen, neuen Versand-/Retry-Aktionen oder vollständige Referenzdiagnosen. HTML-Link bei 1280/390/320px geprüft. [Vertrag, Zugang und Grenzen](docs/ADMIN-HEALTH.md). Tests: `python3 tests/run-admin-health-json.py` mit 38 Domänen-, 81 HTTP-/Integrations- und 24 Browserprüfungen. Keine echte Provider-/Geräteabnahme.
