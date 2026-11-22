@@ -191,6 +191,7 @@ function apple_pass_json(array $m): array
         $secondary[] = ['key' => 'prog' . (int)$c['program_id'], 'label' => mb_strtoupper($c['program_name']), 'value' => $val];
     }
     return [
+        'locations' => wallet_merchant_locations((int)$m['business_id']),
         'formatVersion' => 1,
         'passTypeIdentifier' => config('apple_wallet.pass_type_id'),
         'serialNumber' => $m['code'],
@@ -524,6 +525,7 @@ function google_pass_payload(array $m): array
             'value' => base_url() . '/c/' . $m['code'],
         ],
         'textModulesData' => $modules,
+        'merchantLocations' => wallet_merchant_locations((int)$m['business_id']),
     ];
     if ($logoUri) {
         $class['logo'] = ['sourceUri' => ['uri' => $logoUri]];

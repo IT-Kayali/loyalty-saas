@@ -98,3 +98,7 @@ Nur Eigentümer mit CSRF und Planfeature `locations`. Die Funktion prüft Eigent
 Textänderungen sind unabhängig vom Statusvergleich und werden nie überschrieben. Ebenso schreibt der Texteditor keinen Aktivstatus. Der Vergleich ist keine fortlaufende Versionsnummer: Nach zwischenzeitlichem Deaktivieren und exaktem Wiederaktivieren ist derselbe Ausgangsstatus wieder vorhanden. Kein dauerhaftes Wiederholungsregister, keine vollständige Historie und kein Zeitplan. Unterbrechungsfreier Rückruf bereits laufender externer Vorgänge ist nicht zugesagt.
 
 `python3 tests/run-location-state.py`: 19 HTTP-/Domänen- und 10 Browserprüfungen für explizite Ziele, fehlende/ungültige/altes Formularfelder, Rechte/CSRF/Plan, unveränderte Salden/Mails/Zuordnungen, Audit-Rollback, zwei parallele Deaktivierungen und echte Zwei-Tab-Konflikte Desktop/Mobil. Bestehende Organisationssuite prüft weiterhin Sitzungsentzug durch inaktiven Standort. Screenshots unter `/tmp/loyalty-location-state/` visuell geprüft. Nur lokale Wegwerfdaten.
+
+## Wallet-Nähe (vorbereitet, nicht gerätegeprüft)
+
+Getrennter Standorteditor mit ausdrücklicher Auswahl und bis zu zehn Geschäftskoordinaten je Unternehmen. Apple `locations`, Google-Objekt `merchantLocations`, keine Kundenortung durch die App. Signierung/Issuer und echte Geräteprüfung bleiben nötig: [WALLET-NEARBY.md](WALLET-NEARBY.md). Tests: `python3 tests/run-wallet-nearby.py`.

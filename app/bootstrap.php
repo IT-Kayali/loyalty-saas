@@ -477,6 +477,9 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'subscriptions', 'paypal_request_id', 'TEXT');
     ensure_column($pdo, 'subscriptions', 'paypal_payment_hold', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'businesses', 'network_id', 'INTEGER REFERENCES networks(id)');
+    ensure_column($pdo, 'locations', 'wallet_latitude', 'REAL');
+    ensure_column($pdo, 'locations', 'wallet_longitude', 'REAL');
+    ensure_column($pdo, 'locations', 'wallet_nearby', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'staff', 'location_id', 'INTEGER REFERENCES locations(id)');
     ensure_column($pdo, 'staff', 'role', "TEXT NOT NULL DEFAULT 'supervisor'");
     ensure_column($pdo, 'staff', 'permissions', 'TEXT');

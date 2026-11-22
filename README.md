@@ -253,3 +253,7 @@ Name, Lifetime-Schwelle und Vorteil eigener Stufen mit Konfliktschutz bearbeiten
 ## Bonuszeiten-Editor
 
 Bestehende Bonusfenster mit Konfliktschutz ändern. Die bisherige Serverzeitzonen-/Überlappungsregel bleibt erhalten und wird ausdrücklich angezeigt: [BONUS-EDITOR.md](docs/BONUS-EDITOR.md). Tests: `python3 tests/run-bonus-edit.py`.
+
+## Wallet-Nähe (vorbereitet, nicht gerätegeprüft)
+
+Getrennter Standorteditor mit ausdrücklicher Auswahl und bis zu zehn Geschäftskoordinaten je Unternehmen. Apple `locations`, Google-Objekt `merchantLocations`, keine Kundenortung durch die App. Signierung/Issuer und echte Geräteprüfung bleiben nötig: [WALLET-NEARBY.md](docs/WALLET-NEARBY.md). Tests: `python3 tests/run-wallet-nearby.py`.

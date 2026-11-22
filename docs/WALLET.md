@@ -141,3 +141,7 @@ Webkarte und Vorschau zeigen volle bzw. ausgegraute Stempel. Für Wallets erzeug
 Designänderungen wirken beim nächsten Öffnen/Neuladen der Webkarte und beim nächsten Passabruf. Ein automatischer Push an bereits installierte Pässe allein durch Speichern im Designer ist noch nicht implementiert. Statusänderungen verwenden den bestehenden Wallet-Updatepfad.
 
 Technische Google-Referenz: https://developers.google.com/wallet/reference/rest/v1/genericobject
+
+## Wallet-Nähe (vorbereitet, nicht gerätegeprüft)
+
+Getrennter Standorteditor mit ausdrücklicher Auswahl und bis zu zehn Geschäftskoordinaten je Unternehmen. Apple `locations`, Google-Objekt `merchantLocations`, keine Kundenortung durch die App. Signierung/Issuer und echte Geräteprüfung bleiben nötig: [WALLET-NEARBY.md](WALLET-NEARBY.md). Tests: `python3 tests/run-wallet-nearby.py`.

@@ -20,6 +20,7 @@ require_once ROOT_DIR . '/app/inc/merchant.php';
 require_once ROOT_DIR . '/app/inc/analytics.php';
 require_once ROOT_DIR . '/app/inc/monthly-summary.php';
 require_once ROOT_DIR . '/app/inc/wallet.php';
+require_once ROOT_DIR . '/app/inc/wallet-nearby.php';
 require_once ROOT_DIR . '/app/inc/images.php';
 require_once ROOT_DIR . '/app/inc/billing.php';
 require_once ROOT_DIR . '/app/inc/paypal.php';
@@ -132,6 +133,7 @@ try {
         $path === '/webhook/notifications' && $method === 'POST' => route_webhook_notifications(),
         $path === '/webhook/ack' && $method === 'POST' => route_webhook_ack(),
         $path === '/integration/save' && $method === 'POST' => route_integration_save(),
+        preg_match('#^/location/(\d+)/wallet-nearby$#D',$path,$m)===1 => route_wallet_location((int)$m[1],$method),
         preg_match('#^/business/(\d+)/monthly-summary$#D',$path,$m)===1 => route_monthly_summary((int)$m[1],$method),
         preg_match('#^/business/(\d+)/analytics$#', $path, $m) === 1 => route_analytics((int)$m[1]),
         preg_match('#^/program/(\d+)/design$#', $path, $m) === 1 => route_program_design((int)$m[1],$method),

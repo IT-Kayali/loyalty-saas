@@ -569,3 +569,5 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 .tier-list li,.tier-editor{overflow-wrap:anywhere}.tier-list .btn{margin:4px 0}
 
 .bonus-list li,.bonus-editor{overflow-wrap:anywhere}.bonus-list .btn{margin:4px 0}
+
+.wallet-nearby-editor{overflow-wrap:anywhere}.wallet-nearby-editor h2{overflow-wrap:anywhere}.wallet-nearby-editor .check{align-items:flex-start}
