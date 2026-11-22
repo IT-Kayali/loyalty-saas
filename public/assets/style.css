@@ -598,3 +598,5 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 .health-time { padding:12px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
 .health-limits { margin-top:18px; }
 @media (max-width:640px) { .health-grid { grid-template-columns:minmax(0,1fr); } }
+/* Support list downloads stay separate from the search form and wrap on narrow screens. */
+.support-list-export{margin-top:18px}.support-list-export .actions{display:flex;flex-wrap:wrap;gap:8px}.support-list-export .btn{white-space:normal;min-height:42px}

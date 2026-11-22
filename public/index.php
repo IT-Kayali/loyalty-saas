@@ -44,6 +44,7 @@ require_once ROOT_DIR . '/app/inc/organization.php';
 require_once ROOT_DIR . '/app/inc/qr.php';
 require_once ROOT_DIR . '/app/inc/pwa.php';
 require_once ROOT_DIR . '/app/inc/support.php';
+require_once ROOT_DIR . '/app/inc/support-list.php';
 require_once ROOT_DIR . '/app/inc/ai.php';
 require_once ROOT_DIR . '/app/inc/templates.php';
 require_once ROOT_DIR . '/app/inc/expiry.php';
@@ -99,6 +100,7 @@ try {
         preg_match('#^/network/(\d+)/delete$#D',$path,$nd)===1 => route_network_delete((int)$nd[1],$method),
         preg_match('#^/network/(\d+)/edit$#D',$path,$nm)===1 => route_network_edit((int)$nm[1],$method),
         preg_match('#^/support/([A-F0-9]{16})/export$#D',$path,$m)===1 && $method==='GET' => route_support_export($m[1]),
+        $path === '/admin/support/export' => route_support_list_export($method),
         $path === '/contact' => route_support($method,false,true),
         ($path==='/support' || preg_match('#^/support/([A-F0-9]{16})$#D',$path)) => route_support($method,false),
         ($path==='/admin/support' || preg_match('#^/admin/support/([A-F0-9]{16})$#D',$path)) => route_support($method,true),

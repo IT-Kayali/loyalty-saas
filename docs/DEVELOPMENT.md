@@ -85,6 +85,7 @@ python tests/run-merchant.py
 python tests/run-demo.py
 python tests/run-pwa.py  # 23 Assertions, Kaltstart mit Aktivierung + Online-Neuladen
 python tests/run-support.py  # 23 Domänen-, 113 HTTP-, 58 Browserprüfungen
+python tests/run-support-list.py  # 73 Domänen-, 87 HTTP-, 45 Browserprüfungen, privater Admin-Metadatenexport
 python tests/run-ai.py
 python tests/run-templates.py
 python tests/run-expiry.py

@@ -313,3 +313,7 @@ Mitgliedssuche, Neuanlage und alle aktuell aktiven Programmkarten schließen im 
 ## Versandzustand für Plattform-Admins
 
 Neue rein lesende Seite `/admin/health`, im Admin-Dashboard verlinkt: aufbewahrte Mail-/Webhook-Zustände, fällige oder gesperrte Wiederholungen, unklare Ergebnisse und gültige UTC-Zeiten. Keine Empfänger oder Inhalte, kein Versand, kein Retry und kein behaupteter Cron-Heartbeat. Private GET-Ansicht nur für konfigurierte Plattform-Admins, Desktop und mobil geprüft. Wallet-Mitteilungen bleiben ausdrücklich außerhalb dieser Queueübersicht. [Zähler, Grenzen und Prüfung](docs/ADMIN-HEALTH.md). Tests: `python3 tests/run-admin-health.py` mit 21 Domänen-, 25 Integrations-/HTTP- und 24 Browserprüfungen. Keine echte Provider- oder Produktionsabnahme.
+
+## Gefilterte Supportliste exportieren
+
+Plattform-Admins laden die gefilterten Support-Metadaten als CSV, TSV oder JSON herunter. Alle passenden Treffer statt nur der aktuellen 50er-Seite, ohne Nachrichten, interne Notizen oder Absender-E-Mail-Feld. Eigene Grenze: 5000 Treffer/4 MiB, sonst Fehler ohne Teildatei. Private Namen und Betreffzeilen, JSON für unveränderte Textwerte. [Schema, Filter, Sicherheit und Referenzabgleich](docs/SUPPORT.md). Tests: `python3 tests/run-support-list.py`.
