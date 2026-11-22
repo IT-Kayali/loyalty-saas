@@ -1,5 +1,9 @@
 # Funktionsabgleich mit Reward Loyalty 5.x
 
+## Vorrangiger Sicherheitsvorbehalt
+
+Der öffentliche Beitritt darf eine bestehende Wallet nicht allein anhand einer eingegebenen E-Mail übernehmen. Die enge Schutzmaßnahme lehnt einen anonymen Beitritt bei bereits bekannter normalisierter E-Mail ab, ohne neue Mitgliedschaft oder Wallet-Sitzung. Auch berechtigte weitere Verknüpfungen über diesen Weg sind vorläufig eingeschränkt. Bereits vorhandene Sitzungen und frühere Mitgliedszeilen bleiben unverändert. Andere Identitätswege sind damit nicht vollständig freigegeben; vor echten Kundendaten ist eine vollständige Absicherung der Wallet-Identität erforderlich. [Umfang und lokaler Nachweis](MEMBER-JOIN-IDENTITY.md). Weiterer Funktionsausbau ist hinter diesem offenen Sicherheitsumfang zurückgestellt.
+
 Stand: 22.11.2026. Referenz: https://rewardloyalty.co/demo und https://rewardloyalty.co/docs/5.x.
 
 ## Ergebnis

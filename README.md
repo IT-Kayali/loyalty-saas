@@ -1,5 +1,7 @@
 # Loyalty SaaS
 
+> Sicherheitsstand: Der öffentliche Beitritt verknüpft bestehende E-Mail-Wallets nicht mehr allein anhand eingegebener Kontaktdaten. Dies ist eine begrenzte Schutzmaßnahme, keine vollständige Freigabe aller Wallet-Identitätswege für echte Kundendaten. Bereits bestehende Sitzungen oder frühere Mitgliedszeilen werden nicht bereinigt. [Verhalten, vorläufige Einschränkung und Test](docs/MEMBER-JOIN-IDENTITY.md).
+
 Digitale Stempelkarten, Punkte, Gutscheine und Mehrfachkarten für lokale Geschäfte — mit Apple & Google Wallet, REST-API, WooCommerce/Shopify-Anbindung und mehrsprachiger Oberfläche.
 
 Reines PHP + SQLite, keine Composer-Abhängigkeiten, keine Build-Tools. Ein Binary reicht.

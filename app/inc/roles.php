@@ -509,6 +509,7 @@ function route_join(string $joinCode, string $method): never
             <label class="check"><input type="checkbox" name="marketing_consent" value="1"> Ich möchte Marketing-E-Mails dieses Unternehmens erhalten. Jederzeit abbestellbar, freiwillig.</label>
             <button class="btn">' . t('Jetzt beitreten') . '</button>
           </form>
+          <p><a href="/member/login">' . t('Zur Wallet-Anmeldung') . '</a></p>
           ' . lang_switcher() . '
         </div>', null, $b['brand_color']);
         exit;
@@ -520,8 +521,19 @@ function route_join(string $joinCode, string $method): never
         flash(t('Name und Passwort (min. 8 Zeichen) erforderlich.'), 'err');
         redirect('/join/' . $joinCode);
     }
-    db()->prepare('INSERT INTO members (business_id, name, email, code, password_hash) VALUES (?,?,?,?,?)')
-        ->execute([$b['id'], $name, $email, member_code(), password_hash($pw, PASSWORD_DEFAULT)]);
+    // Ein öffentlicher Beitritt ist kein Nachweis für den Besitz einer bereits
+    // bekannten E-Mail. Prüfung und Einfügen bleiben eine atomare Anweisung,
+    // damit auch gleichzeitige Beitritte keine zweite Login-Zeile erzeugen.
+    $joinInsert = db()->prepare('INSERT INTO members (business_id, name, email, code, password_hash)
+        SELECT ?,?,?,?,?
+        WHERE ? = \'\' OR NOT EXISTS (
+            SELECT 1 FROM members WHERE lower(trim(email)) = ?
+        )');
+    $joinInsert->execute([$b['id'], $name, $email, member_code(), password_hash($pw, PASSWORD_DEFAULT), $email, $email]);
+    if ($joinInsert->rowCount() !== 1) {
+        flash(t('Beitritt nicht möglich. Nutze bitte den Wallet-Login oder die Passwort-Hilfe.'), 'err');
+        redirect('/join/' . $joinCode);
+    }
     $memberId = (int)db()->lastInsertId();
     if(!empty($_POST['marketing_consent']))db()->prepare("UPDATE members SET marketing_consent=1,consent_source='join-v1',consent_at=datetime('now') WHERE id=?")->execute([$memberId]);
 

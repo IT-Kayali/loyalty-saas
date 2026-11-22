@@ -1,5 +1,9 @@
 # Einstieg für spätere Weiterentwicklung
 
+## Vorrangiger Sicherheitsstand: öffentlicher Beitritt
+
+Der öffentliche Beitritt legt bei bereits bekannter normalisierter E-Mail keine weitere Login-Zeile und keine neue Wallet-Sitzung an. Neue E-Mails und einzelne Kundenkarten ohne E-Mail bleiben möglich. Das ist eine begrenzte Schutzmaßnahme, keine vollständige Freigabe der anderen Identitätswege. Bestehende Sitzungen und frühere Mitgliedszeilen werden nicht bereinigt. [Verhalten und Grenzen](MEMBER-JOIN-IDENTITY.md). Test mit künstlichen Daten: `PHP_BIN=php python3 tests/run-member-join-identity.py`; Browserteil benötigt Playwright/Chromium wie die übrigen UI-Tests.
+
 ## Lokale Umgebung
 
 Die Plattform ist eine PHP-/SQLite-Anwendung ohne Composer-Laufzeitabhängigkeiten. PHP 8.1+ ist nötig (unter anderem `never`-Rückgabetypen). PDO SQLite, mbstring und GD sind für Datenbank, Text und Bildverarbeitung erforderlich; cURL/OpenSSL und ZIP für die entsprechenden Provider-, Wallet- und Backup-Pfade. Die Testumgebung muss diese Erweiterungen ebenfalls haben. Die tatsächlich benötigte Providerkonfiguration steht in den Fachdokumenten, nicht in diesem Repository als Geheimnis.
