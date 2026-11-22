@@ -110,6 +110,7 @@ try {
         $path === '/tier/create' && $method === 'POST' => route_tier_create(),
         $path === '/tier/delete' && $method === 'POST' => route_tier_delete(),
         $path === '/program/expiry' && $method === 'POST' => route_program_expiry(),
+        preg_match('#^/bonus/(\d+)/edit$#D',$path,$m)===1 => route_bonus_edit((int)$m[1],$method),
         $path === '/bonus/create' && $method === 'POST' => route_bonus_create(),
         $path === '/bonus/delete' && $method === 'POST' => route_bonus_delete(),
         preg_match('#^/achievement/(\d+)/edit$#',$path,$m)===1 && in_array($method,['GET','POST'],true) => route_achievement_edit((int)$m[1],$method),
@@ -646,13 +647,13 @@ function route_program(int $id): never
         $blist = '';
         foreach ($bonus->fetchAll() as $bh) {
             $blist .= '<li>' . $wdNames[(int)$bh['weekday']] . ' ' . (int)$bh['start_hour'] . '–' . (int)$bh['end_hour'] . ' ' . t('Uhr') . ': <strong>x' . (int)$bh['multiplier'] . ' ' . t('Punkte') . '</strong>
-              <form method="post" action="/bonus/delete" class="undo-form">' . csrf_field() . '<input type="hidden" name="program_id" value="' . $id . '"><button class="undo-btn" name="bonus_id" value="' . (int)$bh['id'] . '" title="' . t('Löschen') . '">✕</button></form></li>';
+              <a class="btn ghost small" href="/bonus/' . (int)$bh['id'] . '/edit">Bearbeiten</a><form method="post" action="/bonus/delete" class="undo-form">' . csrf_field() . '<input type="hidden" name="program_id" value="' . $id . '"><button class="undo-btn" name="bonus_id" value="' . (int)$bh['id'] . '" title="' . t('Löschen') . '">✕</button></form></li>';
         }
         $wdOpts = '';
         foreach ($wdNames as $i => $n) {
             $wdOpts .= '<option value="' . $i . '">' . h($n) . '</option>';
         }
-        $body .= '<h2>' . t('Bonus-Zeiten') . '</h2>' . ($blist ? '<ul>' . $blist . '</ul>' : '<p class="muted">' . t('Keine Bonus-Zeiten. Punkte-Multiplikator in ruhigen Stunden.') . '</p>') . '
+        $body .= '<h2>' . t('Bonus-Zeiten') . '</h2><p class="muted">Serverzeitzone: ' . h(date_default_timezone_get()) . '. Unternehmenszeitzone gilt hier nicht. Überschneidung: höchster Multiplikator, keine Multiplikation.</p>' . ($blist ? '<ul class="bonus-list">' . $blist . '</ul>' : '<p class="muted">' . t('Keine Bonus-Zeiten. Punkte-Multiplikator in ruhigen Stunden.') . '</p>') . '
         <form method="post" action="/bonus/create" class="form inline-form panel">' . csrf_field() . '
           <input type="hidden" name="program_id" value="' . $id . '">
           <label>' . t('Wochentag') . ' <select name="weekday">' . $wdOpts . '</select></label>

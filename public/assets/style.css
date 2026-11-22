@@ -567,3 +567,5 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 @media(max-width:640px){.monthly-programs table,.monthly-programs tbody,.monthly-programs tr{display:block;width:100%}.monthly-programs thead{display:none}.monthly-programs td{display:flex;justify-content:space-between;gap:14px;width:100%;box-sizing:border-box}.monthly-programs td::before{content:attr(data-label);font-weight:600;min-width:110px}.monthly-programs tr+tr{border-top:2px solid var(--line)}}
 
 .tier-list li,.tier-editor{overflow-wrap:anywhere}.tier-list .btn{margin:4px 0}
+
+.bonus-list li,.bonus-editor{overflow-wrap:anywhere}.bonus-list .btn{margin:4px 0}

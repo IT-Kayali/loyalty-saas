@@ -249,3 +249,7 @@ Separate private Eigentümer-Leseansicht mit Monatsfilter und klar abgegrenzten 
 ## Mitgliedsstufen-Editor
 
 Name, Lifetime-Schwelle und Vorteil eigener Stufen mit Konfliktschutz bearbeiten, keine Punktebuchung oder automatische Vergünstigung: [TIER-EDITOR.md](docs/TIER-EDITOR.md). Tests: `python3 tests/run-tier-edit.py`.
+
+## Bonuszeiten-Editor
+
+Bestehende Bonusfenster mit Konfliktschutz ändern. Die bisherige Serverzeitzonen-/Überlappungsregel bleibt erhalten und wird ausdrücklich angezeigt: [BONUS-EDITOR.md](docs/BONUS-EDITOR.md). Tests: `python3 tests/run-bonus-edit.py`.
