@@ -31,7 +31,7 @@ function route_monthly_summary(int $bid,string $method): never
     $body='<p><a href="/business/'.$bid.'/analytics">← Analytics</a></p><h1>Monatsübersicht</h1><p>'.h($b['name']).'</p><form method="get" class="form inline-form"><label>Kalendermonat (UTC)<input type="month" name="month" min="2000-01" max="'.h(gmdate('Y-m')).'" value="'.h(is_string($month)?$month:'').'" required></label><button class="btn">Monat anzeigen</button></form>';
     try {
         [$start,$end]=monthly_summary_window($month);$d=monthly_summary_data($bid,$start,$end);
-        $body.='<p class="muted">Zeitraum: '.h($start).' UTC bis vor '.h($end).' UTC. '.($month===gmdate('Y-m')?'Laufender Monat, noch unvollständig.':'Abgeschlossener Kalendermonat, aber keine eingefrorene Archivkopie.').' Stand: '.h(gmdate('Y-m-d H:i:s')).' UTC.</p><div class="grid monthly-kpis">';
+        $body.='<p><a class="btn ghost" href="/business/'.$bid.'/monthly-summary.csv?month='.rawurlencode($month).'">Monat als CSV herunterladen</a></p><p class="muted">Zeitraum: '.h($start).' UTC bis vor '.h($end).' UTC. '.($month===gmdate('Y-m')?'Laufender Monat, noch unvollständig.':'Abgeschlossener Kalendermonat, aber keine eingefrorene Archivkopie.').' Stand: '.h(gmdate('Y-m-d H:i:s')).' UTC.</p><div class="grid monthly-kpis">';
         foreach(['new_members'=>'Neue Mitglieder','active_members'=>'Aktive Mitglieder','actions'=>'Journal-Aktionen','redeems'=>'Einlösungen'] as $key=>$label)$body.='<section class="panel"><h2>'.h($label).'</h2><p class="monthly-number" data-monthly="'.$key.'">'.(int)$d[$key].'</p></section>';
         $body.='</div><p>Journal-Aktionen zählen gespeicherte Buchungen ohne zurückgenommene Einträge und ohne Reversal-Zeilen. Einlösungen zählen Stempelprämien, Punkteprämien, einfache und Code-Gutscheine. Ein Ereignis zählt einmal, unabhängig vom Betrag. Aktive Mitglieder haben mindestens eine solche Journal-Aktion im Zeitraum und werden über Programme hinweg nur einmal gezählt.</p><h2>Programme im gewählten Monat</h2>';
         if(!$d['programs'])$body.='<p>Keine Programme vorhanden.</p>';
@@ -40,7 +40,26 @@ function route_monthly_summary(int $bid,string $method): never
             foreach($d['programs'] as $p){$body.='<tr>';foreach(['Programm'=>$p['name'],'Typ'=>type_label($p['type']),'Aktive Mitglieder'=>(int)$p['active_members'],'Journal-Aktionen'=>(int)$p['actions'],'Einlösungen'=>(int)$p['redeems']] as $label=>$value)$body.='<td data-label="'.h($label).'">'.h((string)$value).'</td>';$body.='</tr>';}
             $body.='</tbody></table></div>';
         }
-        $body.='<p class="muted">Programmnamen und Zuordnungen entsprechen dem heutigen gespeicherten Stand. Neue Mitglieder zählen noch vorhandene Mitgliedseinträge mit Anlagezeit im Monat, nicht neue Personen über alle Unternehmen. Löschungen, spätere Stornos und Datenkorrekturen können frühere Monate ändern. Die aktiven Mitglieder je Programm dürfen nicht zur Gesamtzahl addiert werden. Keine historischen Salden, Umsatz-/Geldsummen, Prepaid-Verkaufszahlen oder vollständige Wirtschaftsauswertung. Kein automatischer Versand, E-Mail-Bericht, CSV oder PDF-Export.</p>';
+        $body.='<p class="muted">Programmnamen und Zuordnungen entsprechen dem heutigen gespeicherten Stand. Neue Mitglieder zählen noch vorhandene Mitgliedseinträge mit Anlagezeit im Monat, nicht neue Personen über alle Unternehmen. Löschungen, spätere Stornos und Datenkorrekturen können frühere Monate ändern. Die aktiven Mitglieder je Programm dürfen nicht zur Gesamtzahl addiert werden. Keine historischen Salden, Umsatz-/Geldsummen, Prepaid-Verkaufszahlen oder vollständige Wirtschaftsauswertung. Privates CSV für diesen Monat verfügbar. Kein automatischer Versand, E-Mail-Bericht oder PDF-Export.</p>';
     }catch(InvalidArgumentException $e){http_response_code(422);$body.='<p class="alert">'.h($e->getMessage()).'</p>';}
     page('Monatsübersicht',$body,$u,$b['brand_color']);exit;
+}
+
+/** Same read snapshot and definitions as the page; no partial CSV on invalid/capped reports. */
+function route_monthly_summary_csv(int $bid,string $method): never
+{
+    $u=require_login();$b=own_business((int)$u['id'],$bid);if(!$b)not_found();
+    header('Cache-Control: private, no-store');header('Referrer-Policy: no-referrer');
+    if($method!=='GET'){http_response_code(405);header('Allow: GET');exit;}
+    $month=$_GET['month'] ?? null;
+    try{[$start,$end]=monthly_summary_window($month);$d=monthly_summary_data($bid,$start,$end);foreach($d['programs'] as $p)if(!mb_check_encoding((string)$p['name'],'UTF-8'))throw new InvalidArgumentException('Programmname enthält ungültigen UTF-8-Text. Kein CSV erzeugt.');}
+    catch(InvalidArgumentException $e){http_response_code(422);page('Monats-CSV nicht verfügbar','<h1>Monats-CSV nicht verfügbar</h1><p>'.h($e->getMessage()).'</p><a href="/business/'.$bid.'/monthly-summary">Monatsübersicht öffnen</a>',$u);exit;}
+    $stand=gmdate('Y-m-d H:i:s');$partial=$month===gmdate('Y-m')?'ja':'nein';
+    header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="monthly-summary-'.$bid.'-'.$month.'.csv"');
+    $f=fopen('php://output','w');
+    $write=static function(array $row)use($f):void{foreach($row as &$v)if(is_string($v)&&preg_match('/^[\s\p{Z}]*[=+@-]/u',$v))$v="'".$v;unset($v);fputcsv($f,$row,',','"','');};
+    $write(['Zeilentyp','Monat_UTC','Von_UTC','Bis_exklusiv_UTC','Stand_UTC','Laufender_Monat','Programm_ID','Programmname','Programmtyp','Neue_Mitgliedseintraege','Aktive_Mitglieder','Journal_Aktionen','Einloesungen','Hinweis']);
+    $write(['gesamt',$month,$start,$end,$stand,$partial,'','','',$d['new_members'],$d['active_members'],$d['actions'],$d['redeems'],'Neu berechneter Datenstand, keine Archivkopie. Keine Geldwerte oder Personenzahl ueber Unternehmen. Loeschungen/Stornos koennen fruehere Monate aendern.']);
+    foreach($d['programs'] as $p)$write(['programm',$month,$start,$end,$stand,$partial,(int)$p['id'],$p['name'],$p['type'],'',(int)$p['active_members'],(int)$p['actions'],(int)$p['redeems'],'Programmnamen/Zuordnung aktueller Stand. Aktive Mitglieder je Programm nicht zur Gesamtzahl addieren.']);
+    fclose($f);exit;
 }

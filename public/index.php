@@ -138,6 +138,7 @@ try {
         $path === '/webhook/ack' && $method === 'POST' => route_webhook_ack(),
         $path === '/integration/save' && $method === 'POST' => route_integration_save(),
         preg_match('#^/location/(\d+)/wallet-nearby$#D',$path,$m)===1 => route_wallet_location((int)$m[1],$method),
+        preg_match('#^/business/(\d+)/monthly-summary\.csv$#D',$path,$m)===1 => route_monthly_summary_csv((int)$m[1],$method),
         preg_match('#^/business/(\d+)/monthly-summary$#D',$path,$m)===1 => route_monthly_summary((int)$m[1],$method),
         preg_match('#^/business/(\d+)/analytics$#', $path, $m) === 1 => route_analytics((int)$m[1]),
         preg_match('#^/program/(\d+)/design$#', $path, $m) === 1 => route_program_design((int)$m[1],$method),

@@ -246,3 +246,7 @@ Name und Punktekosten bestehender Prämien konfliktsicher bearbeiten, mit gemein
 ## Konfliktsichere Prämien-Zeitfenster
 
 Bestehende Datumsfelder prüfen vor dem Speichern Fenster und Unternehmenszeitzone erneut. Keine stille Umdeutung alter Eingaben nach Zeitzonenwechsel, Update/Audit atomar. Bestehende Code-Snapshots und Salden bleiben unverändert: [REWARD-WINDOW.md](REWARD-WINDOW.md). Tests: `python3 tests/run-reward-window.py`.
+
+## Monatsübersicht als CSV
+
+Privater aggregierter CSV-Download für den ausgewählten UTC-Monat, ohne Mitgliedslisten oder Geldsummen. Gleiche Definitionen wie die Monatsansicht, eigener aktueller Lesesnapshot und Formelschutz: [MONTHLY-SUMMARY.md](MONTHLY-SUMMARY.md). Tests: `python3 tests/run-monthly-csv.py`.
