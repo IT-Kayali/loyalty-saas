@@ -317,3 +317,7 @@ Neue rein lesende Seite `/admin/health`, im Admin-Dashboard verlinkt: aufbewahrt
 ## Gefilterte Supportliste exportieren
 
 Plattform-Admins laden die gefilterten Support-Metadaten als CSV, TSV oder JSON herunter. Alle passenden Treffer statt nur der aktuellen 50er-Seite, ohne Nachrichten, interne Notizen oder Absender-E-Mail-Feld. Eigene Grenze: 5000 Treffer/4 MiB, sonst Fehler ohne Teildatei. Private Namen und Betreffzeilen, JSON für unveränderte Textwerte. [Schema, Filter, Sicherheit und Referenzabgleich](docs/SUPPORT.md). Tests: `python3 tests/run-support-list.py`.
+
+## Support nach sichtbaren Bezeichnungen suchen
+
+Admins finden Status-, Prioritäts- und Kanalbezeichnungen auf Deutsch oder Englisch, z. B. "Wartet" bzw. "awaiting". Listenbedienung und feste Bezeichnungen passen sich DE/EN an; Namen und Betreff bleiben original. Suchformular, Folgeseite und Export behalten ihre Sprache auch nach einem Wechsel in einem anderen Tab. Keine Suche in Nachrichten/Notizen, keine neuen Partner- oder Kontaktrechte, keine vollständige Supportübersetzung. [Semantik, Sprachbindung und Grenzen](docs/SUPPORT.md). Tests: `python3 tests/run-support-search.py`.

@@ -89,7 +89,7 @@ function list_state():string {
    check(len(first)==50 and len(matching(combined))==52,'fixture proves matching set is larger than visible page')
    links=dict((fmt.lower(),html.unescape(url)) for url,fmt in re.findall(r'href="([^"]+)">Liste als (CSV|TSV|JSON)</a>',page))
    check(set(links)=={'csv','tsv','json'},'all formats offered on admin list only')
-   check(all({k:v[0] for k,v in urllib.parse.parse_qs(urllib.parse.urlparse(u).query).items() if k!='format'}==combined for u in links.values()),'download links retain exactly active filters without cursor')
+   check(all({k:v[0] for k,v in urllib.parse.parse_qs(urllib.parse.urlparse(u).query).items() if k!='format'}==dict(combined,lang='de') for u in links.values()),'download links retain exactly active filters without cursor')
    for fmt in ['csv','tsv','json']:
     status,body,_,headers=req(links[fmt],admin)
     check(status==200 and headers['Cache-Control']=='private, no-store' and headers['X-Content-Type-Options']=='nosniff','private nosniff successful '+fmt)

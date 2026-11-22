@@ -4,17 +4,23 @@ const SUPPORT_LIST_EXPORT_ROWS=5000;
 const SUPPORT_LIST_EXPORT_BYTES=4*1024*1024;
 const SUPPORT_LIST_FIELDS=['reference','subject','topic','status','priority','updated_at_utc','channel','requester_name','assigned_name'];
 
+function support_label(array $labels,string $code): string
+{
+    return isset($labels[$code])?t($labels[$code]):$code;
+}
+
 /** Parse only applicable filters. Invalid applicable input must never silently widen the result. */
 function support_list_filters(array $input,bool $admin,bool $export=false): array
 {
     if($export){
-        foreach(array_keys($input) as $key)if(!in_array($key,['q','status','topic','priority','assignee','channel','format'],true))throw new InvalidArgumentException('Unbekannter Exportparameter. Der Export umfasst alle gefilterten Treffer, keinen Seiten-Cursor.');
+        foreach(array_keys($input) as $key)if(!in_array($key,['q','status','topic','priority','assignee','channel','format','lang'],true))throw new InvalidArgumentException('Unbekannter Exportparameter. Der Export umfasst alle gefilterten Treffer, keinen Seiten-Cursor.');
     }
     $text=function(string $key)use($input):string{
         $v=array_key_exists($key,$input)?$input[$key]:'';
         if(!is_string($v) || preg_match('//u',$v)!==1 || preg_match('/[\p{Cc}\p{Cf}]/u',$v))throw new InvalidArgumentException('Filter müssen gültiger Text ohne Steuerzeichen sein.');
         return $v;
     };
+    if(array_key_exists('lang',$input) && !in_array($text('lang'),AVAILABLE_LANGS,true))throw new InvalidArgumentException('Unbekannte Suchsprache. Deutsch oder Englisch wählen.');
     $integer=function(string $v):string{
         if(!preg_match('/^[0-9]+$/D',$v))throw new InvalidArgumentException('Seiten-Cursor und Zuständigkeit müssen nichtnegative ganze Zahlen sein.');
         $v=ltrim($v,'0');if($v==='')return '0';$max=(string)PHP_INT_MAX;
@@ -45,13 +51,22 @@ function support_list_where(array $f,bool $admin,int $userId): array
     if($f['q']!==''){
         $like='%'.str_replace(['!','%','_'],['!!','!%','!_'],$f['q']).'%';
         $cols=$admin?['t.reference','t.subject','t.requester_name','t.requester_email',"COALESCE(a.name,'Nicht zugewiesen')"]:['t.reference','t.subject'];
-        $where.=' AND ('.implode(' OR ',array_map(fn($c)=>$c." LIKE ? ESCAPE '!'",$cols)).')';foreach($cols as $_)$params[]=$like;
+        $clauses=array_map(fn($c)=>$c." LIKE ? ESCAPE '!'",$cols);foreach($cols as $_)$params[]=$like;
+        if($admin){
+            // Only public list metadata labels. No message/note lookup or translation of user text.
+            foreach(['t.status'=>SUPPORT_STATUS,'t.priority'=>SUPPORT_PRIORITY,'t.channel'=>SUPPORT_CHANNELS] as $column=>$labels){
+                $matched=[];foreach($labels as $code=>$label)if(mb_stripos(t($label),$f['q'],0,'UTF-8')!==false)$matched[]=$code;
+                if($matched){$clauses[]=$column.' IN ('.implode(',',array_fill(0,count($matched),'?')).')';array_push($params,...$matched);}
+            }
+            if(mb_stripos(t('Nicht zugewiesen'),$f['q'],0,'UTF-8')!==false)$clauses[]='a.name IS NULL';
+        }
+        $where.=' AND ('.implode(' OR ',$clauses).')';
     }
     return [$where,$params];
 }
 function support_list_filter_query(array $f): array
 {
-    return array_filter(array_intersect_key($f,array_flip(['q','status','topic','priority','assignee','channel'])),fn($v)=>$v!=='');
+    return array_filter(array_intersect_key($f,array_flip(['q','status','topic','priority','assignee','channel'])),fn($v)=>$v!=='')+['lang'=>lang()];
 }
 
 /** Always quote fields. Protective apostrophe changes risky text; use JSON for original values. */

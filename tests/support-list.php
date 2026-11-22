@@ -7,8 +7,8 @@ function rejects(callable $f,string $label,string $class=InvalidArgumentExceptio
 $f=support_list_filters([],true);yes($f===['q'=>'','status'=>'','topic'=>'','priority'=>'','assignee'=>'','channel'=>'','after'=>0],'empty filters have explicit safe defaults');
 $f=support_list_filters(['q'=>'  Prüfung %_!  ','status'=>'open','topic'=>'billing','priority'=>'high','channel'=>'partner','assignee'=>'0002','after'=>'0007'],true);
 yes($f['q']==='Prüfung %_!' && $f['assignee']==='2' && $f['after']===7,'valid filters trim search and canonicalize numeric IDs');
-yes(support_list_filter_query($f)===array_diff_key($f,['after'=>1]),'export query omits list cursor and retains all active filters');
-yes(support_list_filter_query(support_list_filters(['assignee'=>'0'],true))===['assignee'=>'0'],'unassigned zero survives query serialization');
+yes(support_list_filter_query($f)===(array_diff_key($f,['after'=>1])+['lang'=>'de']),'export query omits list cursor and retains all active filters');
+yes(support_list_filter_query(support_list_filters(['assignee'=>'0'],true))===['assignee'=>'0','lang'=>'de'],'unassigned zero survives query serialization');
 foreach([
  ['q'=>[]],['status'=>[]],['topic'=>[]],['priority'=>[]],['channel'=>[]],['assignee'=>[]],['after'=>[]],['q'=>null],['q'=>"\xff"],['q'=>"line\nline"],['q'=>"hidden\u{200b}"],['q'=>str_repeat('ä',101)],['status'=>'garbage'],['topic'=>'garbage'],['priority'=>'garbage'],['channel'=>'garbage'],['assignee'=>'-1'],['assignee'=>'1.0'],['assignee'=>'999999999999999999999999'],['after'=>'-1'],['after'=>'1x'],['after'=>'999999999999999999999999'],
 ] as $i=>$input)rejects(fn()=>support_list_filters($input,true),'invalid applicable filter rejected '.$i);
