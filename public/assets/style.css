@@ -601,3 +601,14 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 @media (max-width:640px) { .health-grid { grid-template-columns:minmax(0,1fr); } }
 /* Support list downloads stay separate from the search form and wrap on narrow screens. */
 .support-list-export{margin-top:18px}.support-list-export .actions{display:flex;flex-wrap:wrap;gap:8px}.support-list-export .btn{white-space:normal;min-height:42px}
+
+/* Delivery metadata stays readable without horizontal scrolling. */
+.webhook-delivery-table table{table-layout:fixed}
+.webhook-delivery-table th,.webhook-delivery-table td{white-space:normal;overflow-wrap:anywhere}
+@media(max-width:640px){
+ .webhook-delivery-table table,.webhook-delivery-table tbody,.webhook-delivery-table tr,.webhook-delivery-table td{display:block;width:100%;box-sizing:border-box}
+ .webhook-delivery-table thead{display:none}
+ .webhook-delivery-table tr{border-bottom:2px solid var(--line);padding:8px 0}
+ .webhook-delivery-table td{border:0;padding:7px 14px}
+ .webhook-delivery-table td::before{content:attr(data-label);display:block;font-size:.8rem;font-weight:700;margin-bottom:3px;color:var(--muted)}
+}

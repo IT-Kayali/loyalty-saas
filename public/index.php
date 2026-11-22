@@ -17,6 +17,7 @@ require_once ROOT_DIR . '/app/inc/engage.php';
 require_once ROOT_DIR . '/app/inc/segments.php';
 require_once ROOT_DIR . '/app/inc/business-settings.php';
 require_once ROOT_DIR . '/app/inc/api.php';
+require_once ROOT_DIR . '/app/inc/webhook-list.php';
 require_once ROOT_DIR . '/app/inc/api-credit.php';
 require_once ROOT_DIR . '/app/inc/merchant.php';
 require_once ROOT_DIR . '/app/inc/analytics.php';
@@ -142,6 +143,7 @@ try {
         $path === '/campaign/send' && $method === 'POST' => route_campaign_send(),
         $path === '/campaign/delete' && $method === 'POST' => route_campaign_delete(),
         $path === '/apikey/regenerate' && $method === 'POST' => route_apikey_regenerate(),
+        preg_match('#^/business/(\d+)/webhook-deliveries(/export)?$#D',$path,$wl)===1 => route_webhook_list((int)$wl[1],$method,!empty($wl[2])),
         $path === '/webhook/create' && $method === 'POST' => route_webhook_create(),
         $path === '/webhook/delete' && $method === 'POST' => route_webhook_delete(),
         $path === '/webhook/retry' && $method === 'POST' => route_webhook_retry(),

@@ -64,3 +64,7 @@ Auf der Business-Seite im Bereich Webhooks gibt es den Haken "E-Mail bei endgül
 ## Tests
 
 `python tests/run-webhooks.py`: Backoff, Header, dead, Sperre (parallele Prozesse), Banner und Hinweismails für Betreiber und Owner, Owner- und Admin-Wiederholung, Mandantentrennung, CSRF, Cron-CLI, Browser Desktop und Mobil.
+
+## Rein lesende Zustellliste und Export
+
+Auf der Unternehmensseite führt ein eigener Link zur gefilterten Metadatenliste mit privatem CSV-Download. Das führt keine Wiederholung aus und ändert keine der obigen Regeln. [Auswahl, Datenvertrag und Grenzen](WEBHOOK-LIST.md).

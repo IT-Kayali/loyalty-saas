@@ -405,7 +405,7 @@ function api_html(array $b): string
     $dead->execute([$b['id']]);
     $deadN = (int)$dead->fetchColumn();
     $alert = $deadN ? '<div class="panel" role="alert" style="border-color:var(--err)"><strong>' . sprintf(t('%d Webhook-Zustellung(en) endgültig fehlgeschlagen'), $deadN) . '</strong><p class="muted">' . t('Alle Versuche sind verbraucht. Prüfe dein Ziel und sende sie unten erneut.') . '</p><form method="post" action="/webhook/ack">' . csrf_field() . '<input type="hidden" name="business_id" value="' . (int)$b['id'] . '"><button class="btn ghost small">' . t('Als gesehen markieren') . '</button></form></div>' : '';
-    $list = $alert . ($list ? '<ul>' . $list . '</ul>' : '<p class="muted">' . t('Noch keine Webhooks.') . '</p>');
+    $list = '<p><a class="btn ghost" href="/business/'.(int)$b['id'].'/webhook-deliveries">Zustellliste und CSV-Metadaten</a></p>' . $alert . ($list ? '<ul>' . $list . '</ul>' : '<p class="muted">' . t('Noch keine Webhooks.') . '</p>');
 
     $eventBoxes = '';
     foreach (WEBHOOK_EVENTS as $key => $label) {

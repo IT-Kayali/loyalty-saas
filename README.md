@@ -326,3 +326,8 @@ Admins finden Status-, Prioritäts- und Kanalbezeichnungen auf Deutsch oder Engl
 ## Privates Queue-JSON für Plattform-Admins
 
 `GET /admin/health/json` ergänzt die vorhandene Versandübersicht um versioniertes JSON derselben Mail-/Webhook-Momentaufnahme. Gültige Betreiber-Session und aktuelle Plattform-Allowlist erforderlich, kein API-Bearer-Ersatz; privat/no-store, nur GET, generische Fehler ohne Teilzähler. `success` bestätigt nur das Lesen, keinen gesunden Betrieb. Geltungsbereich und ungeprüfte Bereiche stehen in jeder erfolgreichen Antwort. Keine Ampeln, Heartbeats, Providerverbindungen, neuen Versand-/Retry-Aktionen oder vollständige Referenzdiagnosen. HTML-Link bei 1280/390/320px geprüft. [Vertrag, Zugang und Grenzen](docs/ADMIN-HEALTH.md). Tests: `python3 tests/run-admin-health-json.py` mit 38 Domänen-, 81 HTTP-/Integrations- und 24 Browserprüfungen. Keine echte Provider-/Geräteabnahme.
+
+
+## Eigene Webhook-Zustellliste mit CSV
+
+Neue private, rein lesende Liste `/business/{id}/webhook-deliveries` mit exaktem Event-, Status-, Webhook- und UTC-Zeitraumfilter sowie 50er-Seiten. CSV exportiert alle passenden eigenen Metadaten, ohne Payload, Secret, Ziel-URL oder rohe Antwort. Feste sieben Spalten, maximal 5000 Zeilen/4 MiB/64 KiB je Zelle, sonst keine Teildatei. Fehlende Referenzmetadaten werden nicht erfunden; letzter gespeicherter Verarbeitungszeitpunkt ist kein Zustellnachweis. Rechte, sechs Versuche, manuelle Retries und Cron unverändert. Mobile Zeilenkarten bei 390/320px geprüft. [Vertrag, Filter, Grenzen und Tests](docs/WEBHOOK-LIST.md). Neue Suite: `python3 tests/run-webhook-list.py` mit 89 Domänen-, 72 HTTP-/Integrations- und 33 Browserprüfungen. Keine echte Provider-/Tabellenprogrammabnahme und keine volle Referenzparität.
