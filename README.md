@@ -43,7 +43,7 @@ Eigener Designer pro Programm mit Hintergrundfoto, Overlay und Emoji; Code-Gutsc
 
 ## Produktionsgrundlage und Planberechtigungen
 
-Die nächste Etappe ergänzt zentrale Planprüfungen über Betreiber, Staff, Join, REST-API und Shopify, Mengenlimits, sichere Sessions, Rate Limits sowie Backup/Restore. Aktivierung, geprüfte Grenzen und alle Betriebsbefehle: [docs/OPERATIONS.md](docs/OPERATIONS.md). Prüfung ist im Beispiel für lokale Demos weiterhin bewusst ausgeschaltet, `stripe.enforce_limits=true` schaltet sie ein.
+Die Anwendung enthält zentrale Planprüfungen über Betreiber, Staff, Join, REST-API und Shopify, Mengenlimits, sichere Sessions, Rate Limits sowie Backup/Restore. Aktivierung, geprüfte Grenzen und alle Betriebsbefehle: [docs/OPERATIONS.md](docs/OPERATIONS.md). Prüfung ist im Beispiel für lokale Demos weiterhin bewusst ausgeschaltet, `stripe.enforce_limits=true` schaltet sie ein.
 
 ## Aktueller Umfang
 
@@ -305,3 +305,7 @@ Jede authentifizierte Registrierung erhält einen neuen monotonen Stand, ohne be
 ## Ältere REST-Buchungen: Saldo und Journal gemeinsam
 
 Die drei bestehenden Punkte-/Stempel-POSTs lesen unter Schreiblock und schließen Saldo, Journal, Rollover sowie lokale Meilensteinbelege/Bonuspunkte/Inbox gemeinsam ab. Providerarbeit erst danach; eine dort geworfene Ausnahme meldet die bereits gebuchte Aktion nicht falsch als 500, sondern ergänzt eine sichere Warnung. Bestehende Betrags-/Auswahlregeln bleiben dokumentiert erhalten. Keine Idempotenzgarantie und keine genau-einmalige externe Zustellung, bei Timeout nicht blind wiederholen. [Geltungsbereich, Antworten und Grenzen](docs/LEGACY-API-CREDITS.md). Neue Prüfung: `python3 tests/run-api-credit.py` (34 Domänen- und 18 Integrationsfälle, echte parallele PHP-/HTTP-Aufrufe, erzwungene Rollbacks). Keine neue Oberfläche oder echte Providerabnahme.
+
+## API-/Shop-Mitglieder: atomare Anlage
+
+Mitgliedssuche, Neuanlage und alle aktuell aktiven Programmkarten schließen im gemeinsamen API-/Shop-Helfer unter Schreiblock ab. Bestehende Profile und Karten bleiben unverändert; leere E-Mail erzeugt weiterhin pro Aufruf ein neues Mitglied. Shopify behält seinen eigenen Integrationsplan. Ein danach geworfener Mitgliederereignisfehler lässt die erfolgreiche Anlage bestehen und ergänzt `warning=member_event_incomplete`. Keine globale E-Mail-Eindeutigkeit, historische Reparatur, vollständige Bestelltransaktion oder externe Genau-einmal-Zustellung. [Verhalten, Antworten und Grenzen](docs/API-MEMBER-UPSERT.md). Tests: `python3 tests/run-api-member-upsert.py` (21 Domänen- und 25 Integrationsfälle, echte parallele PHP-/HTTP-Aufrufe). Keine neue UI oder echte Providerabnahme.

@@ -512,31 +512,40 @@ function api_member_by_code(int $bid, string $code): ?array
 }
 
 /** Mitglied per E-Mail finden oder anlegen (Shop/POS-Bestellungen). */
-function api_member_upsert(int $bid, string $email, string $name): array
+function api_member_upsert(int $bid, string $email, string $name, string $feature='api', ?bool &$followUpWarning=null, ?callable $notify=null): array
 {
-    if ($email !== '') {
-        $stmt = db()->prepare('SELECT * FROM members WHERE business_id = ? AND lower(email) = lower(?)');
-        $stmt->execute([$bid, $email]);
-        $m = $stmt->fetch();
-        if ($m) {
-            return $m;
+    if(!in_array($feature,['api','integrations'],true))throw new InvalidArgumentException('Invalid member creation channel.');
+    $followUpWarning=false;$db=db();$db->exec('BEGIN IMMEDIATE');
+    try{
+        $q=$db->prepare('SELECT user_id FROM businesses WHERE id=?');$q->execute([$bid]);$uid=$q->fetchColumn();$q->closeCursor();
+        if($uid===false)throw new InvalidArgumentException('Unternehmen nicht gefunden.');
+        if(plan_policy((int)$uid,$feature)!==null)throw new RuntimeException('PLAN_RESTRICTED');
+        if ($email !== '') {
+            $stmt = $db->prepare('SELECT * FROM members WHERE business_id = ? AND lower(email) = lower(?)');
+            $stmt->execute([$bid, $email]);$m = $stmt->fetch();$stmt->closeCursor();
+            if ($m) {$db->exec('COMMIT');return $m;}
         }
-    }
-    db()->prepare('INSERT INTO members (business_id, name, email, code) VALUES (?,?,?,?)')
-        ->execute([$bid, $name !== '' ? $name : ($email !== '' ? $email : 'Kunde'), $email, member_code()]);
-    $mid = (int)db()->lastInsertId();
-    $programs = db()->prepare('SELECT * FROM programs WHERE business_id = ? AND active = 1');
-    $programs->execute([$bid]);
-    foreach ($programs->fetchAll() as $p) {
-        $uses = $p['type'] === 'voucher' ? (int)$p['uses_per_customer'] : null;
-        $visits = $p['type'] === 'pass' ? (int)$p['pass_visits'] : null;
-        db()->prepare('INSERT OR IGNORE INTO cards (program_id, member_id, uses_left, visits_left) VALUES (?,?,?,?)')
-            ->execute([$p['id'], $mid, $uses, $visits]);
-    }
-    fire_webhook($bid, 'member.joined', ['member_id' => $mid, 'name' => $name]);
-    $stmt = db()->prepare('SELECT * FROM members WHERE id = ?');
-    $stmt->execute([$mid]);
-    return $stmt->fetch();
+        $insert=$db->prepare('INSERT INTO members (business_id, name, email, code) VALUES (?,?,?,?)');
+        $insert->execute([$bid, $name !== '' ? $name : ($email !== '' ? $email : 'Kunde'), $email, member_code()]);
+        if($insert->rowCount()!==1)throw new RuntimeException('Member insert did not create a row.');
+        $mid = (int)$db->lastInsertId();
+        $programs = $db->prepare('SELECT * FROM programs WHERE business_id = ? AND active = 1');$programs->execute([$bid]);
+        $activePrograms=$programs->fetchAll();$programs->closeCursor();
+        foreach ($activePrograms as $p) {
+            $uses = $p['type'] === 'voucher' ? (int)$p['uses_per_customer'] : null;
+            $visits = $p['type'] === 'pass' ? (int)$p['pass_visits'] : null;
+            $insert=$db->prepare('INSERT INTO cards (program_id, member_id, uses_left, visits_left) VALUES (?,?,?,?)');
+            $insert->execute([$p['id'], $mid, $uses, $visits]);
+            if($insert->rowCount()!==1)throw new RuntimeException('Member card insert did not create a row.');
+        }
+        $stmt = $db->prepare('SELECT * FROM members WHERE id = ?');$stmt->execute([$mid]);$m=$stmt->fetch();$stmt->closeCursor();
+        if(!$m)throw new RuntimeException('Created member unavailable before commit.');
+        $db->exec('COMMIT');
+    }catch(Throwable $e){try{$db->exec('ROLLBACK');}catch(Throwable){}throw $e;}
+    // Never hold the local creation lock over provider work. Callback is for isolated tests only.
+    try{($notify ?? 'fire_webhook')($bid,'member.joined',['member_id'=>$mid,'name'=>$name]);}
+    catch(Throwable $e){$followUpWarning=true;error_log('Loyalty member creation follow-up '.get_class($e));}
+    return $m;
 }
 
 /** Punkte aus einem Umsatz gutschreiben (Shop/POS). Liefert gutgeschriebene Punkte. */
@@ -604,8 +613,9 @@ function route_api(string $path, string $method): never
         if ($name === '') {
             api_json(['error' => 'name ist erforderlich'], 422);
         }
-        $m = api_member_upsert($bid, strtolower(trim((string)($input['email'] ?? ''))), $name);
-        api_json(member_api_payload($m), 201);
+        $memberWarning=false;$m = api_member_upsert($bid, strtolower(trim((string)($input['email'] ?? ''))), $name,'api',$memberWarning);
+        $response=member_api_payload($m);if($memberWarning)$response['warning']='member_event_incomplete';
+        api_json($response, 201);
     }
 
     /* GET /api/v1/members/{code} */
@@ -638,13 +648,13 @@ function route_api(string $path, string $method): never
         if ($email === '') {
             api_json(['error' => 'email ist erforderlich (Mitglied wird sonst nicht gefunden/angelegt)'], 422);
         }
-        $m = api_member_upsert($bid, $email, $name);
+        $memberWarning=false;$m = api_member_upsert($bid, $email, $name,'api',$memberWarning);
         $credited = api_credit_order_points($b, (int)$m['id'], (int)round($total * 100), $reference);
         api_json([
             'member' => member_api_payload($m),
             'order' => ['total' => $total, 'currency' => $currency, 'reference' => $reference],
             'points_credited' => $credited,
-        ]);
+        ]+($memberWarning?['warning'=>'member_event_incomplete']:[]));
     }
 
     /* GET /api/v1/transactions */
@@ -679,7 +689,7 @@ function route_shopify_webhook(int $businessId): never
 {
     $b = db()->prepare('SELECT * FROM businesses WHERE id = ?');
     $b->execute([$businessId]);
-    $biz = $b->fetch();
+    $biz = $b->fetch();$b->closeCursor();
     header('Content-Type: application/json');
     if (!$biz || ($biz['shopify_secret'] ?? '') === '' || ($biz['shopify_secret'] ?? null) === null) {
         http_response_code(404);
@@ -709,9 +719,9 @@ function route_shopify_webhook(int $businessId): never
         echo json_encode(['ignored' => true, 'reason' => 'keine E-Mail in der Bestellung']);
         exit;
     }
-    $m = api_member_upsert($businessId, $email, $name);
+    $memberWarning=false;$m = api_member_upsert($businessId, $email, $name,'integrations',$memberWarning);
     $credited = api_credit_order_points($biz, (int)$m['id'], (int)round($total * 100), $reference);
-    echo json_encode(['ok' => true, 'member_code' => $m['code'], 'points_credited' => $credited]);
+    echo json_encode(['ok' => true, 'member_code' => $m['code'], 'points_credited' => $credited]+($memberWarning?['warning'=>'member_event_incomplete']:[]));
     exit;
 }
 

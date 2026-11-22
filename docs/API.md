@@ -20,6 +20,10 @@ Alle Antworten sind JSON. Fehler: `{"error": "..."}` mit passendem HTTP-Status (
 | GET | `/transactions` | Buchungsjournal |
 | GET | `/openapi.json` | OpenAPI-3-Spezifikation |
 
+## Mitgliederanlage und Wiederholungen
+
+Die drei API-/Shop-Eingänge für Mitgliedsanlage verwenden einen gemeinsamen Schreiblock für E-Mail-Suche, neue Mitgliedszeile und alle dabei aktiven Programmkarten. Bestehende Profile werden nicht überschrieben oder mit späteren Karten ergänzt. Leere E-Mail erzeugt im Mitglieder-REST-Pfad weiterhin jedes Mal ein neues Mitglied. Eine danach geworfene `member.joined`-Ausnahme ergänzt die erfolgreiche Antwort um `"warning":"member_event_incomplete"`. Nicht erneut anlegen, um die Warnung zu reparieren. Keine globale E-Mail-Eindeutigkeit und keine vollständige Bestelltransaktion: [API-MEMBER-UPSERT.md](API-MEMBER-UPSERT.md).
+
 ## Beispiele
 
 Punkte gutschreiben:
