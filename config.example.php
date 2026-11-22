@@ -81,11 +81,8 @@ return [
         'key_path'       => __DIR__ . '/data/apple/pass_key.pem',
         'key_password'   => '',          // Passwort des privaten Schlüssels (falls gesetzt)
         'wwdr_path'      => __DIR__ . '/data/apple/wwdr.pem',
-        // APNs-Push (für Pass-Updates als Mitteilung auf dem Sperrbildschirm):
-        'apns_key_id'    => '',          // 10-stellige Key-ID aus dem Developer-Portal
-        'apns_auth_key'  => __DIR__ . '/data/apple/AuthKey.p8',
-        'apns_topic'     => '',          // = pass_type_id
-        'apns_sandbox'   => false,       // true = api.sandbox.push.apple.com
+        // Explicit APNs activation. Production, pass certificate/key, no separate .p8 required.
+        'updates_enabled' => false,
     ],
 
     /* ---- Google Wallet -------------------------------------------

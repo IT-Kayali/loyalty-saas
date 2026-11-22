@@ -50,6 +50,8 @@ function wallet_message_readiness(string $provider): ?string
     if($provider!=='apple')return 'Anbieter ungültig.';
     if(!apple_wallet_ready())return 'Apple-Passsignatur ist nicht eingerichtet.';
     if(!(curl_version()['features'] & CURL_VERSION_HTTP2))return 'Apple-Push benötigt cURL mit HTTP/2.';
+    if(!apple_push_enabled_settings((array)config('apple_wallet',[])))return 'Apple-Updates sind serverseitig nicht freigegeben (apple_wallet.updates_enabled).';
+    if(!apple_push_ready())return 'Apple-Updates benötigen HTTPS und lesbare Pass-Signierdateien.';
     return null;
 }
 function wallet_message_fingerprint(array $v): string { return wallet_push_hash([$v['provider'],$v['header'],$v['body']]); }
@@ -105,26 +107,16 @@ function wallet_message_google(array $v,array $m,?callable $request=null,?string
 /** Official certificate-based pass update path, production APNs only, empty payload. */
 function wallet_message_apple_options(array $v): array
 {
-    return [CURLOPT_HTTP_VERSION=>CURL_HTTP_VERSION_2_0,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>'{}',CURLOPT_HTTPHEADER=>['apns-topic: '.config('apple_wallet.pass_type_id'),'apns-priority: 5','apns-expiration: '.strtotime($v['expires_at'].' UTC'),'Content-Type: application/json'],CURLOPT_SSLCERT=>(string)config('apple_wallet.cert_path'),CURLOPT_SSLKEY=>(string)config('apple_wallet.key_path'),CURLOPT_KEYPASSWD=>(string)config('apple_wallet.key_password',''),CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>8,CURLOPT_CONNECTTIMEOUT=>4];
+    return apple_pass_push_options(strtotime($v['expires_at'].' UTC'));
 }
-function wallet_message_apple(array $v,array $m,array $tokens): array
+function wallet_message_apple(array $v,array $m,array $tokens,?callable $send=null): array
 {
     if(!wallet_message_review_current($v))return ['state'=>'rejected','code'=>'apple_rejected'];
-    $multi=curl_multi_init();$handles=[];
-    foreach($tokens as $token){$h=curl_init('https://api.push.apple.com/3/device/'.rawurlencode($token));curl_setopt_array($h,wallet_message_apple_options($v));curl_multi_add_handle($multi,$h);$handles[]=[$h,$token];}
-    do{$status=curl_multi_exec($multi,$running);if($running&&curl_multi_select($multi,.25)===-1)usleep(10000);}while($running&&$status===CURLM_OK);
-    $accepted=0;$rejected=0;$unknown=0;
-    foreach($handles as [$h,$token]){
-        $http=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);
-        if($http===200)$accepted++;elseif($http>=400&&$http<500)$rejected++;else $unknown++;
-        $reply=json_decode((string)curl_multi_getcontent($h),true);
-        if(($http===410&&($reply['reason'] ?? '')==='Unregistered')||($http===400&&($reply['reason'] ?? '')==='BadDeviceToken'))db()->prepare('DELETE FROM pass_devices WHERE serial=? AND pass_type_id=? AND push_token=?')->execute([$m['code'],(string)config('apple_wallet.pass_type_id'),$token]);
-        curl_multi_remove_handle($multi,$h);curl_close($h);
-    }
-    curl_multi_close($multi);
-    if($accepted===count($tokens))return ['state'=>'accepted','code'=>'apple_accepted'];
-    if($accepted>0)return ['state'=>'partial','code'=>'apple_partial'];
-    return $unknown>0?['state'=>'unknown','code'=>'apple_unknown']:['state'=>'rejected','code'=>'apple_rejected'];
+    $counts=apple_pass_push_tokens($m['code'],$tokens,strtotime($v['expires_at'].' UTC'),$send);
+    $total=array_sum($counts);
+    if($total>0&&$counts['accepted']===$total)return ['state'=>'accepted','code'=>'apple_accepted'];
+    if($counts['accepted']>0)return ['state'=>'partial','code'=>'apple_partial'];
+    return $counts['unknown']>0?['state'=>'unknown','code'=>'apple_unknown']:['state'=>'rejected','code'=>'apple_rejected'];
 }
 function wallet_message_apple_field(array $member): array
 {

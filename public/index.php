@@ -21,6 +21,7 @@ require_once ROOT_DIR . '/app/inc/merchant.php';
 require_once ROOT_DIR . '/app/inc/analytics.php';
 require_once ROOT_DIR . '/app/inc/monthly-summary.php';
 require_once ROOT_DIR . '/app/inc/wallet.php';
+require_once ROOT_DIR . '/app/inc/wallet-apns.php';
 require_once ROOT_DIR . '/app/inc/wallet-nearby.php';
 require_once ROOT_DIR . '/app/inc/wallet-nearby-privacy.php';
 require_once ROOT_DIR . '/app/inc/wallet-push.php';

@@ -4,8 +4,8 @@ Die App erzeugt Wallet-Pässe komplett selbst (keine externen Dienste). Ohne Zug
 
 Du brauchst:
 
-- **Apple**: einen Apple-Developer-Account (99 $/Jahr, developer.apple.com)
-- **Google**: einen Google-Wallet-Issuer-Account (kostenlos, pay.google.com/business/console)
+- **Apple**: eine passende Apple-Developer-Mitgliedschaft; aktuelle Bedingungen im Developer-Portal prüfen
+- **Google**: einen Google-Wallet-Issuer-Account (pay.google.com/business/console)
 
 ---
 
@@ -36,20 +36,15 @@ openssl x509 -inform DER -in pass.cer -outform PEM -out pass_cert.pem
 
 ### 1.3 WWDR-Zwischenzertifikat
 
-Das **Apple Worldwide Developer Relations**-Zertifikat (G4) laden:
-[apple.com/certificateauthority](https://www.apple.com/certificateauthority/) → "Worldwide Developer Relations - G4 (Expiring 12/10/2030)" → als `AppleWWDRCAG4.cer` laden, dann:
+Das zum Passzertifikat passende **Apple Worldwide Developer Relations**-Zwischenzertifikat aus [Apples Zertifikatsübersicht](https://www.apple.com/certificateauthority/) laden. Aussteller und Zertifikatskette des eigenen Passzertifikats prüfen, nicht blind ein altes Zwischenzertifikat übernehmen. Eine geladene DER-Datei in PEM umwandeln:
 
 ```bash
-openssl x509 -inform DER -in AppleWWDRCAG4.cer -outform PEM -out wwdr.pem
+openssl x509 -inform DER -in AppleWWDR.cer -outform PEM -out wwdr.pem
 ```
 
-### 1.4 APNs-Schlüssel (für Push-Updates)
+### 1.4 APNs-Updates bewusst aktivieren
 
-Damit iPhone-Pässe sich bei Standänderungen selbst aktualisieren und eine Mitteilung auf dem Sperrbildschirm zeigen:
-
-1. Developer-Portal → **Keys → +** → **Apple Push Notifications service (APNs)** anhaken
-2. Key herunterladen → Datei `AuthKey_XXXXXXXXXX.p8` (nur einmal herunterladbar!)
-3. Die **Key-ID** (10 Zeichen) und deine **Team-ID** (oben rechts im Portal) notieren
+Die App nutzt für Passupdates dasselbe Passzertifikat und denselben privaten Schlüssel wie für die Signatur. Kein zusätzlicher p8-Schlüssel nötig. Passupdates verwenden ausschließlich Produktions-APNs, nicht den Sandbox-Server. HTTPS und cURL mit HTTP/2 sind erforderlich. Der neue Schalter `updates_enabled` bleibt zunächst `false`; erst nach Einrichtung und bewusster Entscheidung auf `true` setzen. Sichtbare Sperrbildschirm-Mitteilungen sind damit nicht garantiert. Bestehende Konfigurationen und die getrennte optionale Kundenwahl: [WALLET-APNS.md](WALLET-APNS.md).
 
 ### 1.5 Dateien ablegen und config.php füllen
 
@@ -57,7 +52,6 @@ Damit iPhone-Pässe sich bei Standänderungen selbst aktualisieren und eine Mitt
 data/apple/pass_cert.pem   # Schritt 1.2
 data/apple/pass_key.pem    # Schritt 1.2 (privater Schlüssel!)
 data/apple/wwdr.pem        # Schritt 1.3
-data/apple/AuthKey.p8      # Schritt 1.4
 ```
 
 ```php
@@ -69,10 +63,7 @@ data/apple/AuthKey.p8      # Schritt 1.4
     'key_path'       => __DIR__ . '/data/apple/pass_key.pem',
     'key_password'   => '',
     'wwdr_path'      => __DIR__ . '/data/apple/wwdr.pem',
-    'apns_key_id'    => 'XYZ9876543',
-    'apns_auth_key'  => __DIR__ . '/data/apple/AuthKey.p8',
-    'apns_topic'     => 'pass.deine.domain.loyalty',   // = pass_type_id
-    'apns_sandbox'   => false,
+    'updates_enabled' => false, // erst bewusst nach Einrichtung aktivieren
 ],
 ```
 
@@ -82,9 +73,10 @@ data/apple/AuthKey.p8      # Schritt 1.4
 
 - **Pass-Datei**: `/pass/apple/{CODE}.pkpass` baut das Pass-Paket live: `pass.json` (Stände, Farben, Logo aus dem Karten-Design), PNG-Bilder (GD), `manifest.json` (SHA1-Hashes), PKCS#7-Signatur mit deinem Pass-Zertifikat + WWDR.
 - **Registrierung**: iPhones melden sich danach am eingebauten PassKit-Web-Service unter `/api/pass/v1/...` an (Apple verlangt dafür **HTTPS mit gültigem Zertifikat** — hinter einem Reverse-Proxy wie Caddy oder nginx).
-- **Push-Updates**: Bei jedem Stempel/Punkt schickt die App eine APNs-Benachrichtigung (leerer Payload, Topic = Pass Type ID, ES256-signiertes JWT mit dem .p8-Key). Das iPhone holt sich dann das frische Pass vom Web-Service.
+- **Push-Updates**: Nur bei aktivierter Konfiguration gibt eine unterstützte Kartenaktion einen APNs-Abrufhinweis: leeres JSON, Topic = Pass Type ID, vorhandenes Passzertifikat/Schlüssel, HTTP/2 und Produktion. Das Gerät entscheidet über Abruf und Anzeige. Eine Konfigurationsprüfung beweist weder gültige Apple-Zertifikate noch Geräteempfang.
 
-Testen ohne iPhone: die `.pkpass`-Datei im Mac-Simulator (Xcode) oder auf einem iPhone per AirDrop/Mail öffnen. Ungültige Signatur = Zertifikat gehört nicht zur Pass Type ID oder WWDR falsch.
+Eine lokale Passdatei kann auf Aufbau und Signatur geprüft werden. Der Simulator ist kein Push-Testgerät. Produktionsabnahme braucht einen korrekt signierten installierten Pass und ein echtes Gerät. Eine ungültige Signatur kann unter anderem an unpassendem Zertifikat/Schlüssel oder einer falschen Zertifikatskette liegen.
+
 
 ---
 
@@ -151,8 +143,8 @@ Wallet-Nähe wird zusätzlich durch die separate, standardmäßig ausgeschaltete
 
 ## Optionale Betreiber-Mitteilungen
 
-Hinweise, getrennte Apple-/Google-Wahl und anpassbare Textvorlagen: [WALLET-PUSH.md](WALLET-PUSH.md). Einzelversand mit eigener Empfänger-/Textvorschau und ausdrücklicher Bestätigung ist lokal implementiert; standardmäßig bleibt `wallet_messages.enabled` aus. Reale Provider-/Geräteabnahme fehlt. Der neue Apple-Einzelversand verwendet das Passzertifikat, nicht den bisherigen p8-Kartenstandhelfer. Bestehende Kartenstand-Updates und Nähe-Relevanz sind eigene Pfade. Apple-Änderungsmitteilung ist kein beliebiger Pushalarm; Google-Nachricht braucht einen ausdrücklichen objektbezogenen Nachrichtenaufruf. NFC ist auf Nutzerwunsch nicht vorgesehen.
+Hinweise, getrennte Apple-/Google-Wahl und anpassbare Textvorlagen: [WALLET-PUSH.md](WALLET-PUSH.md). Einzelversand mit eigener Empfänger-/Textvorschau und ausdrücklicher Bestätigung ist lokal implementiert; standardmäßig bleibt `wallet_messages.enabled` aus. Reale Provider-/Geräteabnahme fehlt. Apple-Kartenstand und Einzelversand nutzen denselben Produktions-/Passzertifikatstransport, mit getrennter Freigabe: [WALLET-APNS.md](WALLET-APNS.md). Bestehende Kartenstand-Updates und Nähe-Relevanz sind eigene Pfade. Apple-Änderungsmitteilung ist kein beliebiger Pushalarm; Google-Nachricht braucht einen ausdrücklichen objektbezogenen Nachrichtenaufruf. NFC ist auf Nutzerwunsch nicht vorgesehen.
 
 ## PassKit-Update-Protokoll
 
-Geänderte Serien, Registrierungsvorsprung, dauerhafte Revisionen, private verschlüsselte Cursor, stabile ETags/Datumsprüfungen und Restore-Verhalten: [WALLET-UPDATES.md](WALLET-UPDATES.md). Der normale Passabruf ist lokal mit selbstsignierten Testdaten geprüft, nicht von Apple oder auf Geräten abgenommen. Der ältere p8-/Sandbox-Kartenstandhelfer ist weiterhin ein eigener, noch zu korrigierender Pfad; der neue optionale Einzelversand nutzt schon das Passzertifikat.
+Geänderte Serien, Registrierungsvorsprung, dauerhafte Revisionen, private verschlüsselte Cursor, stabile ETags/Datumsprüfungen und Restore-Verhalten: [WALLET-UPDATES.md](WALLET-UPDATES.md). Der normale Passabruf ist lokal mit selbstsignierten Testdaten geprüft, nicht von Apple oder auf Geräten abgenommen. Der gemeinsame Produktions-/Passzertifikatstransport ist lokal implementiert: [WALLET-APNS.md](WALLET-APNS.md). Die Stabilisierung bestehender Passauthentifizierung bei API-Schlüsselrotation ist noch eigene Codearbeit.

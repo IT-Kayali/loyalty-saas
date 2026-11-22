@@ -35,7 +35,7 @@ function pass_member(string $code): ?array
     return $m;
 }
 
-/** Einmaliges, stabiles Auth-Token fuer den PassKit-Web-Service. */
+/** Legacy-Passauthentifizierung am API-Schluessel; Rotationsgrenze: docs/WALLET-APNS.md. */
 function pass_auth_token(array $m): string
 {
     return hash_hmac('sha256', 'pass:' . $m['code'], (string)$m['api_key']);
@@ -181,9 +181,11 @@ function apple_wallet_ready(): bool
 
 function apple_push_ready(): bool
 {
-    return (string)config('apple_wallet.apns_key_id', '') !== ''
-        && is_file((string)config('apple_wallet.apns_auth_key', ''))
-        && (string)config('apple_wallet.apns_topic', '') !== '';
+    $settings=config('apple_wallet',[]);
+    return is_array($settings)&&apple_push_enabled_settings($settings)&&apple_wallet_ready()
+        &&parse_url(base_url(),PHP_URL_SCHEME)==='https'
+        &&function_exists('curl_init')&&(bool)(curl_version()['features']&CURL_VERSION_HTTP2)
+        &&is_readable((string)config('apple_wallet.cert_path'))&&is_readable((string)config('apple_wallet.key_path'));
 }
 
 function apple_pass_json(array $m): array
@@ -395,86 +397,17 @@ function route_pass_service(string $path, string $method): never
 /* APNs: Update-Push an registrierte Geraete                           */
 /* ------------------------------------------------------------------ */
 
-function apns_jwt(): string
+/** Balance refresh only. No optional text, customer-choice mutation or delivery receipt. */
+function apns_push_serial(string $serial,?callable $send=null): void
 {
-    $key = (string)file_get_contents((string)config('apple_wallet.apns_auth_key'));
-    $header = json_encode(['alg' => 'ES256', 'kid' => config('apple_wallet.apns_key_id')]);
-    $claims = json_encode(['iss' => config('apple_wallet.team_id'), 'iat' => time()]);
-    $data = rtrim(strtr(base64_encode($header), '+/', '-_'), '=') . '.'
-        . rtrim(strtr(base64_encode($claims), '+/', '-_'), '=');
-    openssl_sign($data, $sig, $key, OPENSSL_ALGO_SHA256);
-    /* DER -> raw r||s */
-    $sig = asn1_to_raw_ecdsa($sig);
-    return $data . '.' . rtrim(strtr(base64_encode($sig), '+/', '-_'), '=');
+    if(!apple_push_ready())return;
+    $query=db()->prepare('SELECT DISTINCT push_token FROM pass_devices WHERE serial=? AND pass_type_id=?');
+    $query->execute([$serial,(string)config('apple_wallet.pass_type_id')]);
+    $tokens=array_column($query->fetchAll(),'push_token');
+    if($tokens)apple_pass_push_tokens($serial,$tokens,time()+3600,$send);
 }
 
-function asn1_to_raw_ecdsa(string $der): string
-{
-    if (ord($der[0]) !== 0x30) {
-        return $der;
-    }
-    $pos = 2;
-    if (ord($der[1]) & 0x80) {
-        $pos = 3;
-    }
-    $parts = [];
-    for ($i = 0; $i < 2; $i++) {
-        $pos++; // 0x02
-        $len = ord($der[$pos++]);
-        $val = substr($der, $pos, $len);
-        $pos += $len;
-        $parts[] = str_pad(ltrim($val, "\x00"), 32, "\x00", STR_PAD_LEFT);
-    }
-    return $parts[0] . $parts[1];
-}
-
-/** Sendet einen stillen Update-Push fuer einen Pass (loest Neu-Download + Mitteilung aus). */
-function apns_push_serial(string $serial): void
-{
-    if (!apple_push_ready()) {
-        return;
-    }
-    $stmt = db()->prepare('SELECT push_token FROM pass_devices WHERE serial = ?');
-    $stmt->execute([$serial]);
-    $tokens = array_column($stmt->fetchAll(), 'push_token');
-    if (!$tokens) {
-        return;
-    }
-    $jwt = apns_jwt();
-    $host = config('apple_wallet.apns_sandbox') ? 'https://api.sandbox.push.apple.com' : 'https://api.push.apple.com';
-    $ch = curl_multi_init();
-    $handles = [];
-    foreach ($tokens as $token) {
-        $h = curl_init($host . '/3/device/' . rawurlencode($token));
-        curl_setopt_array($h, [
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => '{}',
-            CURLOPT_HTTPHEADER => [
-                'authorization: bearer ' . $jwt,
-                'apns-topic: ' . config('apple_wallet.apns_topic'),
-                'apns-push-type: background',
-            ],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 8,
-        ]);
-        curl_multi_add_handle($ch, $h);
-        $handles[] = $h;
-    }
-    do {
-        curl_multi_exec($ch, $running);
-        curl_multi_select($ch, 1);
-    } while ($running > 0);
-    foreach ($handles as $h) {
-        curl_multi_remove_handle($ch, $h);
-        curl_close($h);
-    }
-    curl_multi_close($ch);
-}
-
-/* ------------------------------------------------------------------ */
-/* Google Wallet                                                       */
-/* ------------------------------------------------------------------ */
+/* Google Wallet */
 
 function google_wallet_ready(): bool
 {
@@ -714,8 +647,10 @@ function wallet_pass_update_for_card(int $cardId): void
         return;
     }
     /* Apple: stiller Push, Geraet laedt den Pass neu (Mitteilung via changeMessage) */
-    apns_push_serial((string)$code);
-    /* Google: Objekt aktualisieren (Android zeigt Update-Mitteilung) */
+    try { apns_push_serial((string)$code); } catch (Throwable) {
+        /* A failed update signal must not break an already recorded card action. */
+    }
+    /* Google: Objekt aktualisieren, ohne behauptete Mitteilung oder Zustellung. */
     $m = pass_member((string)$code);
     if ($m) {
         try {

@@ -49,7 +49,7 @@ Die konkrete Hosting-Adresse, Kostenfreigabe, Prozess-/Proxykonfiguration, Daten
 | `app/inc/mail.php`, `recovery.php` | SMTP-Outbox, Einwilligung/Abmeldung, Textautomationen, einmalige Passwortresets |
 | `app/inc/billing.php`, `paypal.php` | Stripe-/PayPal-Abos, providergebundener Statusabgleich und Webhooks |
 | `app/inc/api.php`, `merchant.php` | REST/OpenAPI, Shop-Eingang, ausgehende Webhooks und neuer idempotenter Merchant-Pfad |
-| `app/inc/wallet.php`, `wallet-versions.php`, `qr.php` | Apple-/Google-Wallet, PassKit-Web-Service, technische Inhaltsrevisionen/Validatoren und QR-Ausgaben |
+| `app/inc/wallet.php`, `wallet-versions.php`, `wallet-apns.php`, `qr.php` | Apple-/Google-Wallet, PassKit-Web-Service, technische Inhaltsrevisionen/Validatoren und QR-Ausgaben |
 | `app/inc/organization.php` | Netzwerke eigener Unternehmen, Standorte und Teamrechte |
 | `app/inc/admin.php`, `analytics.php` | Plattformverwaltung, Basis-Audit und Auswertungen |
 | `integrations/woocommerce/` | WordPress-Händlerdashboard und optionaler WooCommerce-Bestellhook |
@@ -258,3 +258,8 @@ Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle 
 ## Apple-PassKit-Prüfstände
 
 `app/inc/wallet-versions.php` hält technische Inhaltsrevisionen, verschlüsselte gerätegebundene Cursor und HTTP-Validatoren. Die Cachemetadaten sind keine neue Betreiber-Schreibfunktion; sie müssen bei erlaubten Wallet-Leseabrufen auch ohne aktive Planbuchung konsistent fortgeschrieben werden können. Keine neue Guthaben-/Kampagnenfreigabe. Bei Rendereränderungen die Inhaltsformatkennung bewusst erhöhen. [WALLET-UPDATES.md](WALLET-UPDATES.md), Test: `python3 tests/run-pass-service.py`. `tools/backup.php` entwertet beim unterstützten Restore alte Cursor und leert den Prüfcache, nicht die Registrierungen oder Mitgliedsdaten. Native Geräte-/Signierabnahme bleibt offen.
+
+
+## Apple-APNs: gemeinsamer Zertifikatstransport
+
+Kartenstand und optionaler Einzelversand verwenden jetzt denselben Produktions-/Passzertifikatstransport. Neue Installationen bleiben mit `apple_wallet.updates_enabled => false` aus; alte Sandbox-Konfigurationen werden nicht still produktiv. Typ-/Serienabgrenzung, enge Tokenbereinigung, keine automatische Wiederholung und keine Unterbrechung bereits gebuchter Kartenaktionen durch Apple-Signalfehler. Die optionale Kundenwahl, Vorschau und Bestätigung bleiben getrennt nötig. [Einrichtung, Altconfig-Regeln und Grenzen](WALLET-APNS.md). Tests: `python3 tests/run-wallet-apns.py` (PHP/cURL mit HTTP/2; nur Ersatztransporte). Keine echte APNs-/Geräteabnahme. Noch eigene Codearbeit: bestehende Passauthentifizierung bei Business-API-Schlüsselrotation stabil halten.

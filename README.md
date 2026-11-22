@@ -285,3 +285,8 @@ Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle 
 ## Apple-PassKit: Update-Prüfung
 
 Dauerhafte Inhaltsrevisionen, gerätegebundene verschlüsselte Cursor und nur geänderte oder neu registrierte Serien. Unveränderte Listen liefern 204, Passabrufe unterstützen stabile ETags und vorsichtige Datumsvalidatoren mit 304. Der unterstützte Restore entwertet alte Prüfstände. Keine neue Pushzustellung und keine Geräteabnahme; der ältere Kartenstand-APNs-Helfer bleibt separat offen. [WALLET-UPDATES.md](docs/WALLET-UPDATES.md). Lokale Prüfung: `python3 tests/run-pass-service.py`.
+
+
+## Apple-APNs: gemeinsamer Zertifikatstransport
+
+Kartenstand und optionaler Einzelversand verwenden jetzt denselben Produktions-/Passzertifikatstransport. Neue Installationen bleiben mit `apple_wallet.updates_enabled => false` aus; alte Sandbox-Konfigurationen werden nicht still produktiv. Typ-/Serienabgrenzung, enge Tokenbereinigung, keine automatische Wiederholung und keine Unterbrechung bereits gebuchter Kartenaktionen durch Apple-Signalfehler. Die optionale Kundenwahl, Vorschau und Bestätigung bleiben getrennt nötig. [Einrichtung, Altconfig-Regeln und Grenzen](docs/WALLET-APNS.md). Tests: `python3 tests/run-wallet-apns.py` (PHP/cURL mit HTTP/2; nur Ersatztransporte). Keine echte APNs-/Geräteabnahme. Noch eigene Codearbeit: bestehende Passauthentifizierung bei Business-API-Schlüsselrotation stabil halten.
