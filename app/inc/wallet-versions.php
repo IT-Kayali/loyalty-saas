@@ -45,9 +45,13 @@ function apple_pass_register(string $device,string $type,string $serial,string $
     $db=db();$db->exec('BEGIN IMMEDIATE');
     try{
         $q=$db->prepare('SELECT id,registration_revision FROM pass_devices WHERE device_library_id=? AND pass_type_id=? AND serial=?');$q->execute([$device,$type,$serial]);$old=$q->fetch();
-        $revision=$old&&(int)$old['registration_revision']>0?(int)$old['registration_revision']:apple_pass_tick($db);
+        $generation=apple_pass_tick($db);
+        $revision=$old&&(int)$old['registration_revision']>0?(int)$old['registration_revision']:$generation;
         if(!pass_member($serial))throw new InvalidArgumentException('Pass nicht mehr vorhanden.');
-        $db->prepare('INSERT INTO pass_devices(device_library_id,pass_type_id,serial,push_token,registration_revision)VALUES(?,?,?,?,?) ON CONFLICT(device_library_id,pass_type_id,serial) DO UPDATE SET push_token=excluded.push_token,registration_revision=excluded.registration_revision')->execute([$device,$type,$serial,$token,$revision]);
+        // A separate monotonic registration fence changes even for an identical token.
+        // Keep the existing catch-up revision, row identity and original creation date.
+        $registeredAt=(int)floor(microtime(true)*1000);
+        $db->prepare('INSERT INTO pass_devices(device_library_id,pass_type_id,serial,push_token,registration_revision,registration_generation,registered_at_ms)VALUES(?,?,?,?,?,?,?) ON CONFLICT(device_library_id,pass_type_id,serial) DO UPDATE SET push_token=excluded.push_token,registration_revision=excluded.registration_revision,registration_generation=excluded.registration_generation,registered_at_ms=excluded.registered_at_ms')->execute([$device,$type,$serial,$token,$revision,$generation,$registeredAt]);
         $db->exec('COMMIT');return (bool)$old;
     }catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
 }

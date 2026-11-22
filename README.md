@@ -108,7 +108,7 @@ Nur für lokale Demos — vor Produktivbetrieb eigene Zugänge anlegen und die S
 | `default_lang` | `de` oder `en`; Nutzer können umschalten, `?lang=` setzt die Session |
 | `db_path` | SQLite-Pfad — **muss außerhalb des Document Root liegen** (Standard: `data/app.sqlite`) |
 | `webhook_allow_http` | Nur für lokale Entwicklung auf `true` |
-| `apple_wallet` | Pass Type ID, Zertifikate, APNs-Key → [docs/WALLET.md](docs/WALLET.md) |
+| `apple_wallet` | Pass Type ID, Zertifikate, Update-Aktivierung → [docs/WALLET.md](docs/WALLET.md) |
 | `google_wallet` | Issuer-ID, Service-Account-JSON → [docs/WALLET.md](docs/WALLET.md) |
 | `smtp` | Vorhandener optionaler Mailpfad. Produktive SMTP-Provider-Zustellung noch nicht abgenommen |
 | `stripe` | Secret Key, Webhook Secret, Plan-/Price-IDs und optionale Unternehmenslimits |
@@ -284,7 +284,7 @@ Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle 
 
 ## Apple-PassKit: Update-Prüfung
 
-Dauerhafte Inhaltsrevisionen, gerätegebundene verschlüsselte Cursor und nur geänderte oder neu registrierte Serien. Unveränderte Listen liefern 204, Passabrufe unterstützen stabile ETags und vorsichtige Datumsvalidatoren mit 304. Der unterstützte Restore entwertet alte Prüfstände. Keine neue Pushzustellung und keine Geräteabnahme; der ältere Kartenstand-APNs-Helfer bleibt separat offen. [WALLET-UPDATES.md](docs/WALLET-UPDATES.md). Lokale Prüfung: `python3 tests/run-pass-service.py`.
+Dauerhafte Inhaltsrevisionen, gerätegebundene verschlüsselte Cursor und nur geänderte oder neu registrierte Serien. Unveränderte Listen liefern 204, Passabrufe unterstützen stabile ETags und vorsichtige Datumsvalidatoren mit 304. Der unterstützte Restore entwertet alte Prüfstände. Keine neue Pushzustellung und keine Geräteabnahme; der inzwischen gemeinsame Kartenstand-/Einzelversand-Transport ist in [WALLET-APNS.md](docs/WALLET-APNS.md) beschrieben. [WALLET-UPDATES.md](docs/WALLET-UPDATES.md). Lokale Prüfung: `python3 tests/run-pass-service.py`.
 
 
 ## Apple-APNs: gemeinsamer Zertifikatstransport
@@ -295,3 +295,8 @@ Kartenstand und optionaler Einzelversand verwenden jetzt denselben Produktions-/
 ## Wallet-Zugänge bleiben bei API-Schlüsselrotation erhalten
 
 Private eigene Tabelle mit einmaliger atomarer Legacy-Übernahme und getrennten zufälligen Pass-/Bild-Token für neue Mitglieder. Ein neuer API-Schlüssel sperrt weiterhin den alten API-Bearer, aber nicht ungewollt installierte Apple-Pässe oder vorhandene Google-Stempelbild-Links. Eigentum, CSRF, Planregeln, Audit, Parallelität, Exportgrenzen und Backup/Restore lokal geprüft; keine echte Provider-/Geräteabnahme. Früher bereits verlorene Token bleiben ein gesonderter Altfall. [Migration und Sicherheitsgrenzen](docs/WALLET-AUTH.md). Tests: `python3 tests/run-wallet-auth.py`.
+
+
+## Apple-Registrierungen: Schutz vor verspäteten APNs-Fehlern
+
+Jede authentifizierte Registrierung erhält einen neuen monotonen Stand, ohne bestehende Zeilenkennung, Erstellungszeit oder Catch-up-Revision zu verlieren. APNs-Bereinigung verwendet den vor dem Versand festgehaltenen Prüfstand und entfernt keine währenddessen erneuerten, zusätzlichen oder neu angelegten Registrierungen. Bei 410 zusätzlich strenger Vergleich mit Apples Ungültigkeitszeitpunkt; unbekannte Legacy-Zeiten und nicht eindeutig geordnete Zeitwerte bleiben ohne Löschung. Additive Migration, kein Mischbetrieb alter/neuer Worker, keine neue Versandfreigabe. [Verfahren und Grenzen](docs/WALLET-REGISTRATION.md). Neue gezielte Suite: `python3 tests/run-wallet-registration.py` (78 Domänenprüfungen plus Upgrade mit sechs gleichzeitig gestarteten Prozessen). Keine echte APNs-/Geräteabnahme und keine neue Oberfläche.

@@ -58,7 +58,9 @@ $counts=apple_pass_push_tokens($serial,['malformed'],$expires,fn()=>false);yes($
 $calls=0;$counts=apple_pass_push_tokens($serial,[],$expires,function()use(&$calls){$calls++;});yes(array_sum($counts)===0&&$calls===0,'empty target set does not call transport');
 foreach([[400,'BadDeviceToken'],[400,'DeviceTokenNotForTopic'],[410,'Unregistered'],[410,'ExpiredToken']] as $i=>[$status,$reason]){
  $token='bad-'.$i;reg('target-'.$i,$type,$serial,$token);reg('target-duplicate-'.$i,$type,$serial,$token);reg('other-serial-'.$i,$type,'other-serial',$token);reg('other-type-'.$i,'pass.other.type',$serial,$token);
- $counts=apple_pass_push_tokens($serial,[$token],$expires,fn()=>['status'=>$status,'body'=>['reason'=>$reason]]);
+ $oldAt=(int)floor(microtime(true)*1000)-3000;
+ $db->prepare('UPDATE pass_devices SET registered_at_ms=? WHERE push_token=?')->execute([$oldAt,$token]);
+ $counts=apple_pass_push_tokens($serial,[$token],$expires,fn()=>['status'=>$status,'body'=>['reason'=>$reason,'timestamp'=>$oldAt+1000]]);
  yes($counts['rejected']===1&&countreg($type,$serial,$token)===0&&countreg($type,'other-serial',$token)===1&&countreg('pass.other.type',$serial,$token)===1,'invalid registration cleanup scoped to exact serial/type/token case'.$i);
 }
 reg('retain-auth',$type,$serial,'keep-auth');reg('retain-json',$type,$serial,'keep-json');

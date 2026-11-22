@@ -506,11 +506,13 @@ function init_schema(PDO $pdo): void
     ensure_column($pdo, 'businesses', 'wallet_push_settings', "TEXT NOT NULL DEFAULT '{}'");
     $walletColumns = array_column($pdo->query('PRAGMA table_info(pass_devices)')->fetchAll(), 'name');
     $walletTables = (int)$pdo->query("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('apple_pass_clock','apple_pass_versions')")->fetchColumn();
-    if (!in_array('registration_revision', $walletColumns, true) || $walletTables !== 2) {
+    if (!in_array('registration_revision', $walletColumns, true) || !in_array('registration_generation', $walletColumns, true) || !in_array('registered_at_ms', $walletColumns, true) || $walletTables !== 2) {
         // First concurrent requests must not race ALTER TABLE against each other.
         $pdo->exec('BEGIN IMMEDIATE');
         try {
             ensure_column($pdo, 'pass_devices', 'registration_revision', 'INTEGER NOT NULL DEFAULT 0');
+            ensure_column($pdo, 'pass_devices', 'registration_generation', 'INTEGER NOT NULL DEFAULT 0');
+            ensure_column($pdo, 'pass_devices', 'registered_at_ms', 'INTEGER NOT NULL DEFAULT 0');
             $pdo->exec("CREATE TABLE IF NOT EXISTS apple_pass_clock(id INTEGER PRIMARY KEY CHECK(id=1),generation TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 0 CHECK(revision>=0))");
             $pdo->prepare('INSERT OR IGNORE INTO apple_pass_clock(id,generation,revision)VALUES(1,?,0)')->execute([bin2hex(random_bytes(32))]);
             $pdo->exec("CREATE TABLE IF NOT EXISTS apple_pass_versions(member_id INTEGER PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,content_hash TEXT NOT NULL,revision INTEGER NOT NULL UNIQUE,modified_at INTEGER NOT NULL,date_highwater INTEGER NOT NULL,date_safe INTEGER NOT NULL DEFAULT 0 CHECK(date_safe IN (0,1)))");

@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory(prefix='loyalty-pass-service-') as temp:
  migration=[PHP,'-r',"require 'public/index.php';echo json_encode([array_column(db()->query('PRAGMA table_info(pass_devices)')->fetchAll(),'name'),db()->query('SELECT length(generation) FROM apple_pass_clock WHERE id=1')->fetchColumn(),db()->query('SELECT COUNT(*) FROM members')->fetchColumn()]);"]
  starters=[subprocess.Popen(migration,cwd=A,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True) for _ in range(4)]
  for starter in starters:
-  output,error=starter.communicate(timeout=15);assert starter.returncode==0,error;state=json.loads(output);assert 'registration_revision' in state[0] and state[1]==64 and state[2]==4,state
+  output,error=starter.communicate(timeout=15);assert starter.returncode==0,error;state=json.loads(output);assert {'registration_revision','registration_generation','registered_at_ms'}.issubset(state[0]) and state[1]==64 and state[2]==4,state
  check(True,'four concurrent upgrades preserve data and initialize one complete sync schema')
  code=r'''<?php
 require 'public/index.php';

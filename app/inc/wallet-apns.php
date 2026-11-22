@@ -18,14 +18,23 @@ function apple_pass_push_options(int $expires): array
         CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>8,CURLOPT_CONNECTTIMEOUT=>4,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSLVERSION=>CURL_SSLVERSION_TLSv1_2];
 }
 /** One attempt per distinct token. Responses never escape as raw provider text. */
-function apple_pass_push_result(string $serial,string $token,array $response,array &$counts): void
+function apple_pass_push_result(string $serial,string $token,array $response,array &$counts,array $fence): void
 {
     $status=(int)($response['status'] ?? 0);
     if($status===200)$counts['accepted']++;elseif($status>=400&&$status<500)$counts['rejected']++;else $counts['unknown']++;
-    $reason=$response['body']['reason'] ?? null;
-    if(($status===410&&in_array($reason,['Unregistered','ExpiredToken'],true))||($status===400&&in_array($reason,['BadDeviceToken','DeviceTokenNotForTopic'],true))){
-        db()->prepare('DELETE FROM pass_devices WHERE serial=? AND pass_type_id=? AND push_token=?')->execute([$serial,(string)config('apple_wallet.pass_type_id'),$token]);
-    }
+    $body=is_array($response['body'] ?? null)?$response['body']:[];
+    $reason=$body['reason'] ?? null;
+    $expirySql='';$params=[$serial,(string)config('apple_wallet.pass_type_id'),$token,(int)$fence['revision'],(string)$fence['generation']];
+    if($status===410&&in_array($reason,['Unregistered','ExpiredToken'],true)){
+        // APNs invalidation is epoch milliseconds, not the time this request failed.
+        // Unknown, future or equal-millisecond ordering must not erase a registration.
+        $invalidAt=$body['timestamp'] ?? null;
+        if(!is_int($invalidAt)||$invalidAt<=0||$invalidAt>(int)floor(microtime(true)*1000))return;
+        $expirySql=' AND registered_at_ms>0 AND registered_at_ms<?';$params[]=$invalidAt;
+    }elseif(!($status===400&&in_array($reason,['BadDeviceToken','DeviceTokenNotForTopic'],true)))return;
+    // One atomic predicate, with no transaction held over the network. A re-register
+    // always receives a newer fence, even on a changed-back token or a reinserted row.
+    db()->prepare('DELETE FROM pass_devices WHERE serial=? AND pass_type_id=? AND push_token=? AND registration_generation<=? AND EXISTS(SELECT 1 FROM apple_pass_clock WHERE id=1 AND generation=?)'.$expirySql)->execute($params);
 }
 /** Certificate-based production APNs. Callback exists only for isolated tests, never public config. */
 function apple_pass_push_tokens(string $serial,array $tokens,int $expires,?callable $send=null): array
@@ -37,16 +46,20 @@ function apple_pass_push_tokens(string $serial,array $tokens,int $expires,?calla
         $valid[]=$token;
     }
     if(!$valid)return $counts;
+    if($send===null&&!apple_push_ready()){$counts['rejected']+=count($valid);return $counts;}
+    // Snapshot the monotonic clock once before dispatch, not after a response.
+    // This bounds memory independently of duplicate registrations for one token.
+    $fence=db()->query('SELECT generation,revision FROM apple_pass_clock WHERE id=1')->fetch();
+    if(!$fence){$counts['unknown']+=count($valid);return $counts;}
     $options=apple_pass_push_options($expires);
     if($send!==null){
         foreach($valid as $token){
             try{$response=$send('https://api.push.apple.com/3/device/'.rawurlencode($token),$options);}
             catch(Throwable $e){$response=['status'=>0];}
-            apple_pass_push_result($serial,$token,is_array($response)?$response:['status'=>0],$counts);
+            apple_pass_push_result($serial,$token,is_array($response)?$response:['status'=>0],$counts,$fence);
         }
         return $counts;
     }
-    if(!apple_push_ready()){$counts['rejected']+=count($valid);return $counts;}
     foreach(array_chunk($valid,10) as $batch){
         $multi=curl_multi_init();$handles=[];
         try{
@@ -55,7 +68,7 @@ function apple_pass_push_tokens(string $serial,array $tokens,int $expires,?calla
             foreach($handles as [$h,$token]){
                 $raw=curl_multi_getcontent($h);$body=is_string($raw)?json_decode($raw,true):null;
                 $httpStatus=$status===CURLM_OK&&curl_errno($h)===0?(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE):0;
-                apple_pass_push_result($serial,$token,['status'=>$httpStatus,'body'=>is_array($body)?$body:[]],$counts);
+                apple_pass_push_result($serial,$token,['status'=>$httpStatus,'body'=>is_array($body)?$body:[]],$counts,$fence);
             }
         }finally{foreach($handles as [$h,$token]){curl_multi_remove_handle($multi,$h);curl_close($h);}curl_multi_close($multi);}
     }

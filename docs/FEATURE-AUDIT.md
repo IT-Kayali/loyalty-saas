@@ -184,3 +184,8 @@ Kartenstand und optionaler Einzelversand verwenden jetzt denselben Produktions-/
 ## Wallet-Zugänge bleiben bei API-Schlüsselrotation erhalten
 
 Private eigene Tabelle mit einmaliger atomarer Legacy-Übernahme und getrennten zufälligen Pass-/Bild-Token für neue Mitglieder. Ein neuer API-Schlüssel sperrt weiterhin den alten API-Bearer, aber nicht ungewollt installierte Apple-Pässe oder vorhandene Google-Stempelbild-Links. Eigentum, CSRF, Planregeln, Audit, Parallelität, Exportgrenzen und Backup/Restore lokal geprüft; keine echte Provider-/Geräteabnahme. Früher bereits verlorene Token bleiben ein gesonderter Altfall. [Migration und Sicherheitsgrenzen](WALLET-AUTH.md). Tests: `python3 tests/run-wallet-auth.py`.
+
+
+## Apple-Registrierungen: Schutz vor verspäteten APNs-Fehlern
+
+Jede authentifizierte Registrierung erhält einen neuen monotonen Stand, ohne bestehende Zeilenkennung, Erstellungszeit oder Catch-up-Revision zu verlieren. APNs-Bereinigung verwendet den vor dem Versand festgehaltenen Prüfstand und entfernt keine währenddessen erneuerten, zusätzlichen oder neu angelegten Registrierungen. Bei 410 zusätzlich strenger Vergleich mit Apples Ungültigkeitszeitpunkt; unbekannte Legacy-Zeiten und nicht eindeutig geordnete Zeitwerte bleiben ohne Löschung. Additive Migration, kein Mischbetrieb alter/neuer Worker, keine neue Versandfreigabe. [Verfahren und Grenzen](WALLET-REGISTRATION.md). Neue gezielte Suite: `python3 tests/run-wallet-registration.py` (78 Domänenprüfungen plus Upgrade mit sechs gleichzeitig gestarteten Prozessen). Keine echte APNs-/Geräteabnahme und keine neue Oberfläche.

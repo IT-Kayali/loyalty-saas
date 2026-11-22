@@ -35,7 +35,7 @@ Kartenstand und optionaler Versand wählen nur Registrierungen für **dieselbe S
 
 - HTTP 200: Signal von APNs angenommen, kein Beleg für Geräteabruf, Anzeige oder Empfang einer Mitteilung.
 - HTTP 4xx: abgewiesen. Andere Statuswerte sowie Netzwerk-/Transportfehler bleiben unklar.
-- Ungültige Registrierung: Nur die konkrete Kombination aus Seriennummer, konfigurierter Pass Type ID und betroffenem Token wird entfernt, bei 400 `BadDeviceToken`/`DeviceTokenNotForTopic` oder 410 `Unregistered`/`ExpiredToken`. Andere Pässe oder Pass Type IDs mit demselben Token bleiben erhalten.
+- Ungültige Registrierung: Nur die konkrete Kombination aus Seriennummer, konfigurierter Pass Type ID und betroffenem Token darf entfernt werden, bei 400 `BadDeviceToken`/`DeviceTokenNotForTopic` oder 410 `Unregistered`/`ExpiredToken`. Ein vor dem Versand festgehaltener monotoner Registrierungsstand schützt inzwischen auch zwischenzeitlich erneuerte, zusätzliche oder neu angelegte Registrierungen desselben Tokens. Bei 410 muss zusätzlich ein belastbarer APNs-Ungültigkeitszeitpunkt strikt nach der bekannten letzten Registrierung liegen. Unbekannte Legacy-Zeiten, gleiche Millisekunde, fehlende/falsch typisierte oder zukünftige Zeitwerte führen nicht zur Löschung. Andere Pässe oder Pass Type IDs mit demselben Token bleiben erhalten. [Details und Updateverfahren](WALLET-REGISTRATION.md).
 - Zertifikatsfehler und nicht erkannte Antwortgründe löschen keine Registrierung. Keine Rohantwort, Schlüsselbytes oder Gerätetoken landen im optionalen Ergebnisprotokoll.
 
 APNs und Wallet können Hinweise verzögern, zusammenfassen oder auslassen. Ein Passupdate und eine sichtbare Änderungsmitteilung sind verschiedene Dinge. Kein beliebiger Sperrbildschirmalarm und keine Zustellgarantie. Der Simulator ersetzt die echte Push-Abnahme nicht.
@@ -50,11 +50,11 @@ Die Suite benötigt PHP mit cURL/HTTP/2 für den positiven Bereitschaftstest. Si
 
 Für eine Abnahme müssen ein gültiger installierter Pass, ein erreichbarer HTTPS-Passdienst, passende Zertifikate und ein physisches Gerät zusammen geprüft werden. Dabei Erstinstallation, Registrierung, Standänderung, optionalen Feldwechsel, Ablauf, Geräteberechtigungen und Zertifikatserneuerung getrennt prüfen.
 
-## Noch eigene Arbeit
+## Ergänzende abgesicherte Etappen
 
 Die inzwischen eigene Etappe [WALLET-AUTH.md](WALLET-AUTH.md) erhält aktuelle Legacy-Zugangsdaten, trennt neue zufällige Wallet-Zugangsdaten vom API-Schlüssel und schützt auch bestehende Google-Stempelbild-Links bei Rotation. Das stellt keine früher bereits verlorenen Token wieder her.
 
-Auch eine erneute Registrierung mit identischem Token während einer laufenden APNs-Anfrage braucht noch einen eigenen Schutz gegen veraltete Fehlerantworten. Die aktuelle Bereinigung grenzt Seriennummer, Typ und Token ein, unterscheidet aber nicht zwei zeitlich aufeinanderfolgende Registrierungen mit derselben Kombination.
+Die eigene Etappe [WALLET-REGISTRATION.md](WALLET-REGISTRATION.md) schützt erneute Registrierungen auch mit identischem Token während einer laufenden APNs-Anfrage gegen veraltete Fehlerantworten. Additive Metadatenmigration, konservative 410-Zeitprüfung und kein Mischbetrieb alter/neuer Worker. Neue gezielte Prüfung: `python3 tests/run-wallet-registration.py`. Echte Provider-/Geräteabnahme bleibt offen.
 
 ## Quellen
 
