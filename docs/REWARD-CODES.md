@@ -32,7 +32,7 @@ Optional je Prämie (Programmseite, Abschnitt "Zeitfenster für Prämien"): Star
 
 - Kein Serientermin (z. B. jeden Freitag), nur ein einzelnes Fenster je Prämie.
 
-Tests: `python tests/run-claims.py` (66 Prüfungen, davon 26 im Browser).
+Tests: `python tests/run-claims.py` (74 HTTP-/Domänenprüfungen und 36 Browserprüfungen).
 
 ## Prämien-QR im Personal-Scanner
 
@@ -49,3 +49,5 @@ Testgrenze: Browser automatisiert mit simulierten Kameraframes und vorgegebenem 
 Die letzten 20 Codes stehen auf Desktop als Tabelle und bis 640 Pixel Breite als beschriftete Zeilenkarten (Code, Mitglied, Prämie, Status, Erzeugt). Status und Zeit bleiben so ohne seitliches Scrollen sichtbar. Das ändert weder Reihenfolge, Auswahl noch Berechtigungen. Keine Suche/Seitenwechsel und keine neue Exportfunktion. Browserprüfung Desktop/Mobil, keine echte Geräteabnahme.
 
 Prämiennamen und Punktekosten sind separat bearbeitbar. Bereits erzeugte Codes behalten ihre gespeicherten Namen/Kosten, neue Codes verwenden den aktuellen Stand. Zeitfenster werden weiterhin live geprüft. Siehe [REWARD-EDITOR.md](REWARD-EDITOR.md).
+
+Zeitfenster-Speichern prüft jetzt das bisherige UTC-Fenster und die aktuelle Eingabezeitzone unter Schreiblock. Alte Formulare ohne Prüfstand und nach Änderungen werden abgewiesen, Update/Audit sind atomar. Kein neuer Terminparser oder Serientermin. [REWARD-WINDOW.md](REWARD-WINDOW.md).

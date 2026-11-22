@@ -24,3 +24,5 @@ SQLite-Schreibtransaktion prüft Eigentümer, Plan und Prüfstand nochmals. Spei
 `python3 tests/run-reward-edit.py`: 39 HTTP-/Domänen- und 14 Chromiumprüfungen. Rechte, CSRF, Eingabegrenzen/Unicode/Arrays, feste IDs, unveränderte Zeitfenster, alte Tabs, Planlesezugriff, Audit-Rollback, zwei echte PHP-Schreiber und unveränderte Mitglieds-/Saldo-/Journal-/Code-/Mail-/Gerätedaten beim Bearbeiten. Ein vor Bearbeitung erzeugter Code löst danach zum alten Namen/Preis ein, ein neuer Code übernimmt den aktuellen Namen. Getrennte strikte Anlageprüfung. Browser prüft Desktop/Mobil, lange Namen in der Programmliste, Speichern und Zwei-Tab-Konflikt. Screenshots unter `/tmp/loyalty-reward-editor/`.
 
 Nur isolierte Wegwerfdaten. Kein echter Provider-/Geräte-/Lasttest, keine Änderung realer Kundenpunkte. Etappenregression: alle 45 weiteren Nicht-WordPress-`run-*.py`-Suiten grün. PHP-Lint und `git diff --check` sauber. WordPress-Echtumgebung nicht erneut geprüft.
+
+Der getrennte Fensterpfad besitzt ebenfalls Inhalts-/Zeitzonenprüfung und atomaren Audit, ohne Name/Kosten mitzuschreiben: [REWARD-WINDOW.md](REWARD-WINDOW.md).

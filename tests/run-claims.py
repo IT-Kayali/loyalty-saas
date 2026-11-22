@@ -131,7 +131,9 @@ with tempfile.TemporaryDirectory(prefix='loyalty-claims-') as temp:
   prog(0);create(M,ca,rid[0]);check(len([x for x in claims() if x['reward_id']==rid[0] and x['card_id']==ca])==1,'Nach Abschalten keine neuen Codes')
   # Zeitfenster je Prämie
   prog(30);P2=lambda:pts(cb)
-  def win(rw,f,u):return req('/reward/window',{'csrf':csrf(o,'/program/%d'%pid),'reward_id':rw,'valid_from':f,'valid_until':u},o)
+  def win(rw,f,u):
+   h=req('/program/%d'%pid,c=o)[1];revision=re.search(r'name="reward_id" value="'+str(rw)+r'"><input type="hidden" name="window_revision" value="([a-f0-9]+)"',h).group(1)
+   return req('/reward/window',{'csrf':csrf(o,'/program/%d'%pid),'reward_id':rw,'valid_from':f,'valid_until':u,'window_revision':revision},o)
   rwrow=lambda:json.loads(sql("$s=db()->prepare('SELECT valid_from,valid_until FROM rewards WHERE id=?');$s->execute([%d]);echo json_encode($s->fetch(PDO::FETCH_ASSOC));"%rid[1]))
   fmt=lambda d:time.strftime('%Y-%m-%dT%H:%M',time.gmtime(time.time()+d*60))
   check('Zeitfenster für Prämien' in req('/program/%d'%pid,c=o)[1],'Programmseite zeigt Zeitfenster-Formulare')

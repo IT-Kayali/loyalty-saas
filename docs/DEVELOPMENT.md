@@ -242,3 +242,7 @@ Private Prüfseite statt sofortigem Kreuz-Button, Bestätigung und Konfliktschut
 ## Punkteprämien-Editor
 
 Name und Punktekosten bestehender Prämien konfliktsicher bearbeiten, mit gemeinsamer strikter Anlageprüfung. Vorhandene Einlösecodes behalten ihre Name-/Kostensnapshots, keine Saldo-/Journaländerung beim Speichern: [REWARD-EDITOR.md](REWARD-EDITOR.md). Tests: `python3 tests/run-reward-edit.py`.
+
+## Konfliktsichere Prämien-Zeitfenster
+
+Bestehende Datumsfelder prüfen vor dem Speichern Fenster und Unternehmenszeitzone erneut. Keine stille Umdeutung alter Eingaben nach Zeitzonenwechsel, Update/Audit atomar. Bestehende Code-Snapshots und Salden bleiben unverändert: [REWARD-WINDOW.md](REWARD-WINDOW.md). Tests: `python3 tests/run-reward-window.py`.

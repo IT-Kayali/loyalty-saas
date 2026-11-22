@@ -296,25 +296,36 @@ function program_claims_form_html(array $p): string
         <a href="/business/' . (int)$p['business_id'] . '/claim-counter">Code an der Kasse einlösen</a></form>';
 }
 
-/** POST /reward/window: Zeitfenster einer Praemie setzen (Owner). */
+/** Content and effective input timezone, independent of reward name/cost editing. */
+function reward_window_revision(array $r,string $tz): string
+{
+    return hash('sha256',json_encode([(int)$r['id'],(int)$r['program_id'],$r['valid_from'],$r['valid_until'],$tz],JSON_THROW_ON_ERROR));
+}
+function reward_window_save(int $uid,int $id,array $input): int
+{
+    foreach(['valid_from','valid_until','window_revision'] as $key)if(!is_string($input[$key] ?? null))throw new InvalidArgumentException('Zeitfenster und Prüfstand als einzelne Werte angeben.');
+    $db=db();$db->exec('BEGIN IMMEDIATE');try{
+        $r=reward_owned($uid,$id);if(!$r)throw new InvalidArgumentException('Prämie nicht verfügbar.');
+        if(($err=plan_policy($uid,'programs'))!==null)throw new InvalidArgumentException($err);
+        $tz=reward_tz($r);
+        if(!hash_equals(reward_window_revision($r,$tz),$input['window_revision']))throw new InvalidArgumentException('Zeitfenster oder Unternehmenszeitzone wurde inzwischen geändert. Aktuellen Stand neu prüfen.');
+        $f=tz_input_to_utc($input['valid_from'],$tz);$to=tz_input_to_utc($input['valid_until'],$tz);
+        if($f===false||$to===false)throw new InvalidArgumentException('Datum ungültig.');
+        if($f!==null&&$to!==null&&$to<=$f)throw new InvalidArgumentException('Das Ende muss nach dem Start liegen.');
+        $db->prepare('UPDATE rewards SET valid_from=?,valid_until=? WHERE id=?')->execute([$f,$to,$id]);
+        audit_log($uid,'reward.window',['reward_id'=>$id,'program_id'=>(int)$r['program_id']]);$db->exec('COMMIT');return (int)$r['program_id'];
+    }catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
+}
+/** Existing POST requires a current form; missing revisions fail closed. */
 function route_reward_window(): never
 {
-    $u = require_login();
-    $q = db()->prepare('SELECT r.*, p.id AS pid FROM rewards r JOIN programs p ON p.id=r.program_id WHERE r.id=?');
-    $q->execute([(int)($_POST['reward_id'] ?? 0)]);
-    $r = $q->fetch();
-    $p = $r ? own_program((int)$u['id'], (int)$r['pid']) : null;
-    if (!$p) { flash(t('Ungültige Eingabe.'), 'err'); redirect('/dashboard'); }
-    $back = '/program/' . (int)$p['id'];
-    $tz = reward_tz($r);
-    $f = tz_input_to_utc((string)($_POST['valid_from'] ?? ''), $tz);
-    $to = tz_input_to_utc((string)($_POST['valid_until'] ?? ''), $tz);
-    if ($f === false || $to === false) { flash('Datum ungültig.', 'err'); redirect($back); }
-    if ($f !== null && $to !== null && $to <= $f) { flash('Das Ende muss nach dem Start liegen.', 'err'); redirect($back); }
-    db()->prepare('UPDATE rewards SET valid_from=?, valid_until=? WHERE id=?')->execute([$f, $to, $r['id']]);
-    audit_log((int)$u['id'], 'reward.window', ['reward_id' => (int)$r['id'], 'valid_from' => $f, 'valid_until' => $to]);
-    flash($f === null && $to === null ? 'Zeitfenster entfernt.' : 'Zeitfenster gespeichert (' . $tz . ').');
-    redirect($back);
+    $u=require_login();header('Cache-Control: private, no-store');$id=$_POST['reward_id'] ?? null;
+    if(!is_string($id)||!ctype_digit($id))not_found();
+    $r=reward_owned((int)$u['id'],(int)$id);if(!$r)not_found();
+    require_plan_write((int)$u['id'],'programs');
+    try{reward_window_save((int)$u['id'],(int)$id,$_POST);flash('Zeitfenster gespeichert. Bestehende Codes werden beim Einlösen weiter gegen das aktuelle Fenster geprüft. Keine Punktebuchung oder Nachricht ausgelöst.');}
+    catch(InvalidArgumentException $e){flash($e->getMessage(),'err');}
+    redirect('/program/'.(int)$r['program_id']);
 }
 
 function reward_windows_form_html(array $p): string
@@ -326,9 +337,9 @@ function reward_windows_form_html(array $p): string
     foreach ($q->fetchAll() as $r) {
         $v = fn($x) => $x ? h(tz_local((string)$x, $tz, 'Y-m-d\\TH:i')) : '';
         $now = reward_window_error($r);
-        $rows .= '<form method="post" action="/reward/window" class="form inline-form panel reward-window">' . csrf_field() . '<input type="hidden" name="reward_id" value="' . (int)$r['id'] . '"><strong>' . h($r['name']) . '</strong>'
+        $rows .= '<form method="post" action="/reward/window" class="form inline-form panel reward-window">' . csrf_field() . '<input type="hidden" name="reward_id" value="' . (int)$r['id'] . '"><input type="hidden" name="window_revision" value="'.reward_window_revision($r,$tz).'"><strong>' . h($r['name']) . '</strong><span class="muted reward-window-tz">Zeitzone: '.h($tz).'</span>'
             . '<label>Ab <input type="datetime-local" name="valid_from" value="' . $v($r['valid_from']) . '"></label><label>Bis <input type="datetime-local" name="valid_until" value="' . $v($r['valid_until']) . '"></label><button class="btn">Speichern</button>'
             . (reward_window_label($r) ? '<span class="muted">' . ($now ? 'Gerade nicht verfügbar' : 'Gerade verfügbar') . '</span>' : '') . '</form>';
     }
-    return $rows === '' ? '' : '<h2>Zeitfenster für Prämien</h2><p class="muted">Optional je Prämie: Einlösen und Codes nur zwischen Start und Ende. Zeiten in der Zeitzone des Unternehmens: ' . h($tz) . ' (änderbar auf der Unternehmensseite). Leer = immer. Ein Code läuft spätestens am Ende des Fensters ab.</p>' . $rows;
+    return $rows === '' ? '' : '<h2>Zeitfenster für Prämien</h2><p class="muted">Optional je Prämie: Einlösen und Codes nur zwischen Start und Ende. Zeiten in der Zeitzone des Unternehmens: ' . h($tz) . ' (änderbar auf der Unternehmensseite). Leer = immer. Ein Code läuft spätestens am Ende des Fensters ab. Speichern prüft das bisherige Fenster und die Unternehmenszeitzone erneut; nach einer Änderung neu laden. Name und Punktekosten bleiben unverändert. Neue Fenster gelten auch für die Prüfung bereits erzeugter Codes; deren gespeicherter Ablauf wird nicht verlängert.</p>' . $rows;
 }

@@ -16,3 +16,5 @@ Unternehmensseite, Abschnitt "Zeitzone" (`businesses.timezone`, Standard UTC, Au
 - Nur 18 Zeitzonen zur Auswahl. Zeiten in der Sommerzeit-Lücke (z. B. 02:30 am Umstellungstag) rutscht PHP vor, doppelte Zeiten im Herbst nimmt PHP die erste.
 - Keine Zeitzone je Mitglied, die Anzeige folgt dem Unternehmen.
 - Cron-Läufe und Wallet-Pässe sind unverändert.
+
+Prämien-Zeitfenster binden beim Speichern nun die effektive Eingabezeitzone an den geprüften Fensterstand. Eine nach Öffnen geänderte Unternehmenszeitzone erfordert Neuladen statt stiller Umdeutung alter Formulare. Kein neuer Zeitparser. [REWARD-WINDOW.md](REWARD-WINDOW.md).
