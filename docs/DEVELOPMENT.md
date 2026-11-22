@@ -51,7 +51,7 @@ Die konkrete Hosting-Adresse, Kostenfreigabe, Prozess-/Proxykonfiguration, Daten
 | `app/inc/api.php`, `merchant.php` | REST/OpenAPI, Shop-Eingang, ausgehende Webhooks und neuer idempotenter Merchant-Pfad |
 | `app/inc/wallet.php`, `wallet-versions.php`, `wallet-apns.php`, `wallet-auth.php`, `qr.php` | Apple-/Google-Wallet, PassKit-Web-Service, technische Inhaltsrevisionen/Validatoren und QR-Ausgaben |
 | `app/inc/organization.php` | Netzwerke eigener Unternehmen, Standorte und Teamrechte |
-| `app/inc/admin.php`, `analytics.php` | Plattformverwaltung, Basis-Audit und Auswertungen |
+| `app/inc/admin.php`, `admin-health.php`, `analytics.php` | Plattformverwaltung, lesender Versandzustand, Basis-Audit und Auswertungen |
 | `integrations/woocommerce/` | WordPress-Händlerdashboard und optionaler WooCommerce-Bestellhook |
 | `integrations/shopify/` | Shopify-Einrichtung des signierten Bestelleingangs |
 | `tools/` | Betreiber-CLI für Backup/Restore, Mail-Worker und PayPal-Abgleich |
@@ -282,3 +282,7 @@ Die drei bestehenden Punkte-/Stempel-POSTs lesen unter Schreiblock und schließe
 ## API-/Shop-Mitglieder: atomare Anlage
 
 Mitgliedssuche, Neuanlage und alle aktuell aktiven Programmkarten schließen im gemeinsamen API-/Shop-Helfer unter Schreiblock ab. Bestehende Profile und Karten bleiben unverändert; leere E-Mail erzeugt weiterhin pro Aufruf ein neues Mitglied. Shopify behält seinen eigenen Integrationsplan. Ein danach geworfener Mitgliederereignisfehler lässt die erfolgreiche Anlage bestehen und ergänzt `warning=member_event_incomplete`. Keine globale E-Mail-Eindeutigkeit, historische Reparatur, vollständige Bestelltransaktion oder externe Genau-einmal-Zustellung. [Verhalten, Antworten und Grenzen](API-MEMBER-UPSERT.md). Tests: `python3 tests/run-api-member-upsert.py` (21 Domänen- und 25 Integrationsfälle, echte parallele PHP-/HTTP-Aufrufe). Keine neue UI oder echte Providerabnahme.
+
+## Versandzustand für Plattform-Admins
+
+Neue rein lesende Seite `/admin/health`, im Admin-Dashboard verlinkt: aufbewahrte Mail-/Webhook-Zustände, fällige oder gesperrte Wiederholungen, unklare Ergebnisse und gültige UTC-Zeiten. Keine Empfänger oder Inhalte, kein Versand, kein Retry und kein behaupteter Cron-Heartbeat. Private GET-Ansicht nur für konfigurierte Plattform-Admins, Desktop und mobil geprüft. Wallet-Mitteilungen bleiben ausdrücklich außerhalb dieser Queueübersicht. [Zähler, Grenzen und Prüfung](ADMIN-HEALTH.md). Tests: `python3 tests/run-admin-health.py` mit 21 Domänen-, 25 Integrations-/HTTP- und 24 Browserprüfungen. Keine echte Provider- oder Produktionsabnahme.

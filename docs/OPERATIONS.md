@@ -41,6 +41,10 @@ Der gemeinsame API-/Shop-Mitgliederhelfer sichert inzwischen E-Mail-Suche, neue 
 
 Offen: vollständige Idempotency-Keys für jede Karten-/API-Aktion, umfassende Queue-/Retry-Verarbeitung aller Seiteneffekte und Lasttests. Die drei älteren direkten REST-Punkte-/Stempelpfade buchen inzwischen Saldo, Journal und lokale Meilensteine zusammen und wurden mit echten parallelen Prozessen und HTTP-Anfragen geprüft: [LEGACY-API-CREDITS.md](LEGACY-API-CREDITS.md). Sie bleiben ohne Idempotenzgarantie; andere API-Pfade und externe Folgearbeit sind damit nicht pauschal abgesichert.
 
+## Versandzustand prüfen
+
+Nur konfigurierte Plattform-Admins sehen unter `/admin/health` eine private GET-Momentaufnahme der gespeicherten Mail-/Webhook-Zustände. Die Seite zeigt fällige, noch gesperrte oder unklare Arbeit und auswertbare UTC-Zeiten, ohne Empfänger oder Inhalte auszugeben. Sie startet keinen Worker, wiederholt nichts und ersetzt weder Cron-Überwachung noch Providerprotokolle. `unknown` nicht blind erneut senden. Wallet-Einzelmitteilungen sind keine Retry-Queue und bleiben hier außerhalb. Zählerdefinitionen, genaue Zeitgrenzen und Tests: [ADMIN-HEALTH.md](ADMIN-HEALTH.md).
+
 ## Backup und Wiederherstellung
 
 Erfordert zusätzlich `ext-zip`. Nur per CLI, nie als HTTP-Route:

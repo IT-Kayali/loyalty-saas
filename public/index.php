@@ -33,6 +33,7 @@ require_once ROOT_DIR . '/app/inc/images.php';
 require_once ROOT_DIR . '/app/inc/billing.php';
 require_once ROOT_DIR . '/app/inc/paypal.php';
 require_once ROOT_DIR . '/app/inc/admin.php';
+require_once ROOT_DIR . '/app/inc/admin-health.php';
 require_once ROOT_DIR . '/app/inc/designer.php';
 require_once ROOT_DIR . '/app/inc/cardlayout.php';
 require_once ROOT_DIR . '/app/inc/vouchers.php';
@@ -105,6 +106,7 @@ try {
         (bool)preg_match('#^/ai/key/(\d+)$#D',$path,$aim) => route_ai_key((int)$aim[1],$method),
         (bool)preg_match('#^/ai/approval/([a-f0-9]{24})$#D',$path,$aim) => route_ai_approval($aim[1],$method),
         $path === '/billing' => route_billing($method),
+        $path === '/admin/health' => route_admin_health($method),
         $path === '/admin/audit' => route_admin_audit($method),
         $path === '/admin' => route_admin($method),
         $path === '/admin/export' => route_admin_export(),

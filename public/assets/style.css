@@ -585,3 +585,16 @@ main code { overflow-wrap: anywhere; word-break: break-all; }
 
 /* Optional Wallet messages: long operator texts remain readable on small screens. */
 .wallet-push-copy { overflow-wrap: anywhere; }
+
+/* Read-only platform delivery snapshot, labels stay beside their own counts. */
+.admin-links { display:flex; flex-wrap:wrap; gap:10px; }
+.health-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; align-items:start; }
+.health-grid h2 { margin-top:0; }
+.health-grid .panel { min-width:0; }
+.health-metrics { margin:20px 0; }
+.health-metrics > div { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:11px 0; border-bottom:1px solid var(--line); }
+.health-metrics dt { overflow-wrap:anywhere; }
+.health-metrics dd { margin:0; font-weight:650; font-variant-numeric:tabular-nums; text-align:right; }
+.health-time { padding:12px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.health-limits { margin-top:18px; }
+@media (max-width:640px) { .health-grid { grid-template-columns:minmax(0,1fr); } }
