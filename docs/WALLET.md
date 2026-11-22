@@ -119,7 +119,7 @@ data/google/service-account.json   # die heruntergeladene Datei
 ### 2.4 Wie es technisch läuft
 
 - **Hinzufügen**: `/pass/google/{CODE}` leitet auf einen `pay.google.com/gp/v/save/{JWT}`-Link weiter. Das JWT (RS256 mit dem Service-Account-Key signiert) enthält die komplette Pass-Klasse und das Objekt — die Klasse muss nicht vorab per API angelegt werden.
-- **Updates**: Bei Standänderungen ruft die App die Google-Wallet-REST-API auf (OAuth2-Zugriffstoken per JWT-Bearer-Flow, vorhandenes GenericObject per `PUT`, sonst Anlage). Dies ist kein belegter Versand einer optionalen Nachricht oder eine Empfangsbestätigung.
+- **Updates**: Bei Standänderungen ruft die App die Google-Wallet-REST-API auf (OAuth2-Zugriffstoken per JWT-Bearer-Flow, vorhandenes GenericObject per `PATCH`, sonst Anlage). Dies ist kein belegter Versand einer optionalen Nachricht oder eine Empfangsbestätigung.
 
 Hinweis: Für produktive Pässe verlangt Google teilweise eine Freigabe der Klasse; im Testmodus kannst du Pässe für Testnutzer deines Google-Kontos sofort speichern.
 
@@ -151,4 +151,4 @@ Wallet-Nähe wird zusätzlich durch die separate, standardmäßig ausgeschaltete
 
 ## Optionale Betreiber-Mitteilungen
 
-Hinweise, getrennte Apple-/Google-Wahl und anpassbare Textvorlagen: [WALLET-PUSH.md](WALLET-PUSH.md). Diese erste Etappe versendet noch nichts. Bestehende Kartenstand-Updates und Nähe-Relevanz sind eigene Pfade. Apple-Änderungsmitteilung ist kein beliebiger Pushalarm; Google-Nachricht braucht einen ausdrücklichen objektbezogenen Nachrichtenaufruf. NFC ist auf Nutzerwunsch nicht vorgesehen.
+Hinweise, getrennte Apple-/Google-Wahl und anpassbare Textvorlagen: [WALLET-PUSH.md](WALLET-PUSH.md). Einzelversand mit eigener Empfänger-/Textvorschau und ausdrücklicher Bestätigung ist lokal implementiert; standardmäßig bleibt `wallet_messages.enabled` aus. Reale Provider-/Geräteabnahme fehlt. Der neue Apple-Einzelversand verwendet das Passzertifikat, nicht den bisherigen p8-Kartenstandhelfer. Bestehende Kartenstand-Updates und Nähe-Relevanz sind eigene Pfade. Apple-Änderungsmitteilung ist kein beliebiger Pushalarm; Google-Nachricht braucht einen ausdrücklichen objektbezogenen Nachrichtenaufruf. NFC ist auf Nutzerwunsch nicht vorgesehen.

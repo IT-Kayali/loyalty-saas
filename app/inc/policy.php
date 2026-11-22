@@ -65,6 +65,7 @@ function install_plan_guards(PDO $pdo): void
     $card='(SELECT b.user_id FROM cards c JOIN programs p ON p.id=c.program_id JOIN businesses b ON b.id=p.business_id WHERE c.id=%s.card_id)';
     $rules=[
         'businesses'=>['%s.user_id','core','businesses'],
+        'wallet_push_deliveries'=>[$direct,'core',''],
         'networks'=>['%s.user_id','locations',''],
         'locations'=>[$direct,'locations',''],
         'programs'=>[$direct,'programs','programs'],

@@ -7,7 +7,7 @@ const {chromium}=require('playwright'),fs=require('fs');
   const c=await b.newContext({viewport}),p=await c.newPage();p.on('pageerror',e=>{throw e});
   await p.goto(U+'/login');await p.locator('[name=email]').fill('demo@loyalty.local');await p.locator('[name=password]').fill('demo1234');await p.locator('button').first().click();await p.waitForURL('**/dashboard');await p.goto(U+'/organization');await p.locator('a[href="/business/1/wallet-push"]').click();
   yes(await p.locator('h1').textContent()==='Wallet-Mitteilungen',label+': message settings open through organization');
-  yes((await p.locator('main').textContent()).includes('noch kein Versandweg'),label+': no-send stage is explicit');
+  yes((await p.locator('main').textContent()).includes('Hier gespeicherte Texte werden nicht an Wallet-Anbieter übertragen'),label+': template save is explicitly not a send');
   await p.locator('[name=extra]').fill('X'.repeat(500));await p.getByRole('button',{name:'Hinweise und Vorlagen speichern',exact:true}).click();await p.waitForLoadState();
   yes(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),label+': long operator notice wraps');
   await p.locator('[name=extra]').fill('Freiwillige wichtige Informationen zur Kundenkarte. Kein Werbeversand.');await p.locator('[name=apple_text]').fill('Heute gelten geänderte Einlösebedingungen. Bitte prüfe deine Karte.');await p.locator('[name=google_header]').fill('Wichtige Karteninformation');await p.locator('[name=google_body]').fill('Heute gelten geänderte Einlösebedingungen. Details stehen auf deiner Karte.');await p.getByRole('button',{name:'Hinweise und Vorlagen speichern',exact:true}).click();await p.waitForLoadState();

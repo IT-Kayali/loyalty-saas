@@ -446,6 +446,7 @@ function route_member_export(): never
             'marketing' => ['zugestimmt'=>(bool)$m['marketing_consent'],'zeit'=>$m['consent_at'],'quelle'=>$m['consent_source']],
             'geburtstag' => $m['birthday'],
             'wallet_mitteilungen' => wallet_push_export((int)$m['id']),
+            'wallet_mitteilungsversuche' => wallet_message_export((int)$m['id']),
             'wallet_naehe' => [
                 'zugestimmt'=>(bool)$m['wallet_nearby_consent'],
                 'bestaetigt_am'=>$m['wallet_nearby_granted_at'],

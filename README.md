@@ -280,4 +280,4 @@ Privater aggregierter CSV-Download für den ausgewählten UTC-Monat, ohne Mitgli
 
 ## Wallet-Mitteilungen: Wahl und Textvorlagen
 
-Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle Betreiberhinweise und getrennte Textvorlagen. Kein Versand in dieser Etappe, keine Werbefreigabe, keine Zustell- oder DSGVO-Zusage. Änderungen an Betreiberhinweisen oder Unternehmensname erfordern neue Bestätigung, Textvorlagen senden nichts. [WALLET-PUSH.md](docs/WALLET-PUSH.md). Tests: `python3 tests/run-wallet-push.py`. NFC ist auf Nutzerwunsch nicht vorgesehen.
+Eigene, zunächst ausgeschaltete Apple-/Google-Wahl je Mitgliedschaft, manuelle Betreiberhinweise und getrennte Textvorlagen. Zusätzlich getrennte Vorschau und ausdrücklich bestätigter Einzelpass-Versand mit standardmäßig ausgeschaltetem Server-Schalter. Keine Werbefreigabe, keine Zustell- oder DSGVO-Zusage. Änderungen an Betreiberhinweisen oder Unternehmensname erfordern neue Bestätigung, Textvorlagen senden nichts. [WALLET-PUSH.md](docs/WALLET-PUSH.md). Tests: `python3 tests/run-wallet-push.py` und `python3 tests/run-wallet-message.py`. NFC ist auf Nutzerwunsch nicht vorgesehen.

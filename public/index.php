@@ -24,6 +24,8 @@ require_once ROOT_DIR . '/app/inc/wallet.php';
 require_once ROOT_DIR . '/app/inc/wallet-nearby.php';
 require_once ROOT_DIR . '/app/inc/wallet-nearby-privacy.php';
 require_once ROOT_DIR . '/app/inc/wallet-push.php';
+require_once ROOT_DIR . '/app/inc/wallet-push-delivery.php';
+require_once ROOT_DIR . '/app/inc/wallet-push-ui.php';
 require_once ROOT_DIR . '/app/inc/images.php';
 require_once ROOT_DIR . '/app/inc/billing.php';
 require_once ROOT_DIR . '/app/inc/paypal.php';
@@ -177,6 +179,7 @@ try {
         $path==='/member/password' => route_member_password($method),
         $path==='/member/wallet-nearby' => route_member_wallet_nearby($method),
         $path==='/member/wallet-push' => route_member_wallet_push($method),
+        preg_match('#^/business/(\d+)/wallet-message$#D',$path,$m)===1 => route_wallet_message((int)$m[1],$method),
         preg_match('#^/business/(\d+)/wallet-push$#D',$path,$m)===1 => route_wallet_push_settings((int)$m[1],$method),
         preg_match('#^/business/(\d+)/wallet-nearby-notice$#D',$path,$m)===1 => route_wallet_nearby_notice((int)$m[1],$method),
         $path==='/member/preferences' => route_member_preferences($method),
@@ -736,6 +739,7 @@ function route_member(int $id): never
     $body = '<p><a href="/business/' . (int)$b['id'] . '" class="muted">← ' . h($b['name']) . '</a></p>
       <h1>' . h($m['name']) . '</h1>
       <p class="muted">' . h($m['email']) . ' · ' . t('Kundenkarte') . ': <a href="/c/' . h($m['code']) . '" target="_blank">/c/' . h($m['code']) . '</a></p>'
+      . '<p><a href="/business/'.(int)$b['id'].'/wallet-message?member_id='.$id.'">Wallet-Mitteilung für dieses Mitglied prüfen</a></p>'
       . member_panels($id, $programs->fetchAll(), '/card');
 
     page($m['name'], $body, $u, $b['brand_color']);

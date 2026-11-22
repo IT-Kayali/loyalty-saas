@@ -210,6 +210,7 @@ function apple_pass_json(array $m): array
                 'changeMessage' => t('Neuer Stand: %@'),
             ]],
             'secondaryFields' => $secondary,
+            'backFields' => [wallet_message_apple_field($m)],
             'auxiliaryFields' => [[
                 'key' => 'member',
                 'label' => mb_strtoupper(t('Mitglied')),
@@ -506,12 +507,8 @@ function google_pass_payload(array $m): array
         };
         $modules[] = ['header' => $c['program_name'], 'body' => $val, 'id' => 'prog' . (int)$c['program_id']];
     }
-    $class = [
-        'id' => google_class_id(),
-        'genericType' => 'GENERIC_TYPE_UNSPECIFIED',
-        'issuerName' => $m['business_name'],
-        'hexBackgroundColor' => $d['bg_color'],
-    ];
+    // GenericClass is neutral; branding/type fields are defined on GenericObject only.
+    $class = ['id' => google_class_id()];
     $object = [
         'id' => google_object_id($m),
         'classId' => google_class_id(),
@@ -528,7 +525,6 @@ function google_pass_payload(array $m): array
         'merchantLocations' => wallet_member_locations($m),
     ];
     if ($logoUri) {
-        $class['logo'] = ['sourceUri' => ['uri' => $logoUri]];
         $object['logo'] = ['sourceUri' => ['uri' => $logoUri]];
     }
     if ($d['stamp_image'] !== '') {
@@ -540,7 +536,10 @@ function google_pass_payload(array $m): array
 
 function google_service_account(): array
 {
-    return json_decode((string)file_get_contents((string)config('google_wallet.service_account_json')), true) ?: [];
+    $path=(string)config('google_wallet.service_account_json','');
+    if(!is_file($path)||!is_readable($path))return [];
+    $value=json_decode((string)file_get_contents($path),true);
+    return is_array($value)?$value:[];
 }
 
 function jwt_rs256(array $payload, string $key): string
@@ -586,13 +585,21 @@ function route_pass_google(string $code): never
     redirect(google_save_link($m));
 }
 
+/** A token belongs to the exact configured account file, never merely its cache path. */
+function google_token_cache_usable(array $cache,string $accountHash,int $now): bool
+{
+    return $accountHash!==''&&is_string($cache['account_hash'] ?? null)&&hash_equals($accountHash,$cache['account_hash'])&&is_string($cache['token'] ?? null)&&$cache['token']!==''&&is_numeric($cache['expires'] ?? null)&&(int)$cache['expires']>$now+60;
+}
 /* Google Wallet REST API: Access Token (Service Account, gecacht) */
 function google_access_token(): ?string
 {
     $cacheFile = (string)config('upload_dir', ROOT_DIR . '/data') . '/google_token.json';
+    $path=(string)config('google_wallet.service_account_json','');
+    if(!is_file($path)||!is_readable($path))return null;
+    $accountHash=hash_file('sha256',$path);if($accountHash===false)return null;
     if (is_file($cacheFile)) {
         $c = json_decode((string)file_get_contents($cacheFile), true);
-        if (($c['expires'] ?? 0) > time() + 60) {
+        if (is_array($c)&&google_token_cache_usable($c,$accountHash,time())) {
             return $c['token'];
         }
     }
@@ -612,10 +619,22 @@ function google_access_token(): ?string
         'assertion' => $jwt,
     ]), ['Content-Type: application/x-www-form-urlencoded']);
     $token = $resp['body']['access_token'] ?? null;
-    if ($token) {
-        @file_put_contents($cacheFile, json_encode(['token' => $token, 'expires' => time() + 3500]));
+    if (!is_string($token)||$token==='')return null;
+    $temporary=@tempnam(dirname($cacheFile),'.wallet-token-');
+    if($temporary!==false){
+        @chmod($temporary,0600);
+        $ttl=max(0,min(3500,(int)($resp['body']['expires_in'] ?? 3600)-60));
+        $written=file_put_contents($temporary,json_encode(['token'=>$token,'expires'=>time()+$ttl,'account_hash'=>$accountHash]));
+        if($written!==false&&@rename($temporary,$cacheFile))@chmod($cacheFile,0600);
+        if(is_file($temporary))unlink($temporary);
     }
     return $token;
+}
+
+/** Explicit null clears our removed images; omitted provider fields stay untouched. */
+function google_object_patch(array $object): array
+{
+    return $object + ['logo' => null, 'heroImage' => null];
 }
 
 /** Erstellt/aktualisiert das Wallet-Objekt, kein optionaler Nachrichten- oder Empfangsnachweis. */
@@ -632,12 +651,12 @@ function google_update_object(array $m): void
     $auth = ['Authorization: Bearer ' . $token, 'Content-Type: application/json'];
     /* Klasse idempotent anlegen (existiert meist schon -> 409 ignorieren) */
     http_post_json('https://walletobjects.googleapis.com/walletobjects/v1/genericClass', json_encode($p['class'], JSON_UNESCAPED_SLASHES), $auth);
-    /* Objekt: erst lesen, dann PUT (Update) oder POST (Create) */
+    /* Objekt: PATCH erhaelt fremde Felder/Nachrichten, POST nur nach echtem 404 */
     $id = rawurlencode($p['object']['id']);
     $get = http_get_json('https://walletobjects.googleapis.com/walletobjects/v1/genericObject/' . $id, $auth);
     if (($get['status'] ?? 0) === 200) {
-        http_request_json('PUT', 'https://walletobjects.googleapis.com/walletobjects/v1/genericObject/' . $id, json_encode($p['object'], JSON_UNESCAPED_SLASHES), $auth);
-    } else {
+        http_request_json('PATCH', 'https://walletobjects.googleapis.com/walletobjects/v1/genericObject/' . $id, json_encode(google_object_patch($p['object']), JSON_UNESCAPED_SLASHES), $auth);
+    } elseif (($get['status'] ?? 0) === 404) {
         http_post_json('https://walletobjects.googleapis.com/walletobjects/v1/genericObject', json_encode($p['object'], JSON_UNESCAPED_SLASHES), $auth);
     }
 }

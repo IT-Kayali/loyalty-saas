@@ -67,6 +67,10 @@ return [
      * Setup-Anleitung: docs/WALLET.md
      * Ohne diese Werte antwortet der Apple-Pass-Endpunkt mit HTTP 501.
      * -------------------------------------------------------------- */
+    // Optional issuer messages require explicit owner confirmation and a current customer choice.
+    // Enable only after provider/device acceptance. Existing balance updates use their own path.
+    'wallet_messages' => ['enabled' => false],
+
     'apple_wallet' => [
         'team_id'        => '',          // Apple Developer Team-ID (10 Zeichen)
         'pass_type_id'   => '',          // z.B. pass.de.example.loyalty
